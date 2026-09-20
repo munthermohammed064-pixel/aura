@@ -336,9 +336,8 @@ export default function Admin() {
     return (
       <main className="grid min-h-[80vh] place-items-center px-4">
         <GlassCard className="w-full max-w-sm">
-          <p className="mb-1 text-center font-display text-lg">{t("admin")}</p>
-          <form onSubmit={adminLogin} className="mt-4 space-y-3">
-            <input className="input font-mono" placeholder={t("admin_id")} required autoComplete="off"
+          <form onSubmit={adminLogin} className="space-y-3">
+            <input className="input font-mono" placeholder="ID" required autoComplete="off"
               value={loginForm.id} onChange={(e) => setLoginForm({ ...loginForm, id: e.target.value })} />
             <input className="input" type="password" placeholder={t("password")} required autoComplete="current-password"
               value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
