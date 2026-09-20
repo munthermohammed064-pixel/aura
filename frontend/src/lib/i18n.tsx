@@ -365,6 +365,8 @@ const dict: Record<string, D> = {
   answer: { en: "Answer", ar: "الجواب", es: "Respuesta", fr: "Réponse", tr: "Cevap", ru: "Ответ", de: "Antwort" },
   add_item: { en: "+ Add item", ar: "+ إضافة سؤال", es: "+ Añadir", fr: "+ Ajouter", tr: "+ Ekle", ru: "+ Добавить", de: "+ Hinzufügen" },
   remove: { en: "Remove", ar: "حذف", es: "Eliminar", fr: "Supprimer", tr: "Kaldır", ru: "Удалить", de: "Entfernen" },
+  account: { en: "Account", ar: "الحساب", es: "Cuenta", fr: "Compte", tr: "Hesap", ru: "Аккаунт", de: "Konto" },
+  prize: { en: "Prize", ar: "جائزة", es: "Premio", fr: "Prix", tr: "Ödül", ru: "Приз", de: "Prämie" },
   legal_texts: { en: "Legal texts", ar: "النصوص القانونية", es: "Textos legales", fr: "Textes légaux", tr: "Hukuki metinler", ru: "Юридические тексты", de: "Rechtstexte" },
   terms_text: { en: "Terms of service", ar: "شروط الاستخدام", es: "Términos de servicio", fr: "Conditions d'utilisation", tr: "Kullanım şartları", ru: "Условия использования", de: "Nutzungsbedingungen" },
   privacy_text: { en: "Privacy policy (incl. risk disclosure)", ar: "سياسة الخصوصية (تشمل إفصاح المخاطر)", es: "Política de privacidad (incluye riesgos)", fr: "Politique de confidentialité (incl. risques)", tr: "Gizlilik politikası (risk dahil)", ru: "Политика конфиденциальности (вкл. риски)", de: "Datenschutz (inkl. Risikohinweis)" },
@@ -511,7 +513,7 @@ const dict: Record<string, D> = {
   admin_only: { en: "Admin access required.", ar: "هذه الصفحة للأدمن فقط.", es: "Se requiere acceso de administrador.", fr: "Accès administrateur requis.", tr: "Yönetici erişimi gerekli.", ru: "Требуется доступ администратора.", de: "Administratorzugriff erforderlich." },
 };
 
-const LangCtx = createContext<{ lang: Lang; setLang: (l: Lang) => void; t: (k: string) => string }>({
+const LangCtx = createContext<{ lang: Lang; setLang: (l: Lang) => void; t: (k: string, params?: Record<string, unknown>) => string }>({
   lang: "en", setLang: () => {}, t: (k) => k,
 });
 
@@ -533,7 +535,16 @@ export function LangProvider({ children }: { children: ReactNode }) {
     document.documentElement.dir = RTL.includes(l) ? "rtl" : "ltr";
   };
 
-  const t = (k: string) => dict[k]?.[lang] ?? dict[k]?.en ?? k;
+  const t = (k: string, params?: Record<string, unknown>) => {
+    let s: string = dict[k]?.[lang] ?? dict[k]?.en ?? k;
+    if (params) for (const [pk, v] of Object.entries(params)) {
+      const val = typeof v === "number" && /amount/i.test(pk)
+        ? `$${v.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+        : String(v);
+      s = s.replaceAll(`{${pk}}`, val);
+    }
+    return s;
+  };
 
   return <LangCtx.Provider value={{ lang, setLang, t }}>{children}</LangCtx.Provider>;
 }

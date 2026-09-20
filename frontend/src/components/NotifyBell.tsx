@@ -4,10 +4,28 @@ import { useEffect, useRef, useState } from "react";
 import { api, API_URL, getToken } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 
-type Item = { id: string; title: string; body: string; read: boolean; created_at: string | null };
+type Item = {
+  id: string; kind: string | null; params: Record<string, unknown>;
+  title: string; body: string; read: boolean; created_at: string | null;
+};
+
+const CATEGORY: [RegExp, string][] = [
+  [/deposit/, "deposits"],
+  [/withdrawal/, "withdrawals"],
+  [/investment/, "investments"],
+  [/invitation/, "prize"],
+  [/ticket/, "support"],
+  [/star|balance|address|welcome/, "account"],
+];
+
+function categoryOf(kind: string | null): string {
+  if (!kind) return "account";
+  for (const [re, cat] of CATEGORY) if (re.test(kind)) return cat;
+  return "account";
+}
 
 export function NotifyBell() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [items, setItems] = useState<Item[]>([]);
@@ -63,6 +81,25 @@ export function NotifyBell() {
     setItems((xs) => xs.map((x) => ({ ...x, read: true })));
   };
 
+  const text = (n: Item): string => {
+    if (n.kind) {
+      const key = `n_${n.kind}`;
+      const v = t(key, n.params);
+      if (v !== key) return v;
+    }
+    return n.body || n.title || "";
+  };
+
+  const when = (iso: string | null) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const diff = Date.now() - d.getTime();
+    if (diff < 60_000) return "·";
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
+    return d.toLocaleDateString(lang);
+  };
+
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen(!open)} aria-label={t("notifications")}
@@ -96,8 +133,14 @@ export function NotifyBell() {
                   setUnread((u) => Math.max(0, u - (n.read ? 0 : 1)));
                 }).catch(() => {})}
                 className={`block w-full rounded-xl px-3 py-2.5 text-start transition hover:bg-white/5 ${n.read ? "opacity-50" : ""}`}>
-                <p className="text-xs font-medium">{n.title}</p>
-                <p className="mt-0.5 line-clamp-2 text-[11px] text-muted">{n.body}</p>
+                <span className="mb-0.5 flex items-center gap-2">
+                  {!n.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />}
+                  <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent/80">
+                    {t(categoryOf(n.kind))}
+                  </span>
+                  <span className="ms-auto text-[9px] text-muted">{when(n.created_at)}</span>
+                </span>
+                <p className="text-[11px] leading-relaxed text-white/85">{text(n)}</p>
               </button>
             ))}
           </div>
