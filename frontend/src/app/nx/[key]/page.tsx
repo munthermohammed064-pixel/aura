@@ -841,6 +841,16 @@ export default function Admin() {
                   <input className="input" value={String(settings.platform?.name ?? "")}
                     onChange={(e) => updSetting("platform", { name: e.target.value })} />
                 </div>
+                <div>
+                  <label className="mb-1 block text-xs text-muted">{t("default_lang")}</label>
+                  <select className="input" value={String(settings.platform?.default_lang ?? "en")}
+                    onChange={(e) => updSetting("platform", { default_lang: e.target.value })}>
+                    {[["en", "English"], ["ar", "العربية"], ["es", "Español"], ["fr", "Français"],
+                      ["tr", "Türkçe"], ["ru", "Русский"], ["de", "Deutsch"]].map(([c, l]) => (
+                      <option key={c} value={c}>{l}</option>
+                    ))}
+                  </select>
+                </div>
                 <label className="flex items-end gap-2 pb-1.5 text-sm">
                   <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]"
                     checked={Boolean(settings.platform?.maintenance_mode)}

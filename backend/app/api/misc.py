@@ -182,7 +182,8 @@ def public_config(db: Session = Depends(get_db)):
     def produce():
         platform = get_setting(db, "platform")
         return {"platform_name": platform.get("name", settings.PLATFORM_NAME),
-                "maintenance_mode": platform.get("maintenance_mode", False)}
+                "maintenance_mode": platform.get("maintenance_mode", False),
+                "default_lang": platform.get("default_lang", "en")}
     return get_or_set("config:public", 15, produce)
 
 

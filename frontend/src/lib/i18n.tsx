@@ -352,6 +352,7 @@ const dict: Record<string, D> = {
   platform: { en: "Platform", ar: "المنصة", es: "Plataforma", fr: "Plateforme", tr: "Platform", ru: "Платформа", de: "Plattform" },
   platform_name: { en: "Platform name", ar: "اسم المنصة", es: "Nombre de la plataforma", fr: "Nom de la plateforme", tr: "Platform adı", ru: "Название платформы", de: "Plattformname" },
   maintenance_mode: { en: "Maintenance mode", ar: "وضع الصيانة", es: "Modo mantenimiento", fr: "Mode maintenance", tr: "Bakım modu", ru: "Режим обслуживания", de: "Wartungsmodus" },
+  default_lang: { en: "Default language", ar: "اللغة الافتراضية", es: "Idioma predeterminado", fr: "Langue par défaut", tr: "Varsayılan dil", ru: "Язык по умолчанию", de: "Standardsprache" },
   deposit_limits: { en: "Deposit limits", ar: "حدود الإيداع", es: "Límites de depósito", fr: "Limites de dépôt", tr: "Yatırma limitleri", ru: "Лимиты депозита", de: "Einzahlungslimits" },
   withdrawal_rules: { en: "Withdrawal rules", ar: "قواعد السحب", es: "Reglas de retiro", fr: "Règles de retrait", tr: "Çekim kuralları", ru: "Правила вывода", de: "Auszahlungsregeln" },
   inv_prize: { en: "Invitation prize", ar: "جائزة الدعوة", es: "Premio de invitación", fr: "Prix d'invitation", tr: "Davet ödülü", ru: "Приз за приглашение", de: "Einladungsprämie" },
@@ -521,11 +522,22 @@ export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>("en");
 
   useEffect(() => {
-    const saved = (localStorage.getItem("lang") as Lang) || "en";
-    const valid = LANGS.some((l) => l.code === saved) ? saved : "en";
-    setLangState(valid);
-    document.documentElement.lang = valid;
-    document.documentElement.dir = RTL.includes(valid) ? "rtl" : "ltr";
+    const apply = (l: Lang) => {
+      setLangState(l);
+      document.documentElement.lang = l;
+      document.documentElement.dir = RTL.includes(l) ? "rtl" : "ltr";
+    };
+    const saved = localStorage.getItem("lang") as Lang | null;
+    if (saved && LANGS.some((l) => l.code === saved)) { apply(saved); return; }
+    apply("en");
+    // No stored choice → follow the admin-set platform default.
+    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api"}/config`)
+      .then((r) => r.json())
+      .then((c) => {
+        const d = c.default_lang as Lang;
+        if (d && LANGS.some((l) => l.code === d) && !localStorage.getItem("lang")) apply(d);
+      })
+      .catch(() => {});
   }, []);
 
   const setLang = (l: Lang) => {
