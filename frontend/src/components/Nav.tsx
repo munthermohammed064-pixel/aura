@@ -59,13 +59,23 @@ export function Nav() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-bg/80 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <Logo size={30} className="text-white" />
-          <span className="font-display text-sm font-semibold tracking-[0.18em] uppercase">
-            {PLATFORM_NAME}
-          </span>
-          <USFlag className="h-5 w-8 rounded-[3px]" />
-        </Link>
+        {authed ? (
+          <div className="flex shrink-0 cursor-default items-center gap-2.5">
+            <Logo size={30} className="text-white" />
+            <span className="font-display text-sm font-semibold tracking-[0.18em] uppercase">
+              {PLATFORM_NAME}
+            </span>
+            <USFlag className="h-5 w-8 rounded-[3px]" />
+          </div>
+        ) : (
+          <Link href="/" className="flex shrink-0 items-center gap-2.5">
+            <Logo size={30} className="text-white" />
+            <span className="font-display text-sm font-semibold tracking-[0.18em] uppercase">
+              {PLATFORM_NAME}
+            </span>
+            <USFlag className="h-5 w-8 rounded-[3px]" />
+          </Link>
+        )}
 
         {authed && (
           <div className="hidden flex-1 items-center gap-1 md:flex">
