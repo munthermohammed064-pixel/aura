@@ -1,0 +1,196 @@
+@import "./fonts.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Single source of truth for the theme — Apple minimalism + glassmorphism,
+   Los Angeles sunset palette */
+:root {
+  --bg: #0e0e12;            /* warm near-black */
+  --surface: rgba(255, 255, 255, 0.045);
+  --border: rgba(255, 255, 255, 0.08);
+  --accent: #c9a962;        /* champagne gold */
+  --accent-2: #e8d5a8;      /* light champagne */
+  --sunset-rose: #d98a7e;   /* LA dusk rose */
+  --sunset-violet: #7a6a9e; /* LA dusk violet */
+  --muted: #a9a9b2;         /* raised contrast for readability */
+}
+
+* { color-scheme: dark; }
+
+body {
+  background: var(--bg);
+  color: #f5f5f7;
+  font-family: "IBM Plex Sans Arabic", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* subtle film grain — gives surfaces physical depth without heaviness */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
+}
+main, header, footer { position: relative; z-index: 1; }
+
+/* champagne hairline on interactive surfaces */
+.surface { transition: border-color .25s ease; }
+a.surface:hover, button.surface:hover { border-color: rgba(201,169,98,.35); }
+
+::selection { background: rgba(201,169,98,.3); }
+
+/* editorial serif for headlines + wordmark — Amiri covers Arabic, Georgia covers Latin */
+.font-display {
+  font-family: "Amiri", "New York", ui-serif, Georgia, "Times New Roman", serif;
+  letter-spacing: -0.02em;
+}
+
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border-radius: 1.25rem;
+}
+
+/* flat card surface — hairline border, no blur. Glass is reserved for nav/floating UI */
+.surface {
+  background: rgba(255,255,255,.025);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+}
+
+.glass-hover { transition: transform .2s ease, border-color .2s ease; }
+.glass-hover:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.18); }
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition;
+  background: #f5f5f7;
+  color: #0a0a0f;
+}
+.btn:hover { background: #ffffff; }
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { border-color: rgba(255,255,255,.2); }
+
+.input {
+  @apply w-full rounded-xl px-4 py-2.5 text-sm outline-none transition;
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--border);
+}
+.input:focus { border-color: var(--accent); }
+
+.disclaimer {
+  @apply text-xs leading-relaxed rounded-xl p-3;
+  color: var(--muted);
+  background: rgba(255,255,255,.03);
+  border: 1px dashed var(--border);
+}
+
+/* ---------- scroll reveal ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity .7s cubic-bezier(.2,.65,.3,1), transform .7s cubic-bezier(.2,.65,.3,1);
+}
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* ---------- LA photo hero ---------- */
+.hero-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 65%;
+}
+.hero-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 38%, rgba(201,169,98,.12), transparent 60%),
+    radial-gradient(ellipse 90% 40% at 18% 82%, rgba(217,138,126,.10), transparent 65%),
+    radial-gradient(ellipse 90% 40% at 84% 76%, rgba(122,106,158,.10), transparent 65%),
+    linear-gradient(to bottom, rgba(10,10,15,.72) 0%, rgba(10,10,15,.5) 45%, var(--bg) 96%);
+}
+
+/* editorial rule — thin gold line used under section headings */
+.rule-gold {
+  width: 56px;
+  height: 1px;
+  margin: 0 auto 2rem;
+  background: linear-gradient(to right, transparent, var(--accent), transparent);
+}
+.photo-band {
+  border-radius: 1.25rem;
+  overflow: hidden;
+  position: relative;
+}
+.photo-band img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo-band::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(10,10,15,.75), transparent 60%);
+}
+
+/* ---------- luxury polish ---------- */
+
+/* champagne edge + glow on hover — cards feel precious, not flat */
+.glow-card { position: relative; transition: border-color .3s ease, transform .25s ease, box-shadow .3s ease; }
+.glow-card:hover {
+  border-color: rgba(201,169,98,.35);
+  box-shadow: 0 0 0 1px rgba(201,169,98,.12), 0 12px 40px -18px rgba(201,169,98,.25);
+  transform: translateY(-2px);
+}
+
+/* featured surface — full champagne gradient border */
+.gold-edge {
+  border: 1px solid transparent !important;
+  background:
+    linear-gradient(var(--bg), var(--bg)) padding-box,
+    linear-gradient(135deg, rgba(201,169,98,.65), rgba(201,169,98,.08) 40%, rgba(232,213,168,.45)) border-box !important;
+}
+
+/* financial figures align in columns — no jitter between digits */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* skeleton shimmer — champagne-tinted loading state */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  border-radius: .75rem;
+  background: linear-gradient(100deg, rgba(255,255,255,.04) 40%, rgba(201,169,98,.09) 50%, rgba(255,255,255,.04) 60%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* slow cinematic zoom for the LA photo */
+@keyframes kenburns {
+  0% { transform: scale(1) translateY(0); }
+  100% { transform: scale(1.09) translateY(-1.5%); }
+}
+.kenburns { animation: kenburns 24s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) {
+  .kenburns, .skeleton { animation: none; }
+}

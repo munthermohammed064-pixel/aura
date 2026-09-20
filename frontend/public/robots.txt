@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /nx/
+Disallow: /api/
+Disallow: /uploads/

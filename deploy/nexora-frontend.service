@@ -1,0 +1,20 @@
+[Unit]
+Description=Nexora frontend (Next.js standalone)
+After=network.target nexora-backend.service
+
+[Service]
+Type=simple
+User=nexora
+Group=nexora
+WorkingDirectory=__APP_DIR__/frontend/.next/standalone
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+ExecStart=/usr/bin/node __APP_DIR__/frontend/.next/standalone/server.js
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

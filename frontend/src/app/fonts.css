@@ -1,0 +1,35 @@
+@font-face {
+  font-family: 'Amiri';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/amiri-J7aRnpd8CGxBHqUp.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Amiri';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/amiri-J7acnpd8CGxBHp2VkZY4.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/ibmplexsansarabic-Qw3CZRtWPQCuHme67tEYUIx3Kh0PHR9N6bs6.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/ibmplexsansarabic-Qw3NZRtWPQCuHme67tEYUIx3Kh0PHR9N6YPO_9CT.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/ibmplexsansarabic-Qw3NZRtWPQCuHme67tEYUIx3Kh0PHR9N6YOG-dCT.ttf) format('truetype');
+}

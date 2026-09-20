@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+node_modules/
+.next/
+.venv/
+pgdata/
+uploads/
+
+*.log
+nul
