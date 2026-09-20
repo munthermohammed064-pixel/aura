@@ -11,6 +11,7 @@ import { useToast } from "@/components/Toast";
 type Pkg = {
   id: string; name: string; description: string;
   min_deposit: number; max_deposit: number;
+  return_min_amount: number | null; return_max_amount: number | null;
   duration_days: number;
 };
 
@@ -74,8 +75,11 @@ export default function Packages() {
                     <p className="font-display mt-1 text-3xl tracking-tight">${Number(p.min_deposit).toLocaleString()}</p>
                   </div>
                   <div className="border-t border-border pt-3">
-                    <p className="text-[11px] text-muted">{t("duration")}</p>
-                    <p className="font-display text-lg text-accent">{p.duration_days} {t("days")}</p>
+                    <p className="text-[11px] text-muted">{t("daily")}</p>
+                    <p className="font-display text-lg text-accent">
+                      {p.return_min_amount != null ? `$${p.return_min_amount} – $${p.return_max_amount}` : "—"}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted">{p.duration_days} {t("days")}</p>
                   </div>
                 </button>
               );
@@ -88,6 +92,7 @@ export default function Packages() {
             <h2 className="text-lg font-semibold">{selected.name}</h2>
             <dl className="mt-4 space-y-2 text-sm">
               <div className="flex justify-between"><dt className="text-muted">{t("price")}</dt><dd>${Number(selected.min_deposit).toLocaleString()}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted">{t("daily")}</dt><dd>{selected.return_min_amount != null ? `$${selected.return_min_amount} – $${selected.return_max_amount}` : "—"}</dd></div>
               <div className="flex justify-between"><dt className="text-muted">{t("duration")}</dt><dd>{selected.duration_days} {t("days")}</dd></div>
             </dl>
             <label className="mt-3 flex items-start gap-2 text-xs text-muted">

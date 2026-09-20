@@ -56,19 +56,22 @@ def run():
             next_serial += 1
 
     if not db.query(Package).count():
-        # Tiers: (name, price, estimated_return_max). Displayed range = 80%–100% of max.
-        # All figures are estimates shown "from–to" — never fixed or guaranteed.
+        # Tiers: (name, price, daily_profit_min, daily_profit_max).
+        # Daily profit shown as a from–to range; each tier's floor clears the
+        # previous tier's ceiling. Estimates only — never fixed or guaranteed
+        # (that wording lives solely in the privacy policy).
         tiers = [
-            ("N0", 15, 0.5), ("N1", 30, 1), ("N2", 60, 2), ("N3", 120, 4),
-            ("N4", 240, 8), ("N5", 480, 17), ("N6", 960, 38), ("N7", 1450, 57),
-            ("N8", 2800, 110),
+            ("N0", 15, 0.30, 0.50), ("N1", 30, 0.60, 1.00),
+            ("N2", 60, 1.20, 2.00), ("N3", 120, 2.40, 4.00),
+            ("N4", 240, 4.80, 8.00), ("N5", 480, 9.60, 16.00),
+            ("N6", 960, 22.80, 38.00), ("N7", 1450, 39.00, 57.00),
+            ("N8", 2800, 66.00, 110.00),
         ]
-        for i, (name, price, ret_max) in enumerate(tiers):
+        for i, (name, price, dmin, dmax) in enumerate(tiers):
             db.add(Package(
                 name=name, description=f"Tier {name} — 30-day structured package",
                 min_deposit=price, max_deposit=price,
-                return_min_amount=round(ret_max * 0.8, 2),
-                return_max_amount=ret_max,
+                return_min_amount=dmin, return_max_amount=dmax,
                 duration_days=30, sort_order=i,
             ))
 

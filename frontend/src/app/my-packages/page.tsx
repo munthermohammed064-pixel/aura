@@ -60,6 +60,12 @@ export default function MyPackages() {
           </div>
         </div>
         <div className="mt-4 flex justify-between border-t border-border pt-3 text-sm">
+          <span className="text-muted">{t("daily")}</span>
+          <span>
+            {i.return_min_amount != null ? `$${i.return_min_amount} – $${i.return_max_amount}` : "—"}
+          </span>
+        </div>
+        <div className="flex justify-between text-sm">
           <span className="text-muted">{t("realized_return")}</span>
           <span className="text-accent">${i.realized_return.toLocaleString()}</span>
         </div>

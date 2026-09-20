@@ -18,7 +18,7 @@ DEFAULTS: dict[str, dict] = {
     },
     "legal": {
         "terms": "By using this platform you agree to these terms. Deposits are credited after verification. Withdrawals are processed to your registered address and carry a service fee. Invitation rewards are credited automatically when invited users activate packages. The platform may suspend accounts that violate these terms.",
-        "privacy": "We collect only the data needed to operate your account: email, name, and transaction records. We never sell your data.\n\nRisk disclosure: No returns are fixed or guaranteed. Displayed percentages are estimates and may rise, fall, or result in loss of capital. Your capital is at risk — you may lose part or all of it.",
+        "privacy": "We collect only the data needed to operate your account: email, name, and transaction records. We never sell your data.\n\nRisk disclosure: No returns are fixed or guaranteed. Displayed daily-profit figures are shown as from–to ranges; they are estimates that may rise, fall, or result in loss of capital. Your capital is at risk — you may lose part or all of it.",
     },
 }
 

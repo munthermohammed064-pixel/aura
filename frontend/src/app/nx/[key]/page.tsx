@@ -450,7 +450,7 @@ export default function Admin() {
             <GlassCard>
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs text-muted">
-                  <th className="pb-2">{t("name")}</th><th className="pb-2">{t("price")}</th><th className="pb-2">{t("est_return")}</th><th className="pb-2">{t("days")}</th><th className="pb-2">{t("active")}</th><th className="pb-2"></th>
+                  <th className="pb-2">{t("name")}</th><th className="pb-2">{t("price")}</th><th className="pb-2">{t("daily")}</th><th className="pb-2">{t("days")}</th><th className="pb-2">{t("active")}</th><th className="pb-2"></th>
                 </tr></thead>
                 <tbody>{packages.map((p) => (
                   <tr key={p.id} className="border-t border-border">

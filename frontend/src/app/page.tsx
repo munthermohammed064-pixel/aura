@@ -13,6 +13,7 @@ import { useT } from "@/lib/i18n";
 type Pkg = {
   id: string; name: string; description: string;
   min_deposit: number; max_deposit: number;
+  return_min_amount: number | null; return_max_amount: number | null;
   duration_days: number;
 };
 
@@ -77,8 +78,8 @@ export default function Landing() {
                 <tr className="border-b border-border text-xs uppercase tracking-widest text-muted">
                   <th className="px-5 py-3.5 text-start font-medium">{t("name")}</th>
                   <th className="px-5 py-3.5 text-start font-medium">{t("price")}</th>
+                  <th className="px-5 py-3.5 text-start font-medium">{t("daily")}</th>
                   <th className="px-5 py-3.5 text-start font-medium">{t("duration")}</th>
-                  <th className="px-5 py-3.5" />
                 </tr>
               </thead>
               <tbody>
@@ -91,10 +92,10 @@ export default function Landing() {
                     <td className="px-5 py-4 font-display text-lg text-accent">
                       ${Number(p.min_deposit).toLocaleString()}
                     </td>
-                    <td className="px-5 py-4 text-muted">{p.duration_days} {t("days")}</td>
-                    <td className="px-5 py-4 text-end">
-                      <Link href="/login" className="btn-ghost px-4 py-1.5 text-xs">{t("get_started")}</Link>
+                    <td className="px-5 py-4 text-white/85">
+                      {p.return_min_amount != null ? `$${p.return_min_amount} – $${p.return_max_amount}` : "—"}
                     </td>
+                    <td className="px-5 py-4 text-muted">{p.duration_days} {t("days")}</td>
                   </tr>
                 ))}
               </tbody>
