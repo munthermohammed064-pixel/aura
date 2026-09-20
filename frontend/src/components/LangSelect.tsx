@@ -27,16 +27,21 @@ export function LangSelect() {
         </svg>
       </button>
       {open && (
-        <div className="absolute end-0 top-11 z-50 w-44">
-          <div className="glass p-1.5 shadow-2xl">
+        <div className="absolute end-0 top-11 z-50 w-52">
+          <div className="menu p-1.5">
             {LANGS.map((l) => (
               <button key={l.code}
                 onClick={() => { setLang(l.code); setOpen(false); }}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-start text-xs transition ${
-                  l.code === lang ? "bg-accent/15 text-accent" : "hover:bg-white/5"
+                className={`flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-start text-sm transition ${
+                  l.code === lang ? "bg-accent/15 text-accent" : "text-white/85 hover:bg-white/5"
                 }`}>
-                <span className="w-6 text-[10px] text-muted">{l.flag}</span>
-                {l.label}
+                <span className="w-7 text-xs font-medium text-muted">{l.flag}</span>
+                <span className="flex-1">{l.label}</span>
+                {l.code === lang && (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-accent">
+                    <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
               </button>
             ))}
           </div>

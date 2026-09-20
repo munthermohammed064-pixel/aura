@@ -64,7 +64,7 @@ export function Nav() {
           <span className="font-display text-sm font-semibold tracking-[0.18em] uppercase">
             {PLATFORM_NAME}
           </span>
-          <USFlag className="h-3.5 w-6 rounded-[3px]" />
+          <USFlag className="h-5 w-8 rounded-[3px]" />
         </Link>
 
         {authed && (
@@ -87,7 +87,7 @@ export function Nav() {
                 <ChevronDown size={12} strokeWidth={1.8} className={`transition-transform ${moreOpen ? "rotate-180" : ""}`} />
               </button>
               {moreOpen && (
-                <div className="glass absolute end-0 top-full mt-2 w-44 overflow-hidden p-1.5">
+                <div className="menu absolute end-0 top-full mt-2 w-44 overflow-hidden p-1.5">
                   {MORE.map(([key, href, Icon]) => (
                     <Link key={key} href={href}
                       className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs transition ${
@@ -129,7 +129,7 @@ export function Nav() {
               {t("logout")}
             </button>
           ) : (
-            <Link href="/register" className="btn px-4 py-1.5 text-xs">{t("get_started")}</Link>
+            <Link href="/login" className="btn px-4 py-1.5 text-xs">{t("get_started")}</Link>
           )}
 
           {authed && (

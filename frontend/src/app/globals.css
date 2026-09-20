@@ -58,6 +58,14 @@ a.surface:hover, button.surface:hover { border-color: rgba(201,169,98,.35); }
   border-radius: 1.25rem;
 }
 
+/* opaque dropdown/popover surface — readable over any imagery */
+.menu {
+  background: #171310;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 1.25rem;
+  box-shadow: 0 24px 48px rgba(0,0,0,.6);
+}
+
 /* flat card surface — hairline border, no blur. Glass is reserved for nav/floating UI */
 .surface {
   background: rgba(255,255,255,.025);

@@ -167,9 +167,10 @@ export default function Profile() {
           <GlassCard>
             <h2 className="mb-3 font-medium">{t("verify_email_title")}</h2>
             <div className="flex gap-2">
-              <input className="input font-mono text-xs" placeholder={t("verify_token_ph")}
+              <input className="input font-mono text-center text-lg tracking-[0.5em]" placeholder={t("verify_token_ph")}
+                maxLength={6} inputMode="numeric" autoComplete="one-time-code"
                 value={verifyToken || devVerify}
-                onChange={(e) => setVerifyToken(e.target.value)} />
+                onChange={(e) => setVerifyToken(e.target.value.replace(/\D/g, ""))} />
               <button className="btn-ghost shrink-0 text-xs" onClick={sendVerify}>{t("send_token")}</button>
               <button className="btn shrink-0 text-xs" onClick={doVerify}>{t("verify")}</button>
             </div>

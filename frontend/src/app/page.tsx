@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Nav } from "@/components/Nav";
-import { GlassCard } from "@/components/Glass";
 import { api, PLATFORM_NAME } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 import { USFlag } from "@/components/USFlag";
@@ -39,7 +38,7 @@ export default function Landing() {
         <div className="relative mx-auto max-w-6xl">
           <div className="mb-8 flex justify-center"><Logo size={72} /></div>
           <p className="mb-6 flex items-center justify-center gap-3 text-xs font-medium uppercase tracking-[0.3em] text-white/60">
-            {PLATFORM_NAME} <USFlag size={18} />
+            {PLATFORM_NAME} <USFlag size={30} />
           </p>
           <h1 className="font-display mx-auto max-w-3xl text-5xl tracking-tight md:text-7xl">
             {t("hero_title")}
@@ -51,27 +50,6 @@ export default function Landing() {
             <Link href="#packages" className="btn-ghost">{t("view_packages")}</Link>
           </div>
 
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 pb-16">
-        <Reveal>
-          <h2 className="font-display text-center text-2xl">{t("how_it_works")}</h2><div className="rule-gold" />
-        </Reveal>
-        <div className="grid gap-4 md:grid-cols-3">
-          {[
-            ["1", t("step1_t"), t("step1_d")],
-            ["2", t("step2_t"), t("step2_d")],
-            ["3", t("step3_t"), t("step3_d")],
-          ].map(([n, tt, d], idx) => (
-            <Reveal key={n} delay={idx * 120}>
-              <GlassCard hover>
-                <div className="mb-3 text-xs text-muted">{n}</div>
-                <h3 className="mb-2 font-medium">{tt}</h3>
-                <p className="text-sm text-muted">{d}</p>
-              </GlassCard>
-            </Reveal>
-          ))}
         </div>
       </section>
 
@@ -92,24 +70,38 @@ export default function Landing() {
         <Reveal>
           <h2 className="font-display text-center text-2xl">{t("packages")}</h2><div className="rule-gold" />
         </Reveal>
-        <div className="grid gap-4 md:grid-cols-3">
-          {packages.map((p, idx) => (
-            <Reveal key={p.id} delay={idx * 100}>
-            <GlassCard hover className="flex flex-col h-full">
-              <h3 className="font-display text-lg">{p.name}</h3>
-              <p className="mt-1 text-sm text-muted">{p.description}</p>
-              <div className="font-display my-5 text-3xl tracking-tight">
-                ${Number(p.min_deposit).toLocaleString()}
-              </div>
-              <dl className="mt-5 space-y-1 text-sm text-muted">
-                <div className="flex justify-between"><dt>{t("duration")}</dt><dd>{p.duration_days} {t("days")}</dd></div>
-              </dl>
-              <Link href="/register" className="btn mt-6 w-full">{t("get_started")}</Link>
-            </GlassCard>
-            </Reveal>
-          ))}
-          {!packages.length && <p className="col-span-3 text-center text-muted">{t("no_packages")}</p>}
-        </div>
+        <Reveal>
+          <div className="surface overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs uppercase tracking-widest text-muted">
+                  <th className="px-5 py-3.5 text-start font-medium">{t("name")}</th>
+                  <th className="px-5 py-3.5 text-start font-medium">{t("price")}</th>
+                  <th className="px-5 py-3.5 text-start font-medium">{t("duration")}</th>
+                  <th className="px-5 py-3.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {packages.map((p) => (
+                  <tr key={p.id} className="border-b border-border/60 transition last:border-0 hover:bg-white/[0.02]">
+                    <td className="px-5 py-4">
+                      <span className="font-display text-base">{p.name}</span>
+                      {p.description && <span className="mt-0.5 block text-xs text-muted">{p.description}</span>}
+                    </td>
+                    <td className="px-5 py-4 font-display text-lg text-accent">
+                      ${Number(p.min_deposit).toLocaleString()}
+                    </td>
+                    <td className="px-5 py-4 text-muted">{p.duration_days} {t("days")}</td>
+                    <td className="px-5 py-4 text-end">
+                      <Link href="/login" className="btn-ghost px-4 py-1.5 text-xs">{t("get_started")}</Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!packages.length && <p className="px-5 py-8 text-center text-muted">{t("no_packages")}</p>}
+          </div>
+        </Reveal>
       </section>
 
       {faq.length > 0 && (

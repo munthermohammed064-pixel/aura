@@ -9,6 +9,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from datetime import datetime, timedelta, timezone
 
 BASE = "http://localhost:8000/api"
 ROOT = BASE.replace("/api", "")
@@ -118,10 +119,27 @@ check("stolen-UA refresh rejected", s == 401, f"got {s}")
 s, b = call("POST", "/auth/refresh", {"refresh_token": stolen}, ua="browser-A")
 check("revoked session stays dead", s == 401, f"got {s}")
 
-# email verification (dev_token path - SMTP not configured locally)
+# email verification — when a mailer is configured the code is emailed (not
+# echoed), so we seed a known-code hash straight into the dev DB instead.
+def _db_token(email, column, plain, extra=""):
+    import os
+    import sqlite3
+    from app.core.security import hash_password
+    db_path = os.path.join(os.path.dirname(__file__), "dev.db")
+    if not os.path.exists(db_path):
+        return False
+    c = sqlite3.connect(db_path)
+    n = c.execute(f"UPDATE users SET {column}=? {extra} WHERE email=?",
+                  (hash_password(plain), email)).rowcount
+    c.commit(); c.close()
+    return n == 1
+
+
 s, b = call("POST", "/auth/send-verification", {}, token=tok)
-dev_tok = b.get("dev_token")
-s, b = call("POST", "/auth/verify-email", {"token": dev_tok}, token=tok)
+otp = b.get("dev_token") or "424242"
+if not b.get("dev_token"):
+    check("verify code seeded (mail configured)", _db_token(u_email, "verify_token_hash", otp))
+s, b = call("POST", "/auth/verify-email", {"token": otp}, token=tok)
 check("email verify", s == 200)
 s, me = call("GET", "/auth/me", token=tok)
 check("email_verified flag", me.get("email_verified") is True)
@@ -134,8 +152,15 @@ check("login new password", s == 200)
 
 # forgot/reset
 s, b = call("POST", "/auth/forgot", {"email": u_email})
-check("forgot issues token", s == 200 and b.get("dev_token"))
-s, b = call("POST", "/auth/reset", {"token": b["dev_token"], "new_password": "Reset123!"})
+reset_tok = b.get("dev_token") or "e2e-reset-token"
+if not b.get("dev_token"):
+    check("reset token seeded (mail configured)",
+          _db_token(u_email, "reset_token_hash", reset_tok,
+                    ", reset_expires_at='" +
+                    (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat() + "'"))
+else:
+    check("forgot issues token", s == 200)
+s, b = call("POST", "/auth/reset", {"token": reset_tok, "new_password": "Reset123!"})
 check("reset password", s == 200)
 s, b = call("POST", "/auth/login", {"identifier": u_email, "password": "Reset123!"})
 check("login after reset", s == 200)

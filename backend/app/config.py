@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000"
     FRONTEND_URL: str = "http://localhost:3000"
     COINGECKO_API_URL: str = "https://api.coingecko.com/api/v3"
+    # Email — Brevo REST API preferred; SMTP kept as fallback
+    BREVO_API_KEY: str = ""
+    MAIL_FROM: str = ""
+    MAIL_FROM_NAME: str = ""
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""

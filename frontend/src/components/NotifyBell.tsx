@@ -79,7 +79,7 @@ export function NotifyBell() {
 
       {open && (
         <div className="absolute end-0 top-11 z-50 w-80 max-w-[90vw]">
-          <div className="glass max-h-96 overflow-y-auto p-2 shadow-2xl">
+          <div className="menu max-h-96 overflow-y-auto p-2">
             <div className="flex items-center justify-between px-3 py-2">
               <p className="text-xs font-medium">{t("notifications")}</p>
               {unread > 0 && (

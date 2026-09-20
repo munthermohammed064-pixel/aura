@@ -180,12 +180,13 @@ def reset_password(data: ResetIn, db: Session = Depends(get_db)):
 
 
 @router.post("/send-verification")
-def send_verification(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    token = secrets.token_urlsafe(32)
-    user.verify_token_hash = hash_password(token)
+@limiter.limit("5/minute")
+def send_verification(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    code = f"{secrets.randbelow(1000000):06d}"
+    user.verify_token_hash = hash_password(code)
     db.commit()
-    sent = mailer.send_verification(user.email, token)
-    return {"ok": True, "dev_token": None if sent else token}
+    sent = mailer.send_verification(user.email, code)
+    return {"ok": True, "dev_token": None if sent else code}
 
 
 @router.post("/verify-email")
