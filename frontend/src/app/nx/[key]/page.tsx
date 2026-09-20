@@ -266,10 +266,19 @@ export default function Admin() {
     act(`/admin/investments/${inv.id}/settle`, { return_amount: +amt });
   };
 
+  const KNOWN_SETTINGS = ["platform", "deposit", "withdrawal", "referral", "faq", "legal"];
+
+  const updSetting = (key: string, patch: Record<string, unknown>) => {
+    setSettingsDirty(true);
+    setSettings((s) => ({ ...s, [key]: { ...(s[key] ?? {}), ...patch } }));
+  };
+
   const saveSetting = (key: string) => {
-    let parsed: unknown;
-    try { parsed = JSON.parse(settingsJson[key]); } catch { toast(t("invalid_json"), "err"); return; }
-    api(`/admin/settings/${key}`, { method: "PUT", body: JSON.stringify({ value: parsed }) })
+    let value: unknown = settings[key];
+    if (!KNOWN_SETTINGS.includes(key) && key in settingsJson) { // raw-JSON fallback keys
+      try { value = JSON.parse(settingsJson[key]); } catch { toast(t("invalid_json"), "err"); return; }
+    }
+    api(`/admin/settings/${key}`, { method: "PUT", body: JSON.stringify({ value }) })
       .then(() => { setSettingsDirty(false); toast(t("saved")); load(); })
       .catch((e) => toast(e instanceof Error ? e.message : t("failed"), "err"));
   };
@@ -826,7 +835,119 @@ export default function Admin() {
 
         {tab === "settings" && (
           <div className="space-y-4">
-            {Object.keys(settingsJson).map((key) => (
+            <GlassCard>
+              <p className="mb-3 text-sm font-medium">{t("platform")}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs text-muted">{t("platform_name")}</label>
+                  <input className="input" value={String(settings.platform?.name ?? "")}
+                    onChange={(e) => updSetting("platform", { name: e.target.value })} />
+                </div>
+                <label className="flex items-end gap-2 pb-1.5 text-sm">
+                  <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]"
+                    checked={Boolean(settings.platform?.maintenance_mode)}
+                    onChange={(e) => updSetting("platform", { maintenance_mode: e.target.checked })} />
+                  {t("maintenance_mode")}
+                </label>
+              </div>
+              <button className="btn-ghost mt-3 text-xs" onClick={() => saveSetting("platform")}>{t("save")}</button>
+            </GlassCard>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <GlassCard>
+                <p className="mb-3 text-sm font-medium">{t("deposit_limits")}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs text-muted">{t("min_amount")} ($)</label>
+                    <input className="input" type="number" value={Number(settings.deposit?.min ?? 0)}
+                      onChange={(e) => updSetting("deposit", { min: +e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-muted">{t("max_amount")} ($)</label>
+                    <input className="input" type="number" value={Number(settings.deposit?.max ?? 0)}
+                      onChange={(e) => updSetting("deposit", { max: +e.target.value })} />
+                  </div>
+                </div>
+                <button className="btn-ghost mt-3 text-xs" onClick={() => saveSetting("deposit")}>{t("save")}</button>
+              </GlassCard>
+
+              <GlassCard>
+                <p className="mb-3 text-sm font-medium">{t("withdrawal_rules")}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs text-muted">{t("min_amount")} ($)</label>
+                    <input className="input" type="number" value={Number(settings.withdrawal?.min ?? 0)}
+                      onChange={(e) => updSetting("withdrawal", { min: +e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-muted">{t("max_amount")} ($)</label>
+                    <input className="input" type="number" value={Number(settings.withdrawal?.max ?? 0)}
+                      onChange={(e) => updSetting("withdrawal", { max: +e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-muted">{t("fee_pct")}</label>
+                    <input className="input" type="number" value={Number(settings.withdrawal?.fee_pct ?? 0)}
+                      onChange={(e) => updSetting("withdrawal", { fee_pct: +e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-muted">{t("fee_flat")}</label>
+                    <input className="input" type="number" value={Number(settings.withdrawal?.fee_flat ?? 0)}
+                      onChange={(e) => updSetting("withdrawal", { fee_flat: +e.target.value })} />
+                  </div>
+                </div>
+                <button className="btn-ghost mt-3 text-xs" onClick={() => saveSetting("withdrawal")}>{t("save")}</button>
+              </GlassCard>
+            </div>
+
+            <GlassCard>
+              <p className="mb-3 text-sm font-medium">{t("inv_prize")}</p>
+              <div className="max-w-xs">
+                <label className="mb-1 block text-xs text-muted">{t("prize_pct")}</label>
+                <input className="input" type="number" value={Number(settings.referral?.l1_pct ?? 0)}
+                  onChange={(e) => updSetting("referral", { l1_pct: +e.target.value })} />
+              </div>
+              <button className="btn-ghost mt-3 text-xs" onClick={() => saveSetting("referral")}>{t("save")}</button>
+            </GlassCard>
+
+            <GlassCard>
+              <p className="mb-3 text-sm font-medium">{t("faq_items")}</p>
+              <div className="space-y-3">
+                {((settings.faq?.items as { q: string; a: string }[] | undefined) ?? []).map((item, i) => (
+                  <div key={i} className="rounded-lg border border-border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-xs text-muted">{t("question")} {i + 1}</label>
+                      <button className="text-xs text-red-400 hover:underline"
+                        onClick={() => updSetting("faq", { items: (settings.faq?.items as { q: string; a: string }[]).filter((_, j) => j !== i) })}>
+                        {t("remove")}
+                      </button>
+                    </div>
+                    <input className="input mt-1" value={item.q}
+                      onChange={(e) => updSetting("faq", { items: (settings.faq?.items as { q: string; a: string }[]).map((x, j) => j === i ? { ...x, q: e.target.value } : x) })} />
+                    <label className="mt-2 block text-xs text-muted">{t("answer")}</label>
+                    <textarea className="input mt-1 min-h-16" value={item.a}
+                      onChange={(e) => updSetting("faq", { items: (settings.faq?.items as { q: string; a: string }[]).map((x, j) => j === i ? { ...x, a: e.target.value } : x) })} />
+                  </div>
+                ))}
+                <button className="btn-ghost text-xs"
+                  onClick={() => updSetting("faq", { items: [...((settings.faq?.items as { q: string; a: string }[] | undefined) ?? []), { q: "", a: "" }] })}>
+                  {t("add_item")}
+                </button>
+              </div>
+              <button className="btn-ghost mt-3 text-xs" onClick={() => saveSetting("faq")}>{t("save")}</button>
+            </GlassCard>
+
+            <GlassCard>
+              <p className="mb-3 text-sm font-medium">{t("legal_texts")}</p>
+              <label className="mb-1 block text-xs text-muted">{t("terms_text")}</label>
+              <textarea className="input min-h-28" value={String(settings.legal?.terms ?? "")}
+                onChange={(e) => updSetting("legal", { terms: e.target.value })} />
+              <label className="mb-1 mt-3 block text-xs text-muted">{t("privacy_text")}</label>
+              <textarea className="input min-h-36" value={String(settings.legal?.privacy ?? "")}
+                onChange={(e) => updSetting("legal", { privacy: e.target.value })} />
+              <button className="btn-ghost mt-3 text-xs" onClick={() => saveSetting("legal")}>{t("save")}</button>
+            </GlassCard>
+
+            {Object.keys(settingsJson).filter((k) => !KNOWN_SETTINGS.includes(k) && k !== "wheel").map((key) => (
               <GlassCard key={key}>
                 <p className="mb-2 text-sm font-medium capitalize">{key}</p>
                 <textarea className="input min-h-24 font-mono text-xs" value={settingsJson[key]}
@@ -834,7 +955,6 @@ export default function Admin() {
                 <button className="btn-ghost mt-2 text-xs" onClick={() => saveSetting(key)}>{t("save")}</button>
               </GlassCard>
             ))}
-            <p className="text-xs text-muted">{t("settings_hint")}</p>
           </div>
         )}
 
