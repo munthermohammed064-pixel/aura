@@ -426,14 +426,12 @@ export default function Admin() {
 
         {tab === "packages" && (
           <div className="space-y-4">
-            <GlassCard>
+            {editingPkg && <GlassCard>
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-medium">{editingPkg ? t("edit_package") : t("new_package")}</h2>
-                {editingPkg && (
-                  <button className="btn-ghost px-3 py-1 text-xs" onClick={() => {
-                    setEditingPkg(null); setPkgForm(EMPTY_PKG);
-                  }}>{t("cancel")}</button>
-                )}
+                <h2 className="font-medium">{t("edit_package")}</h2>
+                <button className="btn-ghost px-3 py-1 text-xs" onClick={() => {
+                  setEditingPkg(null); setPkgForm(EMPTY_PKG);
+                }}>{t("cancel")}</button>
               </div>
               <div className="grid gap-2 md:grid-cols-3">
                 <input className="input" placeholder={t("name")} value={pkgForm.name} onChange={(e) => setPkgForm({ ...pkgForm, name: e.target.value })} />
@@ -453,8 +451,8 @@ export default function Admin() {
                   onChange={(e) => setPkgForm({ ...pkgForm, is_active: e.target.checked })} />
                 {t("is_active")}
               </label>
-              <button className="btn mt-4" onClick={savePkg}>{editingPkg ? t("save_changes") : t("create")}</button>
-            </GlassCard>
+              <button className="btn mt-4" onClick={savePkg}>{t("save_changes")}</button>
+            </GlassCard>}
             <GlassCard>
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs text-muted">
