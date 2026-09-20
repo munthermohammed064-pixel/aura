@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Nav } from "@/components/Nav";
 import { PageHeader } from "@/components/PageHeader";
@@ -12,20 +11,17 @@ import { Stars } from "@/components/Stars";
 
 type Wallet = { available: number; pending: number; invested: number };
 type Tx = { id: string; kind: string; direction: string; amount: number; created_at: string };
-type Inv = { id: string };
-
 export default function Dashboard() {
   const { t } = useT();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [txs, setTxs] = useState<Tx[]>([]);
-  const [invCount, setInvCount] = useState(0);
+
   const [serial, setSerial] = useState("");
   const [stars, setStars] = useState(4);
 
   useEffect(() => {
     api<Wallet>("/wallet").then(setWallet).catch(() => {});
     api<Tx[]>("/wallet/transactions").then(setTxs).catch(() => {});
-    api<Inv[]>("/investments").then((xs) => setInvCount(xs.length)).catch(() => {});
     api<{ serial: string; stars: number }>("/auth/me").then((u) => {
       setSerial(u.serial); setStars(u.stars ?? 4);
     }).catch(() => {});
@@ -61,29 +57,6 @@ export default function Dashboard() {
             </GlassCard>
           ))}
         </div>
-        {wallet && Number(wallet.available) + Number(wallet.invested) === 0 && invCount === 0 && (
-          <GlassCard className="mt-4">
-            <h2 className="mb-4 font-medium">{t("onboarding_title")}</h2>
-            <div className="grid gap-3 md:grid-cols-3">
-              {[
-                { done: true, label: t("ob_step1"), href: "/profile" },
-                { done: Number(wallet?.available ?? 0) > 0, label: t("ob_step2"), href: "/wallet" },
-                { done: invCount > 0, label: t("ob_step3"), href: "/packages" },
-              ].map((s, i) => (
-                <Link key={i} href={s.href}
-                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${
-                    s.done ? "border-accent/40 text-muted" : "border-border hover:border-white/20"
-                  }`}>
-                  <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold ${
-                    s.done ? "bg-accent text-black" : "border border-border text-muted"
-                  }`}>{s.done ? "✓" : i + 1}</span>
-                  {s.label}
-                </Link>
-              ))}
-            </div>
-          </GlassCard>
-        )}
-
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <GlassCard>
             <h2 className="mb-4 font-medium">{t("wallet_split")}</h2>
