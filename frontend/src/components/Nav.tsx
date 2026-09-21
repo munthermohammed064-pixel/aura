@@ -124,7 +124,7 @@ export function Nav() {
 
           {authed && <NotifyBell />}
 
-          {authed && (
+          {authed && !isAdmin && (
             <Link href="/profile" aria-label={t("profile")}
               className={`hidden h-9 w-9 place-items-center rounded-full border border-border bg-surface transition hover:border-white/20 md:grid ${
                 pathname === "/profile" ? "text-accent border-accent/40" : ""
@@ -169,7 +169,9 @@ export function Nav() {
             {isAdmin && (
               <Link href={ADMIN_HREF} className="rounded-xl px-4 py-2.5 text-sm text-accent">{t("admin")}</Link>
             )}
-            <Link href="/profile" className="rounded-xl px-4 py-2.5 text-sm text-muted hover:text-white">{t("profile")}</Link>
+            {!isAdmin && (
+              <Link href="/profile" className="rounded-xl px-4 py-2.5 text-sm text-muted hover:text-white">{t("profile")}</Link>
+            )}
             <button onClick={logout} className="flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-start text-sm text-muted hover:text-white">
               <LogOut size={15} strokeWidth={1.8} />
               {t("logout")}
