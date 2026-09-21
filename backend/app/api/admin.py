@@ -22,6 +22,7 @@ from app.schemas import (
     WithdrawalProcessIn,
 )
 from app.services import ledger, mailer
+from app.services.cache import bust
 from app.services.notify import notify_user
 from app.services.settings import get_setting, set_setting
 
@@ -79,6 +80,7 @@ def create_package(data: PackageIn, admin: User = Depends(get_admin), db: Sessio
     audit(db, admin, "package.create", "package", p.id, {"name": p.name})
     db.commit()
     db.refresh(p)
+    bust("packages:")
     return p
 
 
@@ -92,6 +94,7 @@ def update_package(pkg_id: str, data: PackageIn, admin: User = Depends(get_admin
     audit(db, admin, "package.update", "package", p.id, {"name": p.name})
     db.commit()
     db.refresh(p)
+    bust("packages:")
     return p
 
 
@@ -103,6 +106,7 @@ def delete_package(pkg_id: str, admin: User = Depends(get_admin), db: Session = 
     audit(db, admin, "package.delete", "package", p.id, {"name": p.name})
     db.delete(p)
     db.commit()
+    bust("packages:")
     return {"ok": True}
 
 
@@ -492,6 +496,7 @@ def create_method(data: PaymentMethodIn, admin: User = Depends(get_admin), db: S
     audit(db, admin, "method.create", "payment_method", m.id, {"name": m.name})
     db.commit()
     db.refresh(m)
+    bust("payment-methods")
     return m
 
 
@@ -504,6 +509,7 @@ def update_method(m_id: str, data: PaymentMethodIn, admin: User = Depends(get_ad
         setattr(m, k, v)
     audit(db, admin, "method.update", "payment_method", m.id, {"name": m.name})
     db.commit()
+    bust("payment-methods")
     return m
 
 
@@ -515,6 +521,7 @@ def delete_method(m_id: str, admin: User = Depends(get_admin), db: Session = Dep
     audit(db, admin, "method.delete", "payment_method", m.id, {"name": m.name})
     db.delete(m)
     db.commit()
+    bust("payment-methods")
     return {"ok": True}
 
 
@@ -531,6 +538,7 @@ def update_setting(key: str, data: SettingIn, admin: User = Depends(get_admin), 
     set_setting(db, key, data.value)
     audit(db, admin, "settings.update", "setting", key, data.value)
     db.commit()
+    bust("config:"); bust("legal:"); bust("faq:")
     return {"ok": True}
 
 

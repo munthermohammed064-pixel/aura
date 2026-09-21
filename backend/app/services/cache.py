@@ -22,3 +22,11 @@ def get_or_set(key: str, ttl_seconds: float, producer: Callable[[], Any]) -> Any
     with _lock:
         _store[key] = (now + ttl_seconds, value)
     return value
+
+
+def bust(prefix: str) -> None:
+    """Drop cached entries — call after admin mutations so public
+    endpoints (payment methods, config, legal) update immediately."""
+    with _lock:
+        for k in [k for k in _store if k.startswith(prefix)]:
+            del _store[k]
