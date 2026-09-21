@@ -195,8 +195,6 @@ const dict: Record<string, D> = {
     tr: "Bu e-posta kayıtlıysa bir bağlantı oluşturuldu.", ru: "Если этот e-mail зарегистрирован, ссылка создана.",
     de: "Falls diese E-Mail registriert ist, wurde ein Link erstellt.",
   },
-  dev_token_label: { en: "Development mode — your reset token:", ar: "وضع التطوير — رمز إعادة التعيين:", es: "Modo desarrollo — tu token:", fr: "Mode développement — votre jeton :", tr: "Geliştirme modu — jetonun:", ru: "Режим разработки — ваш токен:", de: "Entwicklermodus — Ihr Token:" },
-  continue_reset: { en: "Continue to reset", ar: "متابعة إعادة التعيين", es: "Continuar", fr: "Continuer", tr: "Devam et", ru: "Продолжить", de: "Weiter" },
   new_pw_title: { en: "New password", ar: "كلمة مرور جديدة", es: "Nueva contraseña", fr: "Nouveau mot de passe", tr: "Yeni şifre", ru: "Новый пароль", de: "Neues Passwort" },
   new_pw_sub: { en: "Choose a strong new password.", ar: "اختر كلمة مرور جديدة قوية.", es: "Elige una contraseña segura.", fr: "Choisissez un mot de passe fort.", tr: "Güçlü bir şifre seç.", ru: "Придумайте надёжный пароль.", de: "Wählen Sie ein starkes Passwort." },
   reset_token_ph: { en: "Reset token", ar: "رمز إعادة التعيين", es: "Token de restablecimiento", fr: "Jeton de réinitialisation", tr: "Sıfırlama jetonu", ru: "Токен сброса", de: "Reset-Token" },

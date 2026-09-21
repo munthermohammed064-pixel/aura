@@ -79,8 +79,12 @@ def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
     db.add(Wallet(user_id=user.id))
     from app.services.notify import notify_user
     notify_user(db, user.id, "welcome", {"serial": user.serial})
-    db.commit()
-    return _issue_tokens(db, user, request)
+    code = f"{secrets.randbelow(1000000):06d}"
+    user.verify_token_hash = hash_password(code)
+    sent = mailer.send_verification(user.email, code)
+    tokens = _issue_tokens(db, user, request)
+    tokens.verification_sent = sent
+    return tokens
 
 
 @router.post("/login", response_model=TokenOut)
@@ -158,9 +162,8 @@ def forgot_password(data: ForgotIn, request: Request, db: Session = Depends(get_
     user.reset_token_hash = hash_password(token)
     user.reset_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
     db.commit()
-    sent = mailer.send_reset(user.email, token)
-    # Dev convenience: echo token only when SMTP is not configured
-    return {"ok": True, "dev_token": None if sent else token}
+    mailer.send_reset(user.email, token)
+    return {"ok": True}
 
 
 @router.post("/reset")
@@ -185,8 +188,9 @@ def send_verification(request: Request, user: User = Depends(get_current_user), 
     code = f"{secrets.randbelow(1000000):06d}"
     user.verify_token_hash = hash_password(code)
     db.commit()
-    sent = mailer.send_verification(user.email, code)
-    return {"ok": True, "dev_token": None if sent else code}
+    if not mailer.send_verification(user.email, code):
+        raise HTTPException(503, "Verification email could not be sent. Try again shortly.")
+    return {"ok": True}
 
 
 @router.post("/verify-email")

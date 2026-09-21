@@ -1,12 +1,11 @@
-"""Seed: admin account, placeholder packages, payment methods, default settings.
-All placeholder data is safe to delete — nothing is hardcoded in the frontend."""
+"""Seed the owner-managed platform defaults, admin account, and packages."""
 
 import os
 import secrets
 
 from app.core.security import hash_password
 from app.database import Base, SessionLocal, engine
-from app.models.finance import Package, PaymentMethod
+from app.models.finance import Package
 from app.models.platform import Setting
 from app.models.user import User, Wallet
 from app.services.settings import DEFAULTS
@@ -74,10 +73,6 @@ def run():
                 return_min_amount=dmin, return_max_amount=dmax,
                 duration_days=30, sort_order=i,
             ))
-
-    if not db.query(PaymentMethod).count():
-        db.add(PaymentMethod(name="USDT (TRC20)", details="Wallet address set via admin panel",
-                             min_amount=10, max_amount=100000))
 
     db.commit()
     print("Seed complete.")

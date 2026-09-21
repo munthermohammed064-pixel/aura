@@ -24,10 +24,10 @@ function RegisterForm() {
     if (!ack) return setError(t("ack_disclosure"));
     setError("");
     try {
-      const tk = await api<{ access_token: string; refresh_token: string }>(
+      const tk = await api<{ access_token: string; refresh_token: string; verification_sent: boolean }>(
         "/auth/register", { method: "POST", body: JSON.stringify(form), auth: false });
       setTokens(tk.access_token, tk.refresh_token);
-      router.push("/dashboard");
+      router.push("/profile#verify-email");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("reg_failed"));
     }

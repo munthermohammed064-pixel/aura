@@ -27,7 +27,6 @@ export default function Profile() {
   const [pw, setPw] = useState({ current: "", new: "" });
   const [sessions, setSessions] = useState<Sess[]>([]);
   const [verifyToken, setVerifyToken] = useState("");
-  const [devVerify, setDevVerify] = useState("");
   const [msg, setMsg] = useState("");
 
   const load = () => {
@@ -54,16 +53,16 @@ export default function Profile() {
   };
 
   const sendVerify = async () => {
-    const r = await api<{ dev_token?: string }>("/auth/send-verification", { method: "POST" });
-    if (r.dev_token) setDevVerify(r.dev_token);
-    setMsg(t("verify_sent"));
+    try {
+      await api("/auth/send-verification", { method: "POST" });
+      setMsg(t("verify_sent"));
+    } catch (e) { setMsg(e instanceof Error ? e.message : t("failed")); }
   };
 
   const doVerify = async () => {
     try {
-      await api("/auth/verify-email", { method: "POST", body: JSON.stringify({ token: verifyToken || devVerify }) });
+      await api("/auth/verify-email", { method: "POST", body: JSON.stringify({ token: verifyToken }) });
       setMsg(t("email_verified_msg"));
-      setDevVerify("");
       load();
     } catch (e) { setMsg(e instanceof Error ? e.message : t("invalid_token")); }
   };
@@ -217,17 +216,16 @@ export default function Profile() {
         </GlassCard>
 
         {!me?.email_verified && (
-          <GlassCard>
+          <GlassCard id="verify-email">
             <h2 className="mb-3 font-medium">{t("verify_email_title")}</h2>
             <div className="flex gap-2">
               <input className="input font-mono text-center text-lg tracking-[0.5em]" placeholder={t("verify_token_ph")}
                 maxLength={6} inputMode="numeric" autoComplete="one-time-code"
-                value={verifyToken || devVerify}
+                value={verifyToken}
                 onChange={(e) => setVerifyToken(e.target.value.replace(/\D/g, ""))} />
               <button className="btn-ghost shrink-0 text-xs" onClick={sendVerify}>{t("send_token")}</button>
               <button className="btn shrink-0 text-xs" onClick={doVerify}>{t("verify")}</button>
             </div>
-            {devVerify && <p className="mt-2 break-all font-mono text-[10px] text-muted">dev: {devVerify}</p>}
           </GlassCard>
         )}
 

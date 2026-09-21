@@ -2,11 +2,15 @@
 Used for email OTP verification, password reset, and key account events."""
 
 import json
+import logging
 import smtplib
+import urllib.error
 import urllib.request
 from email.message import EmailMessage
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def configured() -> bool:
@@ -32,7 +36,11 @@ def _send_brevo(to: str, subject: str, text: str, html: str | None = None) -> bo
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
             return 200 <= r.status < 300
-    except Exception:
+    except urllib.error.HTTPError as exc:
+        logger.error("Brevo rejected email to %s with HTTP %s", to, exc.code)
+        return False
+    except Exception as exc:
+        logger.error("Brevo email failed for %s: %s", to, type(exc).__name__)
         return False
 
 
@@ -52,7 +60,8 @@ def _send_smtp(to: str, subject: str, text: str) -> bool:
                 s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
             s.send_message(msg)
         return True
-    except Exception:
+    except Exception as exc:
+        logger.error("SMTP email failed for %s: %s", to, type(exc).__name__)
         return False
 
 

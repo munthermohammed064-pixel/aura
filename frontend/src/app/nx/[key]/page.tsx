@@ -363,12 +363,6 @@ export default function Admin() {
             {loginErr && <p className="text-xs text-red-400">{loginErr}</p>}
             <button className="btn w-full disabled:opacity-50" type="submit" disabled={loginBusy}>{t("login")}</button>
           </form>
-          {process.env.NODE_ENV === "development" && (
-            <button type="button" className="btn-ghost mt-3 w-full text-xs"
-              onClick={() => setLoginForm({ id: "nx-admin-dev", password: "Admin123!x" })}>
-              demo autofill
-            </button>
-          )}
         </GlassCard>
       </main>
     );
