@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Nav } from "@/components/Nav";
 import { PageHeader } from "@/components/PageHeader";
@@ -52,6 +52,13 @@ type UserDetail = {
 };
 
 const TABS = ["stats", "packages", "investments", "deposits", "withdrawals", "users", "methods", "settings", "audit"] as const;
+
+const WD_STATUS: Record<string, string> = {
+  pending: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+  approved: "border-sky-400/30 bg-sky-400/10 text-sky-300",
+  paid: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+  rejected: "border-red-400/30 bg-red-400/10 text-red-300",
+};
 const EMPTY_PKG = { name: "", description: "", min_deposit: 0, max_deposit: 0, yield_min_pct: 0, yield_max_pct: 0, return_min_amount: 0, return_max_amount: 0, duration_days: 30, is_active: true, sort_order: 0 };
 const EMPTY_METHOD = { name: "", details: "", qr_image: "", min_amount: 0, max_amount: 0, is_active: true };
 const MONEY_STATS = new Set(["deposits_approved_total", "commissions_total"]);
@@ -89,6 +96,8 @@ export default function Admin() {
   const [settingsJson, setSettingsJson] = useState<Record<string, string>>({});
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [investments, setInvestments] = useState<Inv[]>([]);
+  const [payingId, setPayingId] = useState<string | null>(null);
+  const [txidInput, setTxidInput] = useState("");
 
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -257,13 +266,19 @@ export default function Admin() {
   };
 
   const processWithdrawal = (w: Row, action: string) => {
-    let txid = "";
-    if (action === "paid") {
-      const v = prompt(t("txid_ph"));
-      if (v === null || !v.trim()) return; // txid required to mark paid
-      txid = v.trim();
-    }
-    act(`/admin/withdrawals/${w.id}/process`, { action, txid, note: "" });
+    act(`/admin/withdrawals/${w.id}/process`, { action, txid: "", note: "" });
+  };
+
+  const confirmPay = (w: Row) => {
+    const txid = txidInput.trim();
+    if (!txid) { toast(t("txid_required"), "err"); return; }
+    setPayingId(null);
+    setTxidInput("");
+    act(`/admin/withdrawals/${w.id}/process`, { action: "paid", txid, note: "" });
+  };
+
+  const copyText = (v: string) => {
+    navigator.clipboard.writeText(v).then(() => toast(t("copied"))).catch(() => {});
   };
 
   const openUser = (id: string) => {
@@ -554,57 +569,100 @@ export default function Admin() {
 
         {tab === "withdrawals" && (
           <GlassCard>
-            <div className="mb-4 flex gap-2">
+            <div className="mb-4 flex items-center gap-2">
               {(["pending", "all"] as const).map((f) => (
-                <button key={f} onClick={() => { setWdFilter(f); setWdPage(0); }}
+                <button key={f} onClick={() => { setWdFilter(f); setWdPage(0); setPayingId(null); }}
                   className={`rounded-full px-3 py-1 text-xs transition ${wdFilter === f ? "bg-white/10" : "text-muted hover:text-white"}`}>
                   {f === "pending" ? t("pending_only") : t("all")}
                 </button>
               ))}
             </div>
+            {withdrawals.length === 0 ? (
+              <p className="py-10 text-center text-xs text-muted">{t("no_withdrawals")}</p>
+            ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-muted">
-                <th className="pb-2">{t("user")}</th><th className="pb-2">{t("amount")}</th><th className="pb-2">{t("address")}</th><th className="pb-2">{t("status")}</th><th className="pb-2">{t("actions")}</th>
+              <thead><tr className="text-start text-[10px] uppercase tracking-wider text-muted">
+                <th className="pb-2 pe-4">{t("user")}</th><th className="pb-2 pe-4">{t("net_payout")}</th><th className="pb-2 pe-4">{t("address")}</th><th className="pb-2 pe-4">{t("status")}</th><th className="pb-2">{t("actions")}</th>
               </tr></thead>
               <tbody>{withdrawals.slice(wdPage * PAGE_SIZE, wdPage * PAGE_SIZE + PAGE_SIZE).map((w) => (
-                <tr key={w.id} className="border-t border-border">
-                  <td className="py-2">
+                <Fragment key={w.id}>
+                <tr className="border-t border-border align-top">
+                  <td className="py-3 pe-4">
                     <p className="text-xs">{w.user_email}</p>
                     <p className="font-mono text-[10px] text-accent">{w.user_serial}</p>
                   </td>
-                  <td className="py-2">
-                    <p>${Number(w.amount).toLocaleString()}</p>
-                    {w.fee != null && <p className="text-[10px] text-muted">+${Number(w.fee).toLocaleString()} {t("fee")}</p>}
-                    {(w.star_penalty ?? 0) > 0 && (
-                      <p className="text-[10px] text-red-300">−${Number(w.star_penalty).toLocaleString()} {t("star_penalty")}</p>
-                    )}
-                    {w.net_payout != null && w.net_payout !== w.amount && (
-                      <p className="mt-0.5 text-[10px] font-semibold text-accent">{t("net_payout")}: ${Number(w.net_payout).toLocaleString()}</p>
+                  <td className="whitespace-nowrap py-3 pe-4">
+                    <p className="font-display text-base font-semibold text-accent">
+                      ${Number(w.net_payout ?? w.amount).toLocaleString()}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-muted">
+                      ${Number(w.amount).toLocaleString()}
+                      {(w.fee ?? 0) > 0 && <> − ${Number(w.fee).toLocaleString()} {t("fee")}</>}
+                      {(w.star_penalty ?? 0) > 0 && <> · −${Number(w.star_penalty).toLocaleString()} ★</>}
+                    </p>
+                  </td>
+                  <td className="max-w-56 py-3 pe-4">
+                    <div className="flex items-start gap-1.5">
+                      <p className="break-all font-mono text-[10px] leading-relaxed text-white/80">{w.address}</p>
+                      {w.address && (
+                        <button onClick={() => copyText(w.address!)} title={t("copy")}
+                          className="mt-0.5 shrink-0 rounded-md border border-border p-1 text-muted transition hover:border-accent/50 hover:text-accent">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>
+                        </button>
+                      )}
+                    </div>
+                    {w.txid && (
+                      <button onClick={() => copyText(w.txid!)} title={t("copy")}
+                        className="mt-1.5 block break-all text-start font-mono text-[10px] text-accent hover:underline">
+                        {t("txid")}: {w.txid}
+                      </button>
                     )}
                   </td>
-                  <td className="max-w-44 py-2">
-                    <p className="break-all font-mono text-[10px] text-muted">{w.address}</p>
-                    {w.txid && <p className="mt-1 break-all font-mono text-[10px] text-accent">{t("txid")}: {w.txid}</p>}
+                  <td className="py-3 pe-4">
+                    <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-medium capitalize ${WD_STATUS[w.status] ?? "border-white/10 bg-white/5 text-muted"}`}>
+                      {t(w.status)}
+                    </span>
                   </td>
-                  <td className="py-2 capitalize">{t(w.status)}</td>
-                  <td className="flex gap-2 py-2">
-                    {w.status === "pending" && (
-                      <>
+                  <td className="py-3">
+                    <div className="flex gap-1.5">
+                      {w.status === "pending" && (
                         <button className="btn-ghost px-3 py-1 text-xs" onClick={() => processWithdrawal(w, "approve")}>{t("approve")}</button>
-                        <button className="btn-ghost px-3 py-1 text-xs" onClick={() => processWithdrawal(w, "paid")}>{t("paid")}</button>
-                        <button className="btn-ghost px-3 py-1 text-xs" onClick={() => processWithdrawal(w, "reject")}>{t("reject")}</button>
-                      </>
-                    )}
-                    {w.status === "approved" && (
-                      <>
-                        <button className="btn-ghost px-3 py-1 text-xs" onClick={() => processWithdrawal(w, "paid")}>{t("paid")}</button>
-                        <button className="btn-ghost px-3 py-1 text-xs" onClick={() => processWithdrawal(w, "reject")}>{t("reject")}</button>
-                      </>
-                    )}
+                      )}
+                      {(w.status === "pending" || w.status === "approved") && (
+                        <>
+                          <button className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-black transition hover:brightness-110"
+                            onClick={() => { setPayingId(payingId === w.id ? null : w.id); setTxidInput(""); }}>
+                            {t("mark_paid")}
+                          </button>
+                          <button className="rounded-full border border-red-400/25 px-3 py-1 text-xs text-red-300 transition hover:bg-red-400/10"
+                            onClick={() => processWithdrawal(w, "reject")}>
+                            {t("reject")}
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
+                {payingId === w.id && (
+                  <tr className="border-t border-border/50 bg-white/[0.03]">
+                    <td colSpan={5} className="px-3 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted">{t("txid")}</span>
+                        <input autoFocus className="input flex-1" placeholder={t("txid_ph")}
+                          value={txidInput} onChange={(e) => setTxidInput(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && confirmPay(w)} />
+                        <button className="btn shrink-0 px-4 py-1.5 text-xs" onClick={() => confirmPay(w)}>{t("confirm")}</button>
+                        <button className="btn-ghost shrink-0 px-3 py-1.5 text-xs" onClick={() => { setPayingId(null); setTxidInput(""); }}>{t("cancel")}</button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}</tbody>
             </table>
+            </div>
+            )}
             <Pager total={withdrawals.length} page={wdPage} setPage={setWdPage} />
           </GlassCard>
         )}
