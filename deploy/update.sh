@@ -11,8 +11,8 @@ if git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -q "backend/requirement
   .venv/bin/pip install -q -r backend/requirements.txt || true
 fi
 
-# DB migrations — no-op when already at head (venv lives in backend/)
-cd backend && .venv/bin/alembic upgrade head && cd ..
+# DB migrations — no-op when already at head (venv + .env live here)
+cd backend && set -a && . ../.env && set +a && .venv/bin/alembic upgrade head && cd ..
 
 cd frontend
 npm ci --silent
