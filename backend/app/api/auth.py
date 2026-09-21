@@ -1,6 +1,10 @@
+import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
+
+# Security event log — events only, never passwords/tokens/codes.
+seclog = logging.getLogger("nexora.security")
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func
@@ -97,7 +101,7 @@ def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
         user = db.query(User).filter(User.email == ident).first()
         # Admin accounts never authenticate by email — only via their login_id
         # on the hidden console route. Email-guessing an admin gets a plain 401.
-        if user and user.role == "admin":
+        if user and user.role in ("admin", "owner"):
             user = None
     else:
         user = db.query(User).filter(User.login_id == ident).first() if ident else None
@@ -118,7 +122,9 @@ def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
             if user.login_attempts >= 5:
                 user.login_attempts = 0
                 user.login_locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+                seclog.warning("login_locked user=%s ip=%s", user.id, request.client.host if request.client else "?")
             db.commit()
+        seclog.info("login_failed ident_known=%s ip=%s", bool(user), request.client.host if request.client else "?")
         raise HTTPException(401, "Invalid credentials")
     if user.is_frozen or not user.is_active:
         raise HTTPException(403, "Account disabled")
@@ -151,9 +157,10 @@ def refresh(data: RefreshIn, request: Request, db: Session = Depends(get_db)):
     ua = request.headers.get("user-agent", "")[:255]
     ip = request.client.host if request.client else ""
     if (session.user_agent and ua and session.user_agent != ua) or \
-       (user.role == "admin" and session.ip and ip and session.ip != ip):
+       (user.role in ("admin", "owner") and session.ip and ip and session.ip != ip):
         session.revoked = True
         db.commit()
+        seclog.warning("session_theft_suspect user=%s sid=%s ip=%s", user.id, session.id, ip)
         raise HTTPException(401, "Session revoked")
     session.revoked = True  # rotation
     return _issue_tokens(db, user, request)
@@ -244,6 +251,7 @@ def verify_email(request: Request, data: VerifyIn, user: User = Depends(get_curr
         user.verify_token_hash = None
         user.verify_expires_at = None
         db.commit()
+        seclog.warning("otp_attempts_exhausted user=%s", user.id)
         raise HTTPException(429, "Too many attempts — request a new code")
     if not verify_password(data.token, user.verify_token_hash):
         user.verify_attempts = (user.verify_attempts or 0) + 1

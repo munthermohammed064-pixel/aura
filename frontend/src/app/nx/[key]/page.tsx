@@ -26,6 +26,7 @@ type Row = {
 };
 type Method = { id: string; name: string; details: string; qr_image: string; min_amount: number; max_amount: number; is_active: boolean };
 type Inv = { id: string; amount: number; status: string; realized_return: number; started_at: string; ends_at: string; user_email?: string; user_serial?: string; package_name?: string };
+type OpRow = { id: string; login_id: string; full_name: string; role: string; is_active: boolean; created_at: string | null };
 type AddrReq = { id: string; new_address: string; current_address: string; qr_image: string;
   status: string; fee: number; created_at: string | null; user_email?: string; user_serial?: string };
 type UserRow = {
@@ -53,7 +54,10 @@ type UserDetail = {
     amount: number; note: string; created_at: string | null }[];
 };
 
-const TABS = ["stats", "packages", "investments", "deposits", "withdrawals", "users", "address_requests", "methods", "settings", "audit"] as const;
+const TABS = ["stats", "packages", "investments", "deposits", "withdrawals", "users", "address_requests", "methods", "settings", "audit", "operators"] as const;
+// Owner-only surfaces — hidden for operators AND enforced server-side.
+const OWNER_TABS: string[] = ["methods", "settings", "audit", "operators"];
+const STAFF = ["admin", "owner"];
 
 const WD_STATUS: Record<string, string> = {
   pending: "border-amber-400/30 bg-amber-400/10 text-amber-300",
@@ -78,6 +82,7 @@ export default function Admin() {
   const [loginForm, setLoginForm] = useState({ id: "", password: "" });
   const [loginErr, setLoginErr] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
+  const [role, setRole] = useState("");
   const [tab, setTab] = useState<(typeof TABS)[number]>("stats");
   const [denied, setDenied] = useState(false);
   const [stats, setStats] = useState<Stats>({});
@@ -92,6 +97,8 @@ export default function Admin() {
   const [audit, setAudit] = useState<{ id: string; action: string; target_type: string; target_id: string; created_at: string; details: object }[]>([]);
   const [pkgForm, setPkgForm] = useState(EMPTY_PKG);
   const [methods, setMethods] = useState<Method[]>([]);
+  const [operators, setOperators] = useState<OpRow[]>([]);
+  const [opForm, setOpForm] = useState({ login_id: "", password: "", full_name: "" });
   const [mForm, setMForm] = useState(EMPTY_METHOD);
   const [mQr, setMQr] = useState<File | null>(null);
   const [editingMethod, setEditingMethod] = useState<string | null>(null);
@@ -127,16 +134,19 @@ export default function Admin() {
     api<Row[]>("/admin/withdrawals").then((rows) =>
       setWithdrawals(wdFilter === "pending" ? rows.filter((r) => r.status === "pending" || r.status === "approved") : rows)).catch(() => {});
     api<UserRow[]>(`/admin/users${userQ ? `?q=${encodeURIComponent(userQ)}` : ""}`).then(setUsers).catch(() => {});
-    api<typeof settings>("/admin/settings").then((s) => {
-      setSettings(s);
-      // Never clobber in-progress edits — the 10s poll used to erase what the
-      // admin was typing into the JSON textareas.
-      if (!settingsDirty) {
-        setSettingsJson(Object.fromEntries(Object.entries(s).map(([k, v]) => [k, JSON.stringify(v, null, 2)])));
-      }
-    }).catch(() => {});
-    api<typeof audit>("/admin/audit").then(setAudit).catch(() => {});
-    api<Method[]>("/admin/payment-methods").then(setMethods).catch(() => {});
+    if (role === "owner") {
+      api<typeof settings>("/admin/settings").then((s) => {
+        setSettings(s);
+        // Never clobber in-progress edits — the 10s poll used to erase what the
+        // admin was typing into the JSON textareas.
+        if (!settingsDirty) {
+          setSettingsJson(Object.fromEntries(Object.entries(s).map(([k, v]) => [k, JSON.stringify(v, null, 2)])));
+        }
+      }).catch(() => {});
+      api<typeof audit>("/admin/audit").then(setAudit).catch(() => {});
+      api<Method[]>("/admin/payment-methods").then(setMethods).catch(() => {});
+      api<OpRow[]>("/admin/operators").then(setOperators).catch(() => {});
+    }
     api<Inv[]>("/admin/investments").then(setInvestments).catch(() => {});
     api<AddrReq[]>("/admin/address-requests").then(setAddrReqs).catch(() => {});
   };
@@ -145,16 +155,16 @@ export default function Admin() {
   useEffect(() => {
     if (!keyOk) return;
     api<{ role: string }>("/auth/me")
-      .then((u) => setGate(u.role === "admin" ? "ok" : "login"))
+      .then((u) => { setRole(u.role); setGate(STAFF.includes(u.role) ? "ok" : "login"); })
       .catch(() => setGate("login"));
   }, [keyOk]);
 
-  useEffect(load, [depFilter, wdFilter, userQ, gate]);
+  useEffect(load, [depFilter, wdFilter, userQ, gate, role]);
   useEffect(() => {
     if (gate !== "ok") return;
     const id = setInterval(load, 10000);
     return () => clearInterval(id);
-  }, [depFilter, wdFilter, userQ, gate]);
+  }, [depFilter, wdFilter, userQ, gate, role]);
 
   const adminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,11 +176,12 @@ export default function Admin() {
         "/auth/login", { method: "POST", body: JSON.stringify({ identifier: loginForm.id, password: loginForm.password }), auth: false });
       setTokens(tk.access_token, tk.refresh_token);
       const me = await api<{ role: string }>("/auth/me");
-      if (me.role !== "admin") {
+      if (!STAFF.includes(me.role)) {
         clearTokens();
         setLoginErr(t("admin_only"));
         return;
       }
+      setRole(me.role);
       setGate("ok");
     } catch (err) {
       setLoginErr(err instanceof Error ? err.message : t("login_failed"));
@@ -374,7 +385,7 @@ export default function Admin() {
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("admin")} />
         <div className="mb-6 flex flex-wrap gap-2">
-          {TABS.map((tb) => {
+          {TABS.filter((tb) => role === "owner" || !OWNER_TABS.includes(tb)).map((tb) => {
             const badge = tb === "deposits" ? pendingDeps
               : tb === "withdrawals" ? pendingWds
               : tb === "address_requests" ? (stats.address_requests_pending ?? 0) : 0;
@@ -1055,6 +1066,51 @@ export default function Admin() {
             </table>
             <Pager total={audit.length} page={auditPage} setPage={setAuditPage} />
           </GlassCard>
+        )}
+
+        {tab === "operators" && role === "owner" && (
+          <div className="space-y-4">
+            <GlassCard>
+              <p className="mb-3 font-display text-sm">{t("operators")}</p>
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-xs text-muted">
+                  <th className="pb-2">{t("login_id")}</th><th className="pb-2">{t("full_name")}</th>
+                  <th className="pb-2">{t("role")}</th><th className="pb-2">{t("status")}</th><th className="pb-2"></th>
+                </tr></thead>
+                <tbody>{operators.map((o) => (
+                  <tr key={o.id} className="border-t border-border">
+                    <td className="py-2 font-mono text-xs">{o.login_id}</td>
+                    <td className="py-2 text-muted">{o.full_name || "—"}</td>
+                    <td className="py-2"><span className={`rounded-full px-2 py-0.5 text-[10px] ${o.role === "owner" ? "bg-accent/20 text-accent-2" : "bg-white/10 text-white/70"}`}>{o.role}</span></td>
+                    <td className="py-2">{o.is_active ? <span className="text-ok">{t("active")}</span> : <span className="text-err">{t("disabled")}</span>}</td>
+                    <td className="py-2 text-end">
+                      {o.role !== "owner" && (
+                        <button onClick={() => act(`/admin/operators/${o.id}/toggle`)}
+                          className="btn-ghost px-3 py-1 text-xs">
+                          {o.is_active ? t("disable") : t("enable")}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </GlassCard>
+            <GlassCard>
+              <p className="mb-3 font-display text-sm">{t("add_operator")}</p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <input className="input" placeholder={t("login_id")} value={opForm.login_id}
+                  onChange={(e) => setOpForm({ ...opForm, login_id: e.target.value })} />
+                <input className="input" placeholder={t("full_name")} value={opForm.full_name}
+                  onChange={(e) => setOpForm({ ...opForm, full_name: e.target.value })} />
+                <input className="input" type="password" placeholder={t("password_min12")} value={opForm.password}
+                  onChange={(e) => setOpForm({ ...opForm, password: e.target.value })} />
+              </div>
+              <button className="btn-gold mt-3 px-6 py-2 text-sm"
+                onClick={() => act("/admin/operators", opForm).then(() => setOpForm({ login_id: "", password: "", full_name: "" }))}>
+                {t("create")}
+              </button>
+            </GlassCard>
+          </div>
         )}
 
         {/* ---------- image lightbox ---------- */}

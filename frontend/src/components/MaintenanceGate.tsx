@@ -18,7 +18,7 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
       .catch(() => {});
     if (getToken()) {
       api<{ role: string }>("/auth/me")
-        .then((u) => setIsAdmin(u.role === "admin"))
+        .then((u) => setIsAdmin(["admin", "owner"].includes(u.role)))
         .catch(() => {});
     } else {
       setIsAdmin(false);

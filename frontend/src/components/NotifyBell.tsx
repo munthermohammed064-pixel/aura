@@ -40,9 +40,13 @@ export function NotifyBell() {
 
     const connect = async () => {
       if (closed) return;
-      const token = getToken();
-      if (!token) return;
-      es = new EventSource(`${API_URL}/notifications/stream?token=${encodeURIComponent(token)}`);
+      if (!getToken()) return;
+      // Mint a single-use 60s ticket — bearer tokens never go in URLs.
+      let ticket: string;
+      try {
+        ticket = (await api<{ ticket: string }>("/notifications/stream-ticket", { method: "POST" })).ticket;
+      } catch { return; }
+      es = new EventSource(`${API_URL}/notifications/stream?ticket=${encodeURIComponent(ticket)}`);
       es.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);

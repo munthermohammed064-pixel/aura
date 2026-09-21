@@ -38,7 +38,18 @@ def get_current_user(
     return user
 
 
+STAFF_ROLES = ("admin", "owner")
+
+
 def get_admin(user: User = Depends(get_current_user)) -> User:
-    if user.role != "admin":
+    """Day-to-day operations access: deposits, withdrawals, users, packages."""
+    if user.role not in STAFF_ROLES:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin access required")
+    return user
+
+
+def get_owner(user: User = Depends(get_current_user)) -> User:
+    """Company-control access: payment methods, settings, audit, staff."""
+    if user.role != "owner":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Owner access required")
     return user

@@ -10,12 +10,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_admin
+from app.core.deps import get_admin, get_owner
 from app.database import get_db
 from app.models.finance import (
     Deposit, Investment, LedgerEntry, Package, PaymentMethod, ReferralCommission, Withdrawal,
 )
 from app.models.platform import AuditLog, AddressRequest, Setting, Ticket
+from app.models.user import Session as UserSession
 from app.models.user import User, Wallet
 from app.schemas import (
     BalanceAdjustIn, PackageIn, PaymentMethodIn, SettleIn, SettingIn,
@@ -484,16 +485,16 @@ def reject_address_request(r_id: str, admin: User = Depends(get_admin), db: Sess
 
 # ---------- Payment methods ----------
 @router.get("/payment-methods")
-def list_methods(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+def list_methods(owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     return db.query(PaymentMethod).order_by(PaymentMethod.name).all()
 
 
 @router.post("/payment-methods", status_code=201)
-def create_method(data: PaymentMethodIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+def create_method(data: PaymentMethodIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     m = PaymentMethod(**data.model_dump())
     db.add(m)
     db.flush()
-    audit(db, admin, "method.create", "payment_method", m.id, {"name": m.name})
+    audit(db, owner, "method.create", "payment_method", m.id, {"name": m.name})
     db.commit()
     db.refresh(m)
     bust("payment-methods")
@@ -501,24 +502,24 @@ def create_method(data: PaymentMethodIn, admin: User = Depends(get_admin), db: S
 
 
 @router.put("/payment-methods/{m_id}")
-def update_method(m_id: str, data: PaymentMethodIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+def update_method(m_id: str, data: PaymentMethodIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     m = db.get(PaymentMethod, uuid.UUID(m_id))
     if not m:
         raise HTTPException(404, "Method not found")
     for k, v in data.model_dump().items():
         setattr(m, k, v)
-    audit(db, admin, "method.update", "payment_method", m.id, {"name": m.name})
+    audit(db, owner, "method.update", "payment_method", m.id, {"name": m.name})
     db.commit()
     bust("payment-methods")
     return m
 
 
 @router.delete("/payment-methods/{m_id}")
-def delete_method(m_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+def delete_method(m_id: str, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     m = db.get(PaymentMethod, uuid.UUID(m_id))
     if not m:
         raise HTTPException(404, "Method not found")
-    audit(db, admin, "method.delete", "payment_method", m.id, {"name": m.name})
+    audit(db, owner, "method.delete", "payment_method", m.id, {"name": m.name})
     db.delete(m)
     db.commit()
     bust("payment-methods")
@@ -527,16 +528,16 @@ def delete_method(m_id: str, admin: User = Depends(get_admin), db: Session = Dep
 
 # ---------- Settings ----------
 @router.get("/settings")
-def all_settings(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+def all_settings(owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     from app.services.settings import DEFAULTS
     keys = set(DEFAULTS) | set(db.scalars(db.query(Setting.key)).all())
     return {k: get_setting(db, k) for k in sorted(keys)}
 
 
 @router.put("/settings/{key}")
-def update_setting(key: str, data: SettingIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+def update_setting(key: str, data: SettingIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     set_setting(db, key, data.value)
-    audit(db, admin, "settings.update", "setting", key, data.value)
+    audit(db, owner, "settings.update", "setting", key, data.value)
     db.commit()
     bust("config:"); bust("legal:"); bust("faq:")
     return {"ok": True}
@@ -616,8 +617,63 @@ def close_ticket(ticket_id: str, admin: User = Depends(get_admin), db: Session =
 
 # ---------- Audit ----------
 @router.get("/audit")
-def audit_log(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+def audit_log(owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     rows = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(300).all()
     return [{"id": str(a.id), "action": a.action, "target_type": a.target_type,
              "target_id": a.target_id, "details": a.details,
              "created_at": a.created_at.isoformat() if a.created_at else None} for a in rows]
+
+
+# ---------- Operators (owner-only staff management) ----------
+class OperatorIn(BaseModel):
+    login_id: str = Field(min_length=4, max_length=64)
+    password: str = Field(min_length=12, max_length=72)
+    full_name: str = ""
+
+
+def _op_out(u: User) -> dict:
+    return {"id": str(u.id), "login_id": u.login_id, "full_name": u.full_name,
+            "role": u.role, "is_active": u.is_active,
+            "created_at": u.created_at.isoformat() if u.created_at else None}
+
+
+@router.get("/operators")
+def list_operators(owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+    rows = db.query(User).filter(User.role.in_(("admin", "owner"))).order_by(User.created_at).all()
+    return [_op_out(u) for u in rows]
+
+
+@router.post("/operators", status_code=201)
+def create_operator(data: OperatorIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+    import secrets as _secrets
+    from app.core.security import hash_password
+    if db.query(User).filter(User.login_id == data.login_id).first():
+        raise HTTPException(400, "Login ID already in use")
+    op = User(login_id=data.login_id,
+              email=f"{data.login_id}@ops.internal",  # operators never log in by email
+              full_name=data.full_name, referral_code=_secrets.token_hex(8),
+              password_hash=hash_password(data.password), role="admin",
+              is_active=True, email_verified=True)
+    db.add(op)
+    db.flush()
+    audit(db, owner, "operator.create", "user", op.id, {"login_id": op.login_id})
+    db.commit()
+    return _op_out(op)
+
+
+@router.post("/operators/{op_id}/toggle")
+def toggle_operator(op_id: str, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+    op = db.get(User, uuid.UUID(op_id))
+    if not op or op.role not in ("admin", "owner"):
+        raise HTTPException(404, "Operator not found")
+    if op.id == owner.id:
+        raise HTTPException(400, "Cannot deactivate your own account")
+    if op.role == "owner":
+        raise HTTPException(403, "Owner accounts cannot be modified")
+    op.is_active = not op.is_active
+    if not op.is_active:
+        # Kill every live session so deactivation is instant.
+        db.query(UserSession).filter(UserSession.user_id == op.id).update({"revoked": True})
+    audit(db, owner, "operator.toggle", "user", op.id, {"is_active": op.is_active})
+    db.commit()
+    return _op_out(op)

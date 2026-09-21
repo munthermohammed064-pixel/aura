@@ -12,11 +12,12 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.core.deps import get_current_user
+from app.core.deps import bearer, get_current_user
 from app.core.security import decode_token
 from app.database import SessionLocal, get_db
 from app.models.finance import ReferralCommission
 from app.models.platform import Notification, Raffle, RaffleEntry, Ticket, TicketReply, WheelSpin
+from app.models.user import Session as UserSession
 from app.models.user import User
 from app.schemas import ReplyIn, TicketIn
 from app.services.cache import get_or_set
@@ -81,20 +82,44 @@ def read_all_notifications(user: User = Depends(get_current_user), db: Session =
     return {"ok": True}
 
 
+# One-time SSE tickets — bearer tokens must never travel in URLs (they land in
+# proxy access logs and browser history). Authed POST mints a 60s single-use
+# ticket; EventSource connects with ?ticket= which authenticates nothing else.
+_STREAM_TICKETS: dict[str, tuple[uuid.UUID, uuid.UUID, datetime]] = {}
+
+
+@router.post("/notifications/stream-ticket", status_code=201)
+def stream_ticket(user: User = Depends(get_current_user), creds=Depends(bearer)):
+    payload = decode_token(creds.credentials)
+    sid = uuid.UUID(payload.get("sid", ""))
+    # sweep expired tickets while we're here
+    now = datetime.now(timezone.utc)
+    for k, (_, _, exp) in list(_STREAM_TICKETS.items()):
+        if exp < now:
+            _STREAM_TICKETS.pop(k, None)
+    ticket = uuid.uuid4().hex
+    _STREAM_TICKETS[ticket] = (user.id, sid, now + timedelta(seconds=60))
+    return {"ticket": ticket}
+
+
 @router.get("/notifications/stream")
-async def notification_stream(token: str):
-    """SSE stream of unread notification count + latest items (token via query — EventSource can't set headers)."""
-    try:
-        payload = decode_token(token)
-        user_id = uuid.UUID(payload["sub"])
-    except Exception:
-        raise HTTPException(401, "Invalid token")
+async def notification_stream(ticket: str):
+    """SSE stream — consumes a single-use ticket (see stream-ticket endpoint)."""
+    entry = _STREAM_TICKETS.pop(ticket, None)
+    if not entry or entry[2] < datetime.now(timezone.utc):
+        raise HTTPException(401, "Invalid or expired stream ticket")
+    user_id, sid = entry
 
     async def gen():
         last_sig = None
         while True:
             db = SessionLocal()
             try:
+                # Kill the stream the moment the session is revoked/frozen.
+                sess = db.get(UserSession, sid)
+                u = db.get(User, user_id)
+                if not sess or sess.revoked or not u or not u.is_active or u.is_frozen:
+                    return
                 notifs = (db.query(Notification)
                           .filter(Notification.user_id == user_id)
                           .order_by(Notification.created_at.desc()).limit(10).all())
@@ -139,7 +164,7 @@ def ticket_detail(ticket_id: str, user: User = Depends(get_current_user), db: Se
         t = db.get(Ticket, uuid.UUID(ticket_id))
     except ValueError:
         t = None
-    if not t or (t.user_id != user.id and user.role != "admin"):
+    if not t or (t.user_id != user.id and user.role not in ("admin", "owner")):
         raise HTTPException(404, "Ticket not found")
     replies = db.query(TicketReply).filter(TicketReply.ticket_id == t.id).order_by(TicketReply.created_at).all()
     return {"ticket": t, "replies": replies}
@@ -151,9 +176,9 @@ def reply_ticket(ticket_id: str, data: ReplyIn, user: User = Depends(get_current
         t = db.get(Ticket, uuid.UUID(ticket_id))
     except ValueError:
         t = None
-    if not t or (t.user_id != user.id and user.role != "admin"):
+    if not t or (t.user_id != user.id and user.role not in ("admin", "owner")):
         raise HTTPException(404, "Ticket not found")
-    is_admin = user.role == "admin"
+    is_admin = user.role in ("admin", "owner")
     db.add(TicketReply(ticket_id=t.id, author_id=user.id, body=data.body, is_admin=is_admin))
     t.status = "answered" if is_admin else "open"
     from app.services.notify import notify_admins, notify_user

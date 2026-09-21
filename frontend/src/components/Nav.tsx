@@ -53,7 +53,7 @@ export function Nav() {
     const hasToken = !!getToken();
     setAuthed(hasToken);
     if (!hasToken) { setIsAdmin(false); return; }
-    api<{ role: string }>("/auth/me").then((u) => setIsAdmin(u.role === "admin")).catch(() => {});
+    api<{ role: string }>("/auth/me").then((u) => setIsAdmin(["admin", "owner"].includes(u.role))).catch(() => {});
   }, [pathname]);
 
   useEffect(() => { setMenuOpen(false); setMoreOpen(false); }, [pathname]);

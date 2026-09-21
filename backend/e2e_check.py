@@ -66,7 +66,7 @@ def make_admin(login_id, password="Admin123!xyz"):
     from app.models.user import User
     db = SessionLocal()
     u = User(email=f"{login_id}@internal.local", login_id=login_id,
-             password_hash=hash_password(password), role="admin",
+             password_hash=hash_password(password), role="owner",
              referral_code="T" + uuid.uuid4().hex[:8].upper())
     db.add(u)
     db.commit()
@@ -197,6 +197,29 @@ check("admin stats", s == 200 and "users" in stats, str(stats)[:80])
 # user cannot access admin
 s, b = call("GET", "/admin/stats", token=tok)
 check("non-admin 403", s == 403)
+
+# owner/operator split — operators run ops but can't touch company surfaces
+s, b = call("POST", "/admin/operators",
+            {"login_id": f"nxop_{uid}", "password": "Operator123!xyz", "full_name": "E2E Op"}, token=atok)
+check("owner creates operator", s == 201 and b.get("role") == "admin", f"{s} {str(b)[:60]}")
+op_id = b.get("id")
+s, b = call("POST", "/auth/login", {"identifier": f"nxop_{uid}", "password": "Operator123!xyz"})
+otok = b.get("access_token")
+check("operator login", s == 200 and bool(otok), f"got {s}")
+s, b = call("GET", "/admin/deposits", token=otok)
+check("operator can read deposits", s == 200, f"got {s}")
+s, b = call("GET", "/admin/payment-methods", token=otok)
+check("operator blocked from payment methods", s == 403, f"got {s}")
+s, b = call("GET", "/admin/settings", token=otok)
+check("operator blocked from settings", s == 403, f"got {s}")
+s, b = call("GET", "/admin/audit", token=otok)
+check("operator blocked from audit", s == 403, f"got {s}")
+s, b = call("POST", "/admin/operators", {"login_id": "x", "password": "Operator123!xyz"}, token=otok)
+check("operator cannot create staff", s == 403, f"got {s}")
+s, b = call("POST", f"/admin/operators/{op_id}/toggle", {}, token=atok)
+check("owner deactivates operator", s == 200 and b.get("is_active") is False, f"{s}")
+s, b = call("GET", "/auth/me", token=otok)
+check("deactivated operator token dead", s == 401, f"got {s}")
 
 # create a payment method
 s, b = call("GET", "/payment-methods")
