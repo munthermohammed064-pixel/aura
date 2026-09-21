@@ -14,9 +14,11 @@ const CATEGORY: [RegExp, string][] = [
   [/withdrawal/, "withdrawals"],
   [/investment/, "investments"],
   [/invitation/, "prize"],
-  [/ticket/, "support"],
   [/star|balance|address|welcome/, "account"],
 ];
+
+// Support is handled off-platform — never surface ticket notifications.
+const isTicket = (kind: string | null) => !!kind && kind.includes("ticket");
 
 function categoryOf(kind: string | null): string {
   if (!kind) return "account";
@@ -44,8 +46,9 @@ export function NotifyBell() {
       es.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
-          setUnread(data.unread);
-          setItems(data.items);
+          const items = (data.items as Item[]).filter((n) => !isTicket(n.kind));
+          setItems(items);
+          setUnread(items.filter((n) => !n.read).length);
         } catch { /* ignore */ }
       };
       es.onerror = () => {

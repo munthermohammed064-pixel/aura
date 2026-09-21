@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Briefcase, ChevronDown, LayoutDashboard, LifeBuoy, LogOut, Package,
+  Briefcase, ChevronDown, LayoutDashboard, LogOut, Package,
   TrendingUp, User, Users, Wallet,
 } from "lucide-react";
 import { api, clearTokens, getToken, PLATFORM_NAME } from "@/lib/api";
@@ -24,7 +24,6 @@ const MORE = [
   ["my_packages", "/my-packages", Briefcase],
   ["referrals", "/referrals", Users],
   ["markets", "/markets", TrendingUp],
-  ["support", "/support", LifeBuoy],
 ] as const;
 
 const LINKS = [...PRIMARY, ...MORE];

@@ -26,8 +26,6 @@ type Row = {
 };
 type Method = { id: string; name: string; details: string; qr_image: string; min_amount: number; max_amount: number; is_active: boolean };
 type Inv = { id: string; amount: number; status: string; realized_return: number; started_at: string; ends_at: string; user_email?: string; user_serial?: string; package_name?: string };
-type TicketRow = { id: string; subject: string; status: string; created_at: string; user_email?: string; user_serial?: string };
-type TReply = { id: string; body: string; is_admin: boolean; created_at: string };
 type UserRow = {
   id: string; email: string; serial: string; is_frozen: boolean; role: string; stars: number;
   default_withdraw_address: string | null; withdraw_qr_image: string | null; withdraw_fee_pct: number | null;
@@ -53,7 +51,7 @@ type UserDetail = {
     amount: number; note: string; created_at: string | null }[];
 };
 
-const TABS = ["stats", "packages", "investments", "deposits", "withdrawals", "users", "tickets", "methods", "settings", "audit"] as const;
+const TABS = ["stats", "packages", "investments", "deposits", "withdrawals", "users", "methods", "settings", "audit"] as const;
 const EMPTY_PKG = { name: "", description: "", min_deposit: 0, max_deposit: 0, yield_min_pct: 0, yield_max_pct: 0, return_min_amount: 0, return_max_amount: 0, duration_days: 30, is_active: true, sort_order: 0 };
 const EMPTY_METHOD = { name: "", details: "", qr_image: "", min_amount: 0, max_amount: 0, is_active: true };
 const MONEY_STATS = new Set(["deposits_approved_total", "commissions_total"]);
@@ -91,10 +89,7 @@ export default function Admin() {
   const [settingsJson, setSettingsJson] = useState<Record<string, string>>({});
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [investments, setInvestments] = useState<Inv[]>([]);
-  const [tickets, setTickets] = useState<TicketRow[]>([]);
-  const [openTicket, setOpenTicket] = useState<TicketRow | null>(null);
-  const [replies, setReplies] = useState<TReply[]>([]);
-  const [replyText, setReplyText] = useState("");
+
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -105,11 +100,6 @@ export default function Admin() {
   const [userPage, setUserPage] = useState(0);
   const [invPage, setInvPage] = useState(0);
   const [auditPage, setAuditPage] = useState(0);
-
-  const refreshReplies = () => {
-    if (!openTicket) return;
-    api<{ replies: TReply[] }>(`/tickets/${openTicket.id}`).then((d) => setReplies(d.replies)).catch(() => {});
-  };
 
   const load = () => {
     if (gate !== "ok") return;
@@ -136,7 +126,6 @@ export default function Admin() {
     api<typeof audit>("/admin/audit").then(setAudit).catch(() => {});
     api<Method[]>("/admin/payment-methods").then(setMethods).catch(() => {});
     api<Inv[]>("/admin/investments").then(setInvestments).catch(() => {});
-    api<TicketRow[]>("/admin/tickets").then(setTickets).catch(() => {});
   };
 
   // Gate: secret path ok → check the session is actually an admin
@@ -150,9 +139,9 @@ export default function Admin() {
   useEffect(load, [depFilter, wdFilter, userQ, gate]);
   useEffect(() => {
     if (gate !== "ok") return;
-    const id = setInterval(() => { load(); refreshReplies(); }, 10000);
+    const id = setInterval(load, 10000);
     return () => clearInterval(id);
-  }, [depFilter, wdFilter, userQ, openTicket?.id, gate]);
+  }, [depFilter, wdFilter, userQ, gate]);
 
   const adminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,7 +175,6 @@ export default function Admin() {
 
   const pendingDeps = stats.deposits_pending ?? 0;
   const pendingWds = stats.withdrawals_actionable ?? stats.withdrawals_pending ?? 0;
-  const openTickets = stats.tickets_open ?? 0;
 
   const savePkg = async () => {
     // 0 return amounts mean "use yield %" — send null, not literal 0
@@ -243,22 +231,6 @@ export default function Admin() {
   const editMethod = (m: Method) => {
     setEditingMethod(m.id);
     setMForm({ name: m.name, details: m.details ?? "", qr_image: m.qr_image ?? "", min_amount: m.min_amount, max_amount: m.max_amount, is_active: m.is_active });
-  };
-
-  const openTicketDetail = async (tk: TicketRow) => {
-    setOpenTicket(tk);
-    const d = await api<{ ticket: TicketRow; replies: TReply[] }>(`/tickets/${tk.id}`).catch(() => null);
-    if (d) setReplies(d.replies);
-  };
-
-  const sendAdminReply = async () => {
-    if (!openTicket || !replyText.trim()) return;
-    try {
-      await api(`/tickets/${openTicket.id}/reply`, { method: "POST", body: JSON.stringify({ body: replyText }) });
-      setReplyText("");
-      openTicketDetail(openTicket);
-      load();
-    } catch (e) { toast(e instanceof Error ? e.message : t("failed"), "err"); }
   };
 
   const settleInv = (inv: Inv) => {
@@ -373,8 +345,7 @@ export default function Admin() {
         <div className="mb-6 flex flex-wrap gap-2">
           {TABS.map((tb) => {
             const badge = tb === "deposits" ? pendingDeps
-              : tb === "withdrawals" ? pendingWds
-              : tb === "tickets" ? openTickets : 0;
+              : tb === "withdrawals" ? pendingWds : 0;
             return (
               <button key={tb} onClick={() => setTab(tb)}
                 className={`relative rounded-full px-4 py-1.5 text-xs capitalize transition ${tab === tb ? "bg-white/10" : "text-muted hover:text-white"}`}>
@@ -391,7 +362,7 @@ export default function Admin() {
 
         {tab === "stats" && (
           <div className="space-y-4">
-          {(pendingDeps + pendingWds + openTickets) > 0 && (
+          {(pendingDeps + pendingWds) > 0 && (
             <GlassCard className="gold-edge">
               <p className="mb-3 font-display text-sm">{t("needs_action")}</p>
               <div className="flex flex-wrap gap-2">
@@ -403,11 +374,6 @@ export default function Admin() {
                 {pendingWds > 0 && (
                   <button onClick={() => setTab("withdrawals")} className="btn-ghost px-4 py-2 text-xs">
                     {pendingWds} {t("withdrawals")}
-                  </button>
-                )}
-                {openTickets > 0 && (
-                  <button onClick={() => setTab("tickets")} className="btn-ghost px-4 py-2 text-xs">
-                    {openTickets} {t("tickets")}
                   </button>
                 )}
               </div>
@@ -511,59 +477,6 @@ export default function Admin() {
             </table>
             <Pager total={investments.length} page={invPage} setPage={setInvPage} />
           </GlassCard>
-        )}
-
-        {tab === "tickets" && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <GlassCard>
-              <div className="space-y-2">
-                {tickets.length === 0 && <p className="text-xs text-muted">{t("no_tickets")}</p>}
-                {tickets.map((tk) => (
-                  <button key={tk.id} onClick={() => openTicketDetail(tk)}
-                    className={`block w-full rounded-xl border px-4 py-3 text-start transition ${openTicket?.id === tk.id ? "border-accent" : "border-border hover:border-white/15"}`}>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="truncate text-sm">{tk.subject}</span>
-                      <span className="shrink-0 rounded-full bg-white/5 px-2.5 py-0.5 text-[10px] capitalize text-muted">{t(tk.status)}</span>
-                    </div>
-                    <p className="mt-1 text-[10px] text-muted">{tk.user_email} · {tk.user_serial}</p>
-                  </button>
-                ))}
-              </div>
-            </GlassCard>
-            <GlassCard className="flex min-h-96 flex-col">
-              {!openTicket ? (
-                <p className="py-16 text-center text-sm text-muted">{t("select_ticket")}</p>
-              ) : (
-                <>
-                  <div className="mb-4 flex items-start justify-between gap-3">
-                    <h2 className="font-medium">{openTicket.subject}</h2>
-                    {openTicket.status !== "closed" && (
-                      <button className="btn-ghost shrink-0 px-3 py-1 text-xs"
-                        onClick={() => act(`/admin/tickets/${openTicket.id}/close`).then(() => setOpenTicket({ ...openTicket, status: "closed" }))}>
-                        {t("close_ticket")}
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex-1 space-y-3 overflow-y-auto pb-4">
-                    {replies.map((r) => (
-                      <div key={r.id} className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${r.is_admin ? "ml-auto bg-accent/15 border border-accent/25" : "bg-white/10"}`}>
-                        <p className="leading-relaxed">{r.body}</p>
-                        <p className="mt-1 text-[9px] text-muted">{new Date(r.created_at).toLocaleString()}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {openTicket.status !== "closed" && (
-                    <div className="flex gap-2 border-t border-border pt-4">
-                      <input className="input" placeholder={t("write_reply")} value={replyText}
-                        onChange={(e) => setReplyText(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && sendAdminReply()} />
-                      <button className="btn shrink-0 px-4" onClick={sendAdminReply}>{t("send")}</button>
-                    </div>
-                  )}
-                </>
-              )}
-            </GlassCard>
-          </div>
         )}
 
         {tab === "deposits" && (
