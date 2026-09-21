@@ -190,8 +190,8 @@ _FOREX_PAIRS = [
 def forex():
     def produce():
         to = ",".join(sorted({cur for _, cur, _ in _FOREX_PAIRS}))
-        r = httpx.get("https://api.frankfurter.app/latest",
-                      params={"from": "USD", "to": to}, timeout=10)
+        r = httpx.get("https://api.frankfurter.dev/v1/latest",
+                      params={"from": "USD", "to": to}, timeout=10, follow_redirects=True)
         r.raise_for_status()
         data = r.json()
         rates = data.get("rates", {})
