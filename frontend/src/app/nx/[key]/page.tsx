@@ -215,6 +215,7 @@ export default function Admin() {
       return_min_amount: p.return_min_amount ?? 0, return_max_amount: p.return_max_amount ?? 0,
       duration_days: p.duration_days, is_active: p.is_active, sort_order: p.sort_order ?? 0,
     });
+    setTimeout(() => document.getElementById("pkg-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   };
 
   const saveMethod = async () => {
@@ -426,7 +427,7 @@ export default function Admin() {
 
         {tab === "packages" && (
           <div className="space-y-4">
-            {editingPkg && <GlassCard>
+            {editingPkg && <GlassCard id="pkg-form">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-medium">{t("edit_package")}</h2>
                 <button className="btn-ghost px-3 py-1 text-xs" onClick={() => {

@@ -1,10 +1,10 @@
 import { ReactNode } from "react";
 
-export function GlassCard({ children, className = "", hover = false, glass = false }: {
-  children: ReactNode; className?: string; hover?: boolean; glass?: boolean;
+export function GlassCard({ children, className = "", hover = false, glass = false, id }: {
+  children: ReactNode; className?: string; hover?: boolean; glass?: boolean; id?: string;
 }) {
   return (
-    <div className={`${glass ? "glass" : "surface"} p-6 ${hover ? "glass-hover" : ""} ${className}`}>{children}</div>
+    <div id={id} className={`${glass ? "glass" : "surface"} p-6 ${hover ? "glass-hover" : ""} ${className}`}>{children}</div>
   );
 }
 
