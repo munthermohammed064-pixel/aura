@@ -1,6 +1,7 @@
-import sys, time, paramiko
+import os, sys, time, paramiko
 
-HOST, PW = "187.124.9.200", "Nx!Deploy2024z"
+HOST = "187.124.9.200"
+PW = os.environ["NX_DEPLOY_PW"]  # never hardcode server credentials
 cmd = sys.argv[1]
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 

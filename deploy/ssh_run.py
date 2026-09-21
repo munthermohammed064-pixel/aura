@@ -1,6 +1,7 @@
-import sys, paramiko
+import os, sys, paramiko
 
-HOST, PW = "187.124.9.200", "Nx!Deploy2024z"
+HOST = "187.124.9.200"
+PW = os.environ["NX_DEPLOY_PW"]  # never hardcode server credentials
 cmd = sys.argv[1] if len(sys.argv) > 1 else sys.stdin.read()
 
 c = paramiko.SSHClient()

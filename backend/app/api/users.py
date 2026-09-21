@@ -18,7 +18,7 @@ router = APIRouter(prefix="/profile", tags=["profile"])
 
 class PasswordChange(BaseModel):
     current: str
-    new: str = Field(min_length=12)
+    new: str = Field(min_length=12, max_length=72)
 
 
 class ProfileUpdate(BaseModel):

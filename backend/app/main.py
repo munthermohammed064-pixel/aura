@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
 from app.api import admin, auth, misc, packages, users, wallet
@@ -15,7 +16,9 @@ from app.database import SessionLocal
 from app.models.platform import Setting
 from app.services.settle import settle_matured
 
-limiter = Limiter(key_func=get_remote_address)
+# Global catch-all: 300 req/min per real IP on every route, on top of the
+# tighter per-endpoint limits. Blocks path-scanning and API flooding.
+limiter = Limiter(key_func=get_remote_address, default_limits=["300/minute"])
 
 
 async def _settlement_loop():
@@ -50,6 +53,7 @@ app = FastAPI(
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

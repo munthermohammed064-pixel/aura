@@ -107,7 +107,10 @@ def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
             locked = locked.replace(tzinfo=timezone.utc)
         if locked and locked > datetime.now(timezone.utc):
             raise HTTPException(429, "Too many failed attempts — try again in 15 minutes")
-    if not user or not verify_password(data.password, user.password_hash):
+    # Always run bcrypt — without it, a valid email/login_id returns measurably
+    # slower than an invalid one, which lets attackers enumerate accounts.
+    _DUMMY_HASH = "$2b$12$LJ3m4ys1Rz6SGQOzkzWsJe8tQrY8qYz8qYz8qYz8qYz8qYz8qYz8q"
+    if not user or not verify_password(data.password, user.password_hash if user else _DUMMY_HASH):
         if user:
             # Progressive lockout: 5 bad passwords locks the account 15 min.
             # Per-IP limits alone can't stop a distributed guessing attack.

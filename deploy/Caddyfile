@@ -15,9 +15,18 @@ __DOMAIN__ {
 		-X-Powered-By
 	}
 
+	# Cap request bodies at the edge — oversized POSTs never reach uvicorn.
+	request_body {
+		max_size 6MB
+	}
+
 	# Never expose API docs/schema publicly even if the app enables them.
 	@docs path /docs* /redoc* /openapi.json
 	respond @docs 404
+
+	# Drop dotfile/exploit probes before they hit either app.
+	@denied path /.env* /.git* /.svn* /.htaccess* /wp-* /xmlrpc.php /vendor/* /phpmyadmin*
+	respond @denied 404
 
 	handle /api/* {
 		reverse_proxy 127.0.0.1:8000

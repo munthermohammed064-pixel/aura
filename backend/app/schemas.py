@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr, Field
 # ---- Auth ----
 class RegisterIn(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=12)
+    password: str = Field(min_length=12, max_length=72)  # bcrypt truncates at 72 bytes
     full_name: str = ""
     referral_code: str | None = None
 
@@ -34,7 +34,7 @@ class ForgotIn(BaseModel):
 
 class ResetIn(BaseModel):
     token: str
-    new_password: str = Field(min_length=12)
+    new_password: str = Field(min_length=12, max_length=72)
 
 
 class VerifyIn(BaseModel):

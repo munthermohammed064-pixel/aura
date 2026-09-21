@@ -45,7 +45,8 @@ async def upload_image(request: Request, file: UploadFile, user: User = Depends(
     """Upload a proof screenshot (or admin QR image). Returns the public path."""
     if file.content_type not in ALLOWED_IMG:
         raise HTTPException(400, "Only PNG/JPEG/WebP images are allowed")
-    data = await file.read()
+    # Read capped at limit+1 — a multi-GB body can't exhaust server memory.
+    data = await file.read(MAX_UPLOAD + 1)
     if not data or len(data) > MAX_UPLOAD:
         raise HTTPException(400, "File empty or larger than 5MB")
     if not _sniff_image(data, file.content_type):
