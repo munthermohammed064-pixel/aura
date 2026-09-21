@@ -16,16 +16,18 @@ export default function Dashboard() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [txs, setTxs] = useState<Tx[]>([]);
 
-  const [serial, setSerial] = useState("");
-  const [stars, setStars] = useState(4);
+  const [me, setMe] = useState<{ serial: string; stars: number; full_name: string; email: string } | null>(null);
 
   useEffect(() => {
     api<Wallet>("/wallet").then(setWallet).catch(() => {});
     api<Tx[]>("/wallet/transactions").then(setTxs).catch(() => {});
-    api<{ serial: string; stars: number }>("/auth/me").then((u) => {
-      setSerial(u.serial); setStars(u.stars ?? 4);
-    }).catch(() => {});
+    api<{ serial: string; stars: number; full_name: string; email: string }>("/auth/me")
+      .then(setMe).catch(() => {});
   }, []);
+
+  const displayName = me?.full_name?.trim() || me?.email || "";
+  const initials = (me?.full_name?.trim() || me?.email || "·")
+    .split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
   const stats = [
     [t("available"), wallet?.available],
@@ -39,14 +41,20 @@ export default function Dashboard() {
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("dashboard")}
-          right={
-            <span className="flex items-center gap-3">
-              <span className="surface flex items-center gap-2 px-3 py-1.5" title={t("your_stars")}>
-                <Stars value={stars} size={14} />
+          right={me && (
+            <span className="surface flex items-center gap-2.5 px-3 py-1.5">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-accent/30 bg-accent/10 font-display text-[11px] font-semibold tracking-wide text-accent">
+                {initials}
               </span>
-              {serial && <span className="surface px-3 py-1.5 font-mono text-xs text-accent">{serial}</span>}
+              <span className="leading-tight">
+                <span className="block max-w-36 truncate text-xs font-medium">{displayName}</span>
+                <span className="block font-mono text-[9px] tracking-wider text-muted">{me.serial}</span>
+              </span>
+              <span className="ms-1 border-s border-border ps-2.5" title={t("your_stars")}>
+                <Stars value={me.stars ?? 4} size={11} />
+              </span>
             </span>
-          } />
+          )} />
         <div className="grid gap-4 md:grid-cols-4">
           {stats.map(([label, v]) => (
             <GlassCard key={label} className="glow-card">
