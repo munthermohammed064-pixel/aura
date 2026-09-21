@@ -5,6 +5,9 @@ set -euo pipefail
 APP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$APP_ROOT"
 
+# e2e_check.py is re-uploaded by prod_e2e.py after each deploy — discard that
+# generated copy so the pull never conflicts with the repo version.
+git checkout -- backend/e2e_check.py 2>/dev/null || true
 git pull --ff-only
 
 # Backend dependencies only when requirements changed.
