@@ -93,9 +93,9 @@ export default function Landing() {
                       ${Number(p.min_deposit).toLocaleString()}
                     </td>
                     <td className="px-5 py-4 text-white/85">
-                      {p.return_min_amount != null ? `$${p.return_min_amount} – $${p.return_max_amount}` : "—"}
+                      {p.return_min_amount != null ? `> $${p.return_min_amount}` : "—"}
                     </td>
-                    <td className="px-5 py-4 text-muted">{p.duration_days} {t("days")}</td>
+                    <td className="px-5 py-4 text-muted">{p.duration_days} {t("days")} · {t("incl_weekends")}</td>
                   </tr>
                 ))}
               </tbody>

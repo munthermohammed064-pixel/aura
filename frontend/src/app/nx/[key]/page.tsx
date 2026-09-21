@@ -61,7 +61,7 @@ const WD_STATUS: Record<string, string> = {
   paid: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
   rejected: "border-red-400/30 bg-red-400/10 text-red-300",
 };
-const EMPTY_PKG = { name: "", description: "", min_deposit: 0, max_deposit: 0, yield_min_pct: 0, yield_max_pct: 0, return_min_amount: 0, return_max_amount: 0, duration_days: 30, is_active: true, sort_order: 0 };
+const EMPTY_PKG = { name: "", description: "", min_deposit: 0, max_deposit: 0, yield_min_pct: 0, yield_max_pct: 0, return_min_amount: 0, return_max_amount: 0, duration_days: 365, is_active: true, sort_order: 0 };
 const EMPTY_METHOD = { name: "", details: "", qr_image: "", min_amount: 0, max_amount: 0, is_active: true };
 const MONEY_STATS = new Set(["deposits_approved_total", "commissions_total"]);
 const apiBase = API_URL.replace("/api", "");

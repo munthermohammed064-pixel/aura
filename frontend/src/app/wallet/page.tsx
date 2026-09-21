@@ -72,6 +72,8 @@ export default function WalletPage() {
     setUploading(false);
   };
 
+  const isWeekend = [0, 6].includes(new Date().getUTCDay());
+
   const submitWithdrawal = async () => {
     try {
       await api("/withdrawals", { method: "POST", body: JSON.stringify({ ...wd, amount: Number(wd.amount) }) });
@@ -200,8 +202,13 @@ export default function WalletPage() {
                 {t("star_penalty_note").replace("{n}", String(4 - stars)).replace("{pct}", String((4 - stars) * 25))}
               </p>
             )}
+            {isWeekend && (
+              <p className="mb-3 rounded-xl border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
+                {t("wd_weekend_closed")}
+              </p>
+            )}
             <Disclaimer>{t("wd_disclaimer")}</Disclaimer>
-            <button className="btn mt-4 w-full" onClick={submitWithdrawal}>{t("request_withdrawal")}</button>
+            <button className="btn mt-4 w-full disabled:opacity-50" onClick={submitWithdrawal} disabled={isWeekend}>{t("request_withdrawal")}</button>
           </GlassCard>
         </div>
 

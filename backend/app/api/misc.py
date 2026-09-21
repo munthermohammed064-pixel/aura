@@ -176,6 +176,35 @@ async def prices(ids: str = "bitcoin,ethereum,tether,solana", vs: str = "usd"):
         return r.json()
 
 
+# Forex majors via Frankfurter (ECB reference rates — free, no key, daily fix).
+# (pair label, quote currency, True = quote as CCY/USD by inverting USD→CCY)
+_FOREX_PAIRS = [
+    ("EUR/USD", "EUR", True), ("GBP/USD", "GBP", True),
+    ("USD/JPY", "JPY", False), ("USD/CHF", "CHF", False),
+    ("AUD/USD", "AUD", True), ("USD/CAD", "CAD", False),
+    ("NZD/USD", "NZD", True), ("USD/CNY", "CNY", False),
+]
+
+
+@router.get("/markets/forex")
+def forex():
+    def produce():
+        to = ",".join(sorted({cur for _, cur, _ in _FOREX_PAIRS}))
+        r = httpx.get("https://api.frankfurter.app/latest",
+                      params={"from": "USD", "to": to}, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        rates = data.get("rates", {})
+        return {"date": data.get("date"), "pairs": [
+            {"pair": pair, "rate": round(1 / rates[cur] if inv else rates[cur], 4)}
+            for pair, cur, inv in _FOREX_PAIRS if rates.get(cur)
+        ]}
+    try:
+        return get_or_set("markets:forex", 3600, produce)
+    except httpx.HTTPError:
+        return {"date": None, "pairs": []}
+
+
 # ---------- Public config / legal ----------
 @router.get("/config")
 def public_config(db: Session = Depends(get_db)):

@@ -78,10 +78,10 @@ export default function Packages() {
                   <div className="flex items-baseline justify-between">
                     <p className="text-[10px] uppercase tracking-widest text-muted">{t("daily")}</p>
                     <p className="font-display text-lg text-accent">
-                      {p.return_min_amount != null ? `$${p.return_min_amount} – $${p.return_max_amount}` : "—"}
+                      {p.return_min_amount != null ? `> $${p.return_min_amount}` : "—"}
                     </p>
                   </div>
-                  <p className="mt-1 text-[11px] text-muted">{p.duration_days} {t("days")}</p>
+                  <p className="mt-1 text-[11px] text-muted">{p.duration_days} {t("days")} · {t("incl_weekends")}</p>
                 </div>
               </button>
             );
@@ -99,8 +99,8 @@ export default function Packages() {
             </div>
             <dl className="mt-4 space-y-2 text-sm">
               <div className="flex justify-between"><dt className="text-muted">{t("price")}</dt><dd>${Number(selected.min_deposit).toLocaleString()}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted">{t("daily")}</dt><dd>{selected.return_min_amount != null ? `$${selected.return_min_amount} – $${selected.return_max_amount}` : "—"}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted">{t("duration")}</dt><dd>{selected.duration_days} {t("days")}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted">{t("daily")}</dt><dd>{selected.return_min_amount != null ? `> $${selected.return_min_amount}` : "—"}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted">{t("duration")}</dt><dd>{selected.duration_days} {t("days")} · {t("incl_weekends")}</dd></div>
             </dl>
             <label className="mt-3 flex items-start gap-2 text-xs text-muted">
               <input type="checkbox" className="mt-0.5" checked={ack}

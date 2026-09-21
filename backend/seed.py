@@ -56,9 +56,9 @@ def run():
 
     if not db.query(Package).count():
         # Tiers: (name, price, daily_profit_min, daily_profit_max).
-        # Daily profit shown as a from–to range; each tier's floor clears the
-        # previous tier's ceiling. Estimates only — never fixed or guaranteed
-        # (that wording lives solely in the privacy policy).
+        # 365-day contracts, returns accruing every day incl. weekends.
+        # The from–to range is disclosed only in the privacy policy; the UI
+        # shows "> floor". Estimates only — never fixed or guaranteed.
         tiers = [
             ("N0", 15, 0.30, 0.50), ("N1", 30, 0.60, 1.00),
             ("N2", 60, 1.20, 2.00), ("N3", 120, 2.40, 4.00),
@@ -68,10 +68,10 @@ def run():
         ]
         for i, (name, price, dmin, dmax) in enumerate(tiers):
             db.add(Package(
-                name=name, description=f"Tier {name} — 30-day structured package",
+                name=name, description=f"Tier {name} — 365-day structured package",
                 min_deposit=price, max_deposit=price,
                 return_min_amount=dmin, return_max_amount=dmax,
-                duration_days=30, sort_order=i,
+                duration_days=365, sort_order=i,
             ))
 
     db.commit()

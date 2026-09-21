@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
@@ -105,6 +106,8 @@ def create_withdrawal(request: Request, data: WithdrawIn, user: User = Depends(g
         raise HTTPException(400, "Set your withdrawal wallet address in your profile first")
     if data.address != user.default_withdraw_address:
         raise HTTPException(400, "Withdrawals are only allowed to your registered wallet address")
+    if datetime.now(timezone.utc).weekday() >= 5:
+        raise HTTPException(400, "Withdrawals are not processed on weekends (Saturday–Sunday)")
     cfg = get_setting(db, "withdrawal")
     if not (cfg["min"] <= data.amount <= cfg["max"]):
         raise HTTPException(400, f"Amount must be between {cfg['min']} and {cfg['max']}")
