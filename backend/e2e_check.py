@@ -59,7 +59,7 @@ def upload(token, fname="proof.png"):
                 form=(body, f"multipart/form-data; boundary={boundary}"))
 
 
-def make_admin(login_id, password="Admin123!x"):
+def make_admin(login_id, password="Admin123!xyz"):
     sys.path.insert(0, ".")
     from app.core.security import hash_password
     from app.database import SessionLocal
@@ -80,8 +80,8 @@ print("1) AUTH & USER LIFECYCLE")
 print("=" * 70)
 
 uid = uuid.uuid4().hex[:6]
-u_email, u_pw = f"e2e_{uid}@t.com", "Pass1234!"
-r_email, r_pw = f"ref_{uid}@t.com", "Pass1234!"
+u_email, u_pw = f"e2e_{uid}@t.com", "Pass1234!xyz"
+r_email, r_pw = f"ref_{uid}@t.com", "Pass1234!xyz"
 
 s, b = call("POST", "/auth/register", {"email": r_email, "password": r_pw, "full_name": "Referrer"})
 check("register referrer", s == 201, f"{s}")
@@ -145,9 +145,9 @@ s, me = call("GET", "/auth/me", token=tok)
 check("email_verified flag", me.get("email_verified") is True)
 
 # password change
-s, b = call("POST", "/profile/password", {"current": u_pw, "new": "NewPass123!"}, token=tok)
+s, b = call("POST", "/profile/password", {"current": u_pw, "new": "NewPass123!xyz"}, token=tok)
 check("password change", s == 200)
-s, b = call("POST", "/auth/login", {"identifier": u_email, "password": "NewPass123!"})
+s, b = call("POST", "/auth/login", {"identifier": u_email, "password": "NewPass123!xyz"})
 check("login new password", s == 200)
 
 # forgot/reset
@@ -160,9 +160,9 @@ if not b.get("dev_token"):
                     (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat() + "'"))
 else:
     check("forgot issues token", s == 200)
-s, b = call("POST", "/auth/reset", {"token": reset_tok, "new_password": "Reset123!"})
+s, b = call("POST", "/auth/reset", {"token": reset_tok, "new_password": "Reset123!xyz"})
 check("reset password", s == 200)
-s, b = call("POST", "/auth/login", {"identifier": u_email, "password": "Reset123!"})
+s, b = call("POST", "/auth/login", {"identifier": u_email, "password": "Reset123!xyz"})
 check("login after reset", s == 200)
 tok = b["access_token"]
 
@@ -188,7 +188,7 @@ admin_id = f"nxadmin_{uid}"
 atok, astat = make_admin(admin_id)
 check("admin login via login_id", astat == 200 and bool(atok), f"got {astat}")
 # admin email login must fail — admins authenticate by ID only
-s, b = call("POST", "/auth/login", {"identifier": f"{admin_id}@internal.local", "password": "Admin123!x"})
+s, b = call("POST", "/auth/login", {"identifier": f"{admin_id}@internal.local", "password": "Admin123!xyz"})
 check("admin email login rejected", s == 401, f"got {s}")
 
 s, stats = call("GET", "/admin/stats", token=atok)
@@ -352,7 +352,7 @@ s, b = call("POST", "/withdrawals", {"amount": 10, "address": "TUserAddr999"}, t
 check("frozen user withdrawal blocked", s == 403, f"got {s}")
 s, b = call("GET", "/wallet", token=tok)
 check("frozen user API blocked", s == 403, f"got {s}")
-s, b = call("POST", "/auth/login", {"identifier": u_email, "password": "Reset123!"})
+s, b = call("POST", "/auth/login", {"identifier": u_email, "password": "Reset123!xyz"})
 check("frozen user login blocked", s == 403, f"got {s}")
 s, b = call("POST", f"/admin/users/{my_id}/freeze", token=atok)
 check("unfreeze user", s == 200)

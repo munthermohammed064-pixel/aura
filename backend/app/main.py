@@ -42,7 +42,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.PLATFORM_NAME,
     version="0.1.0",
-    docs_url="/docs",
+    # API schema/docs expose the whole attack surface — dev only.
+    docs_url="/docs" if settings.is_dev else None,
+    redoc_url=None,
+    openapi_url="/openapi.json" if settings.is_dev else None,
     lifespan=lifespan,
 )
 app.state.limiter = limiter
@@ -51,7 +54,8 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    # Localhost origins exist only for local dev — never in production.
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$" if settings.is_dev else None,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["Authorization", "Content-Type"],

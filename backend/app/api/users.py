@@ -1,11 +1,12 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
-from app.core.security import hash_password, verify_password
+from app.core.deps import bearer, get_current_user
+from app.core.security import decode_token, hash_password, verify_password
 from app.database import get_db
 from app.models.platform import AddressRequest
 from app.models.user import Session as UserSession
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/profile", tags=["profile"])
 
 class PasswordChange(BaseModel):
     current: str
-    new: str = Field(min_length=8)
+    new: str = Field(min_length=12)
 
 
 class ProfileUpdate(BaseModel):
@@ -87,10 +88,20 @@ def my_address_request(user: User = Depends(get_current_user), db: Session = Dep
 
 
 @router.post("/password")
-def change_password(data: PasswordChange, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def change_password(data: PasswordChange, creds: HTTPAuthorizationCredentials = Depends(bearer),
+                    user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not verify_password(data.current, user.password_hash):
         raise HTTPException(400, "Current password incorrect")
     user.password_hash = hash_password(data.new)
+    # Revoke every OTHER session — a password change means the user suspects
+    # compromise (or just rotated); stolen sessions must die instantly.
+    try:
+        keep_sid = uuid.UUID(decode_token(creds.credentials).get("sid", ""))
+    except Exception:
+        keep_sid = None
+    db.query(UserSession).filter(
+        UserSession.user_id == user.id, UserSession.id != keep_sid
+    ).update({"revoked": True})
     db.commit()
     return {"ok": True}
 

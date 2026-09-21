@@ -28,14 +28,28 @@ ALLOWED_IMG = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
 MAX_UPLOAD = 5 * 1024 * 1024
 
 
+def _sniff_image(data: bytes, mime: str) -> bool:
+    """Magic-byte check — a script renamed image/png stays a script."""
+    if mime == "image/png":
+        return data[:8] == b"\x89PNG\r\n\x1a\n"
+    if mime == "image/jpeg":
+        return data[:3] == b"\xff\xd8\xff"
+    if mime == "image/webp":
+        return data[:4] == b"RIFF" and data[8:12] == b"WEBP"
+    return False
+
+
 @router.post("/uploads", status_code=201)
-async def upload_image(file: UploadFile, user: User = Depends(get_current_user)):
+@limiter.limit("10/minute")
+async def upload_image(request: Request, file: UploadFile, user: User = Depends(get_current_user)):
     """Upload a proof screenshot (or admin QR image). Returns the public path."""
     if file.content_type not in ALLOWED_IMG:
         raise HTTPException(400, "Only PNG/JPEG/WebP images are allowed")
     data = await file.read()
     if not data or len(data) > MAX_UPLOAD:
         raise HTTPException(400, "File empty or larger than 5MB")
+    if not _sniff_image(data, file.content_type):
+        raise HTTPException(400, "File content is not a valid image")
     name = f"{uuid.uuid4().hex}{ALLOWED_IMG[file.content_type]}"
     (UPLOAD_DIR / name).write_bytes(data)
     return {"path": f"/uploads/{name}"}

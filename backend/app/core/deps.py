@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import decode_token
 from app.database import get_db
+from app.models.user import Session as UserSession
 from app.models.user import User
 
 bearer = HTTPBearer()
@@ -20,8 +21,15 @@ def get_current_user(
         if payload.get("type") != "access":
             raise ValueError
         user_id = uuid.UUID(payload["sub"])
+        session_id = uuid.UUID(payload["sid"])
     except Exception:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
+    # Access tokens are bound to their server-side session: logout, password
+    # change, admin freeze or stolen-token revocation kills the token instantly
+    # instead of letting it live out its expiry window.
+    sess = db.get(UserSession, session_id)
+    if not sess or sess.revoked or sess.user_id != user_id:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session revoked")
     user = db.get(User, user_id)
     if not user or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User inactive or not found")

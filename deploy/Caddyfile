@@ -1,12 +1,32 @@
 __DOMAIN__ {
 	encode zstd gzip
 
+	# Hardened response headers — clickjacking, MIME-sniffing, referrer leak,
+	# and feature-policy lockdown. CSP allows Next.js inline hydration scripts
+	# ('unsafe-inline' is required by App Router) but blocks external sources.
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		-Server
+		-X-Powered-By
+	}
+
+	# Never expose API docs/schema publicly even if the app enables them.
+	@docs path /docs* /redoc* /openapi.json
+	respond @docs 404
+
 	handle /api/* {
 		reverse_proxy 127.0.0.1:8000
 	}
+
 	handle /uploads/* {
 		reverse_proxy 127.0.0.1:8000
 	}
+
 	handle /health {
 		reverse_proxy 127.0.0.1:8000
 	}

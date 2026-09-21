@@ -34,6 +34,10 @@ class User(Base):
     reset_token_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     reset_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verify_token_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    verify_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    verify_attempts: Mapped[int] = mapped_column(default=0)
+    login_attempts: Mapped[int] = mapped_column(default=0)
+    login_locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     wallet: Mapped["Wallet"] = relationship("Wallet", back_populates="user", uselist=False)

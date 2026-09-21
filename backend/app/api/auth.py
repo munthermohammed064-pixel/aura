@@ -39,7 +39,7 @@ def _issue_tokens(db: Session, user: User, request: Request) -> TokenOut:
     refresh = create_refresh_token(user.id, session.id)
     session.refresh_token_hash = hash_password(refresh)
     db.commit()
-    return TokenOut(access_token=create_access_token(user.id, user.role), refresh_token=refresh)
+    return TokenOut(access_token=create_access_token(user.id, user.role, session.id), refresh_token=refresh)
 
 
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
@@ -81,6 +81,8 @@ def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
     notify_user(db, user.id, "welcome", {"serial": user.serial})
     code = f"{secrets.randbelow(1000000):06d}"
     user.verify_token_hash = hash_password(code)
+    user.verify_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    user.verify_attempts = 0
     sent = mailer.send_verification(user.email, code)
     tokens = _issue_tokens(db, user, request)
     tokens.verification_sent = sent
@@ -99,14 +101,31 @@ def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
             user = None
     else:
         user = db.query(User).filter(User.login_id == ident).first() if ident else None
+    if user:
+        locked = user.login_locked_until
+        if locked and locked.tzinfo is None:
+            locked = locked.replace(tzinfo=timezone.utc)
+        if locked and locked > datetime.now(timezone.utc):
+            raise HTTPException(429, "Too many failed attempts — try again in 15 minutes")
     if not user or not verify_password(data.password, user.password_hash):
+        if user:
+            # Progressive lockout: 5 bad passwords locks the account 15 min.
+            # Per-IP limits alone can't stop a distributed guessing attack.
+            user.login_attempts = (user.login_attempts or 0) + 1
+            if user.login_attempts >= 5:
+                user.login_attempts = 0
+                user.login_locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+            db.commit()
         raise HTTPException(401, "Invalid credentials")
     if user.is_frozen or not user.is_active:
         raise HTTPException(403, "Account disabled")
+    user.login_attempts = 0
+    user.login_locked_until = None
     return _issue_tokens(db, user, request)
 
 
 @router.post("/refresh", response_model=TokenOut)
+@limiter.limit("30/minute")
 def refresh(data: RefreshIn, request: Request, db: Session = Depends(get_db)):
     try:
         payload = decode_token(data.refresh_token)
@@ -116,7 +135,11 @@ def refresh(data: RefreshIn, request: Request, db: Session = Depends(get_db)):
         user = db.get(User, uuid.UUID(payload["sub"]))
     except Exception:
         raise HTTPException(401, "Invalid refresh token")
-    if not session or session.revoked or not user or not user.is_active or user.is_frozen:
+    exp = session.expires_at if session else None
+    if exp and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if not session or session.revoked or not user or not user.is_active or user.is_frozen \
+            or (exp and exp < datetime.now(timezone.utc)):
         raise HTTPException(401, "Session revoked")
     if not verify_password(data.refresh_token, session.refresh_token_hash):
         raise HTTPException(401, "Invalid refresh token")
@@ -167,7 +190,8 @@ def forgot_password(data: ForgotIn, request: Request, db: Session = Depends(get_
 
 
 @router.post("/reset")
-def reset_password(data: ResetIn, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def reset_password(data: ResetIn, request: Request, db: Session = Depends(get_db)):
     candidates = db.query(User).filter(
         User.reset_token_hash.isnot(None),
         User.reset_expires_at > datetime.now(timezone.utc),
@@ -178,6 +202,8 @@ def reset_password(data: ResetIn, db: Session = Depends(get_db)):
     user.password_hash = hash_password(data.new_password)
     user.reset_token_hash = None
     user.reset_expires_at = None
+    # Kill every session — whoever held the old credentials loses access.
+    db.query(UserSession).filter(UserSession.user_id == user.id).update({"revoked": True})
     db.commit()
     return {"ok": True}
 
@@ -185,8 +211,17 @@ def reset_password(data: ResetIn, db: Session = Depends(get_db)):
 @router.post("/send-verification")
 @limiter.limit("5/minute")
 def send_verification(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Resend cooldown: a code issued <60s ago means a resend is premature —
+    # stops inbox flooding even when the IP limit is evaded by rotation.
+    exp = user.verify_expires_at
+    if exp and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp and exp > datetime.now(timezone.utc) + timedelta(minutes=9):
+        raise HTTPException(429, "Code already sent — wait a minute before resending")
     code = f"{secrets.randbelow(1000000):06d}"
     user.verify_token_hash = hash_password(code)
+    user.verify_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    user.verify_attempts = 0
     db.commit()
     if not mailer.send_verification(user.email, code):
         raise HTTPException(503, "Verification email could not be sent. Try again shortly.")
@@ -194,10 +229,26 @@ def send_verification(request: Request, user: User = Depends(get_current_user), 
 
 
 @router.post("/verify-email")
-def verify_email(data: VerifyIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if not user.verify_token_hash or not verify_password(data.token, user.verify_token_hash):
+@limiter.limit("20/hour")
+def verify_email(request: Request, data: VerifyIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    exp = user.verify_expires_at
+    if exp and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if not user.verify_token_hash or not exp or exp < datetime.now(timezone.utc):
+        raise HTTPException(400, "Verification code expired — request a new one")
+    if (user.verify_attempts or 0) >= 5:
+        # Burn the code so further guessing is impossible until a resend.
+        user.verify_token_hash = None
+        user.verify_expires_at = None
+        db.commit()
+        raise HTTPException(429, "Too many attempts — request a new code")
+    if not verify_password(data.token, user.verify_token_hash):
+        user.verify_attempts = (user.verify_attempts or 0) + 1
+        db.commit()
         raise HTTPException(400, "Invalid verification token")
     user.email_verified = True
     user.verify_token_hash = None
+    user.verify_expires_at = None
+    user.verify_attempts = 0
     db.commit()
     return {"ok": True}
