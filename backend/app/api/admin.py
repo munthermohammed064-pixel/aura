@@ -444,6 +444,17 @@ def update_method(m_id: str, data: PaymentMethodIn, admin: User = Depends(get_ad
     return m
 
 
+@router.delete("/payment-methods/{m_id}")
+def delete_method(m_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    m = db.get(PaymentMethod, uuid.UUID(m_id))
+    if not m:
+        raise HTTPException(404, "Method not found")
+    audit(db, admin, "method.delete", "payment_method", m.id, {"name": m.name})
+    db.delete(m)
+    db.commit()
+    return {"ok": True}
+
+
 # ---------- Settings ----------
 @router.get("/settings")
 def all_settings(admin: User = Depends(get_admin), db: Session = Depends(get_db)):

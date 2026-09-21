@@ -216,6 +216,7 @@ export default function Admin() {
   };
 
   const saveMethod = async () => {
+    if (!mForm.name.trim() || !mForm.details.trim()) { toast(t("method_required"), "err"); return; }
     try {
       let qr = mForm.qr_image;
       if (mQr) {
@@ -224,7 +225,14 @@ export default function Admin() {
         const up = await api<{ path: string }>("/uploads", { method: "POST", body: fd });
         qr = up.path;
       }
-      const body = JSON.stringify({ ...mForm, qr_image: qr });
+      const body = JSON.stringify({
+        ...mForm,
+        name: mForm.name.trim(),
+        details: mForm.details.trim(),
+        min_amount: Number(mForm.min_amount) || 0,
+        max_amount: Number(mForm.max_amount) || 0,
+        qr_image: qr,
+      });
       if (editingMethod) {
         await api(`/admin/payment-methods/${editingMethod}`, { method: "PUT", body });
       } else {
@@ -233,6 +241,16 @@ export default function Admin() {
       setMQr(null);
       setMForm(EMPTY_METHOD);
       setEditingMethod(null);
+      toast(t("saved"));
+      load();
+    } catch (e) { toast(e instanceof Error ? e.message : t("failed"), "err"); }
+  };
+
+  const delMethod = async (m: Method) => {
+    if (!confirm(t("confirm_delete"))) return;
+    try {
+      await api(`/admin/payment-methods/${m.id}`, { method: "DELETE" });
+      toast(t("saved"));
       load();
     } catch (e) { toast(e instanceof Error ? e.message : t("failed"), "err"); }
   };
@@ -780,25 +798,43 @@ export default function Admin() {
               <button className="btn mt-4" onClick={saveMethod}>{editingMethod ? t("save_changes") : t("create")}</button>
             </GlassCard>
             <GlassCard>
+              {methods.length === 0 ? (
+                <p className="py-6 text-center text-xs text-muted">—</p>
+              ) : (
               <table className="w-full text-sm">
-                <thead><tr className="text-left text-xs text-muted">
-                  <th className="pb-2">{t("name")}</th><th className="pb-2">QR</th><th className="pb-2">{t("status")}</th><th className="pb-2"></th>
+                <thead><tr className="text-start text-[10px] uppercase tracking-wider text-muted">
+                  <th className="pb-2 pe-4">{t("name")}</th><th className="pb-2 pe-4">{t("limits")}</th><th className="pb-2 pe-4">QR</th><th className="pb-2 pe-4">{t("status")}</th><th className="pb-2"></th>
                 </tr></thead>
                 <tbody>{methods.map((m) => (
-                  <tr key={m.id} className="border-t border-border">
-                    <td className="py-2">{m.name}</td>
-                    <td className="py-2">
+                  <tr key={m.id} className="border-t border-border align-top">
+                    <td className="py-3 pe-4">
+                      <p className="text-xs font-medium">{m.name}</p>
+                      {m.details && <p className="mt-0.5 max-w-56 truncate font-mono text-[10px] text-muted" title={m.details}>{m.details}</p>}
+                    </td>
+                    <td className="whitespace-nowrap py-3 pe-4 text-[10px] text-muted">
+                      {m.min_amount > 0 || m.max_amount > 0 ? `$${Number(m.min_amount).toLocaleString()} – ${m.max_amount > 0 ? `$${Number(m.max_amount).toLocaleString()}` : "∞"}` : "—"}
+                    </td>
+                    <td className="py-3 pe-4">
                       {m.qr_image ? (
-                        <a href={`${apiBase}${m.qr_image}`} target="_blank" className="text-accent underline">QR</a>
+                        <a href={`${apiBase}${m.qr_image}`} target="_blank" className="text-xs text-accent underline">QR</a>
                       ) : <span className="text-muted">—</span>}
                     </td>
-                    <td className="py-2 text-muted">{m.is_active ? t("active") : t("disabled")}</td>
-                    <td className="py-2">
-                      <button className="btn-ghost px-3 py-1 text-xs" onClick={() => editMethod(m)}>{t("edit")}</button>
+                    <td className="py-3 pe-4">
+                      <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${m.is_active ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-white/10 bg-white/5 text-muted"}`}>
+                        {m.is_active ? t("active") : t("disabled")}
+                      </span>
+                    </td>
+                    <td className="py-3">
+                      <div className="flex gap-1.5">
+                        <button className="btn-ghost px-3 py-1 text-xs" onClick={() => editMethod(m)}>{t("edit")}</button>
+                        <button className="rounded-full border border-red-400/25 px-3 py-1 text-xs text-red-300 transition hover:bg-red-400/10"
+                          onClick={() => delMethod(m)}>{t("delete")}</button>
+                      </div>
                     </td>
                   </tr>
                 ))}</tbody>
               </table>
+              )}
             </GlassCard>
           </div>
         )}

@@ -36,7 +36,11 @@ export async function api<T = unknown>(
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const detail: string = body.detail ?? `Request failed (${res.status})`;
+    // FastAPI 422s return detail as an array of {msg} objects — flatten it.
+    const raw = body.detail;
+    const detail: string = typeof raw === "string" ? raw
+      : Array.isArray(raw) ? raw.map((x) => x?.msg ?? String(x)).join("; ")
+      : `Request failed (${res.status})`;
     if (res.status === 403 && /frozen/i.test(detail) && typeof window !== "undefined") {
       clearTokens();
       window.location.href = "/login";
