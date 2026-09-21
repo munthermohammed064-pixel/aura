@@ -5,5 +5,5 @@ from app.models.finance import (  # noqa
 )
 from app.models.platform import (  # noqa
     Setting, Notification, Ticket, TicketReply, AuditLog,
-    Raffle, RaffleEntry, WheelSpin,
+    Raffle, RaffleEntry, WheelSpin, AddressRequest,
 )

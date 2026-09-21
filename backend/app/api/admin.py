@@ -15,7 +15,7 @@ from app.database import get_db
 from app.models.finance import (
     Deposit, Investment, LedgerEntry, Package, PaymentMethod, ReferralCommission, Withdrawal,
 )
-from app.models.platform import AuditLog, Setting, Ticket
+from app.models.platform import AuditLog, AddressRequest, Setting, Ticket
 from app.models.user import User, Wallet
 from app.schemas import (
     BalanceAdjustIn, PackageIn, PaymentMethodIn, SettleIn, SettingIn,
@@ -58,6 +58,8 @@ def stats(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
         "withdrawals_actionable": db.query(func.count(Withdrawal.id))
             .filter(Withdrawal.status.in_(["pending", "approved"])).scalar() or 0,
         "tickets_open": db.query(func.count(Ticket.id)).filter(Ticket.status != "closed").scalar() or 0,
+        "address_requests_pending": db.query(func.count(AddressRequest.id))
+            .filter(AddressRequest.status == "pending").scalar() or 0,
         "investments_active": db.query(func.count(Investment.id)).filter(Investment.status == "active").scalar() or 0,
         "commissions_total": float(db.query(func.coalesce(func.sum(ReferralCommission.amount), 0)).scalar() or 0),
     }
@@ -411,6 +413,67 @@ def admin_set_withdraw_address(user_id: str, data: AdminWithdrawAddressIn,
     audit(db, admin, "user.withdraw_address", "user", u.id,
           {"old": old, "new": data.address, "email": u.email})
     notify_user(db, u.id, "address_updated")
+    db.commit()
+    return {"ok": True}
+
+
+# ---------- Address change requests ($5 fee on approval) ----------
+@router.get("/address-requests")
+def list_address_requests(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    rows = (db.query(AddressRequest)
+            .order_by(AddressRequest.created_at.desc()).limit(100).all())
+    users = {u.id: u for u in db.query(User).filter(
+        User.id.in_([r.user_id for r in rows])).all()} if rows else {}
+    return [{
+        "id": str(r.id), "new_address": r.new_address, "qr_image": r.qr_image,
+        "status": r.status, "fee": float(r.fee),
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+        "user_email": users[r.user_id].email if r.user_id in users else "",
+        "user_serial": users[r.user_id].serial if r.user_id in users else "",
+        "current_address": users[r.user_id].default_withdraw_address if r.user_id in users else "",
+    } for r in rows]
+
+
+@router.post("/address-requests/{r_id}/approve")
+def approve_address_request(r_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    """Apply the new address and charge the flat change fee from the user's
+    available balance through the ledger."""
+    req = db.get(AddressRequest, uuid.UUID(r_id))
+    if not req or req.status != "pending":
+        raise HTTPException(404, "Request not found")
+    u = db.get(User, req.user_id)
+    if not u:
+        raise HTTPException(404, "User not found")
+    try:
+        ledger.post(db, user_id=u.id, kind="fee", direction="debit", bucket="available",
+                    amount=float(req.fee), reference_type="address_request",
+                    reference_id=req.id, idempotency_key=f"addrreq:{req.id}",
+                    note="Withdrawal address change fee")
+    except ledger.LedgerError as e:
+        raise HTTPException(400, str(e))
+    old = u.default_withdraw_address
+    u.default_withdraw_address = req.new_address
+    if req.qr_image:
+        u.withdraw_qr_image = req.qr_image
+    req.status = "approved"
+    req.reviewed_at = datetime.now(timezone.utc)
+    audit(db, admin, "address_request.approve", "address_request", req.id,
+          {"old": old, "new": req.new_address, "fee": float(req.fee), "email": u.email})
+    notify_user(db, u.id, "address_change_approved", {"amount": float(req.fee)})
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/address-requests/{r_id}/reject")
+def reject_address_request(r_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    req = db.get(AddressRequest, uuid.UUID(r_id))
+    if not req or req.status != "pending":
+        raise HTTPException(404, "Request not found")
+    req.status = "rejected"
+    req.reviewed_at = datetime.now(timezone.utc)
+    audit(db, admin, "address_request.reject", "address_request", req.id,
+          {"address": req.new_address})
+    notify_user(db, req.user_id, "address_change_rejected")
     db.commit()
     return {"ok": True}
 

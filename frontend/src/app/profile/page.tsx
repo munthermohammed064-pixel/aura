@@ -22,6 +22,8 @@ export default function Profile() {
   const [addr, setAddr] = useState("");
   const [addrQr, setAddrQr] = useState<File | null>(null);
   const [addrBusy, setAddrBusy] = useState(false);
+  const [addrReq, setAddrReq] = useState<{ id: string; new_address: string; fee: number } | null>(null);
+  const [changeOpen, setChangeOpen] = useState(false);
   const [pw, setPw] = useState({ current: "", new: "" });
   const [sessions, setSessions] = useState<Sess[]>([]);
   const [verifyToken, setVerifyToken] = useState("");
@@ -34,6 +36,8 @@ export default function Profile() {
       setForm({ full_name: u.full_name });
     }).catch(() => {});
     api<Sess[]>("/profile/sessions").then(setSessions).catch(() => {});
+    api<{ id: string; new_address: string; fee: number } | null>("/profile/withdraw-address/request")
+      .then(setAddrReq).catch(() => {});
   };
   useEffect(load, []);
 
@@ -79,6 +83,26 @@ export default function Profile() {
       });
       setMsg(t("addr_locked"));
       setAddr(""); setAddrQr(null);
+      load();
+    } catch (e) { setMsg(e instanceof Error ? e.message : t("failed")); }
+    setAddrBusy(false);
+  };
+
+  const requestAddrChange = async () => {
+    setAddrBusy(true);
+    try {
+      let qr_image: string | undefined;
+      if (addrQr) {
+        const fd = new FormData();
+        fd.append("file", addrQr);
+        const up = await api<{ path: string }>("/uploads", { method: "POST", body: fd });
+        qr_image = up.path;
+      }
+      await api("/profile/withdraw-address/request", {
+        method: "POST", body: JSON.stringify({ address: addr, qr_image }),
+      });
+      setMsg(t("request_sent"));
+      setAddr(""); setAddrQr(null); setChangeOpen(false);
       load();
     } catch (e) { setMsg(e instanceof Error ? e.message : t("failed")); }
     setAddrBusy(false);
@@ -146,6 +170,35 @@ export default function Profile() {
                 </svg>
                 {t("addr_locked_note")}
               </p>
+              {addrReq ? (
+                <div className="mt-3 rounded-xl border border-amber-400/25 bg-amber-400/5 px-3 py-2">
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-amber-300">{t("change_pending")}</p>
+                  <p className="mt-1 break-all font-mono text-[10px] text-muted">{addrReq.new_address}</p>
+                </div>
+              ) : changeOpen ? (
+                <div className="mt-3 space-y-2 border-t border-border pt-3">
+                  <input className="input font-mono text-xs" placeholder={t("new_address_ph")}
+                    value={addr} onChange={(e) => setAddr(e.target.value)} />
+                  <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-border px-4 py-4 text-xs text-muted transition hover:border-accent">
+                    <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                      onChange={(e) => setAddrQr(e.target.files?.[0] ?? null)} />
+                    {addrQr ? `${t("selected_file")} ${addrQr.name}` : t("upload_barcode")}
+                  </label>
+                  <p className="text-[10px] text-muted">{t("addr_fee_note")}</p>
+                  <div className="flex gap-2">
+                    <button className="btn text-xs" onClick={requestAddrChange} disabled={!addr.trim() || addrBusy}>
+                      {t("request_addr_change")} · $5
+                    </button>
+                    <button className="btn-ghost px-3 py-1 text-xs" onClick={() => { setChangeOpen(false); setAddr(""); setAddrQr(null); }}>
+                      {t("cancel")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button className="btn-ghost mt-3 px-4 py-1.5 text-xs" onClick={() => setChangeOpen(true)}>
+                  {t("request_addr_change")} · $5
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-2">

@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.core.security import hash_password, verify_password
 from app.database import get_db
+from app.models.platform import AddressRequest
 from app.models.user import Session as UserSession
 from app.models.user import User
+from app.services.notify import notify_admins
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -46,6 +48,42 @@ def set_withdraw_address(data: WithdrawAddressIn, user: User = Depends(get_curre
         user.withdraw_qr_image = data.qr_image
     db.commit()
     return {"ok": True}
+
+
+ADDRESS_CHANGE_FEE = 5.0
+
+
+@router.post("/withdraw-address/request", status_code=201)
+def request_address_change(data: WithdrawAddressIn, user: User = Depends(get_current_user),
+                           db: Session = Depends(get_db)):
+    """Request a withdrawal-address change. The flat fee is charged from the
+    user's available balance only when an admin approves."""
+    if not user.default_withdraw_address:
+        raise HTTPException(400, "Set your address first — the first setup is free")
+    if data.address == user.default_withdraw_address:
+        raise HTTPException(400, "New address must differ from the current one")
+    pending = db.query(AddressRequest).filter(
+        AddressRequest.user_id == user.id,
+        AddressRequest.status == "pending").first()
+    if pending:
+        raise HTTPException(400, "A change request is already pending review")
+    req = AddressRequest(user_id=user.id, new_address=data.address,
+                         qr_image=data.qr_image or "", fee=ADDRESS_CHANGE_FEE)
+    db.add(req)
+    notify_admins(db, "admin_address_request", {"serial": user.serial})
+    db.commit()
+    return {"ok": True, "fee": ADDRESS_CHANGE_FEE}
+
+
+@router.get("/withdraw-address/request")
+def my_address_request(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    req = (db.query(AddressRequest)
+           .filter(AddressRequest.user_id == user.id, AddressRequest.status == "pending")
+           .order_by(AddressRequest.created_at.desc()).first())
+    if not req:
+        return None
+    return {"id": str(req.id), "new_address": req.new_address,
+            "fee": float(req.fee), "created_at": req.created_at.isoformat() if req.created_at else None}
 
 
 @router.post("/password")

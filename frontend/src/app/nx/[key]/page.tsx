@@ -26,6 +26,8 @@ type Row = {
 };
 type Method = { id: string; name: string; details: string; qr_image: string; min_amount: number; max_amount: number; is_active: boolean };
 type Inv = { id: string; amount: number; status: string; realized_return: number; started_at: string; ends_at: string; user_email?: string; user_serial?: string; package_name?: string };
+type AddrReq = { id: string; new_address: string; current_address: string; qr_image: string;
+  status: string; fee: number; created_at: string | null; user_email?: string; user_serial?: string };
 type UserRow = {
   id: string; email: string; serial: string; is_frozen: boolean; role: string; stars: number;
   default_withdraw_address: string | null; withdraw_qr_image: string | null; withdraw_fee_pct: number | null;
@@ -51,7 +53,7 @@ type UserDetail = {
     amount: number; note: string; created_at: string | null }[];
 };
 
-const TABS = ["stats", "packages", "investments", "deposits", "withdrawals", "users", "methods", "settings", "audit"] as const;
+const TABS = ["stats", "packages", "investments", "deposits", "withdrawals", "users", "address_requests", "methods", "settings", "audit"] as const;
 
 const WD_STATUS: Record<string, string> = {
   pending: "border-amber-400/30 bg-amber-400/10 text-amber-300",
@@ -98,6 +100,7 @@ export default function Admin() {
   const [investments, setInvestments] = useState<Inv[]>([]);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [txidInput, setTxidInput] = useState("");
+  const [addrReqs, setAddrReqs] = useState<AddrReq[]>([]);
 
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -135,6 +138,7 @@ export default function Admin() {
     api<typeof audit>("/admin/audit").then(setAudit).catch(() => {});
     api<Method[]>("/admin/payment-methods").then(setMethods).catch(() => {});
     api<Inv[]>("/admin/investments").then(setInvestments).catch(() => {});
+    api<AddrReq[]>("/admin/address-requests").then(setAddrReqs).catch(() => {});
   };
 
   // Gate: secret path ok → check the session is actually an admin
@@ -378,7 +382,8 @@ export default function Admin() {
         <div className="mb-6 flex flex-wrap gap-2">
           {TABS.map((tb) => {
             const badge = tb === "deposits" ? pendingDeps
-              : tb === "withdrawals" ? pendingWds : 0;
+              : tb === "withdrawals" ? pendingWds
+              : tb === "address_requests" ? (stats.address_requests_pending ?? 0) : 0;
             return (
               <button key={tb} onClick={() => setTab(tb)}
                 className={`relative rounded-full px-4 py-1.5 text-xs capitalize transition ${tab === tb ? "bg-white/10" : "text-muted hover:text-white"}`}>
@@ -413,7 +418,7 @@ export default function Admin() {
             </GlassCard>
           )}
           <div className="grid gap-4 md:grid-cols-3">
-            {Object.entries(stats).filter(([k]) => !["withdrawals_actionable", "tickets_open"].includes(k)).map(([k, v]) => (
+            {Object.entries(stats).filter(([k]) => !["withdrawals_actionable", "tickets_open", "address_requests_pending"].includes(k)).map(([k, v]) => (
               <GlassCard key={k} className="glow-card"><p className="text-xs text-muted">{t(`stat_${k}`)}</p>
                 <p className="mt-2 text-2xl font-semibold">
                   <CountUp value={Number(v)} decimals={MONEY_STATS.has(k) ? 2 : 0}
@@ -763,6 +768,68 @@ export default function Admin() {
               ))}</tbody>
             </table>
             <Pager total={users.length} page={userPage} setPage={setUserPage} />
+          </GlassCard>
+        )}
+
+        {tab === "address_requests" && (
+          <GlassCard>
+            {addrReqs.length === 0 ? (
+              <p className="py-10 text-center text-xs text-muted">{t("no_addr_requests")}</p>
+            ) : (
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-start text-[10px] uppercase tracking-wider text-muted">
+                <th className="pb-2 pe-4">{t("user")}</th>
+                <th className="pb-2 pe-4">{t("new_address")}</th>
+                <th className="pb-2 pe-4">{t("fee")}</th>
+                <th className="pb-2 pe-4">{t("status")}</th>
+                <th className="pb-2">{t("actions")}</th>
+              </tr></thead>
+              <tbody>{addrReqs.map((r) => (
+                <tr key={r.id} className="border-t border-border align-top">
+                  <td className="py-3 pe-4">
+                    <p className="text-xs">{r.user_email}</p>
+                    <p className="font-mono text-[10px] text-accent">{r.user_serial}</p>
+                  </td>
+                  <td className="max-w-64 py-3 pe-4">
+                    {r.current_address && (
+                      <p className="break-all font-mono text-[10px] text-muted/60 line-through">{r.current_address}</p>
+                    )}
+                    <div className="mt-0.5 flex items-start gap-1.5">
+                      <p className="break-all font-mono text-[10px] leading-relaxed text-white/85">{r.new_address}</p>
+                      <button onClick={() => copyText(r.new_address)} title={t("copy")}
+                        className="mt-0.5 shrink-0 rounded-md border border-border p-1 text-muted transition hover:border-accent/50 hover:text-accent">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>
+                      </button>
+                    </div>
+                    {r.qr_image && <a href={`${apiBase}${r.qr_image}`} target="_blank" className="mt-1 block text-[10px] text-accent underline">QR</a>}
+                  </td>
+                  <td className="whitespace-nowrap py-3 pe-4 font-display text-sm text-accent">−${Number(r.fee).toLocaleString()}</td>
+                  <td className="py-3 pe-4">
+                    <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-medium capitalize ${WD_STATUS[r.status] ?? "border-white/10 bg-white/5 text-muted"}`}>
+                      {t(r.status)}
+                    </span>
+                  </td>
+                  <td className="py-3">
+                    {r.status === "pending" && (
+                      <div className="flex gap-1.5">
+                        <button className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-black transition hover:brightness-110"
+                          onClick={() => act(`/admin/address-requests/${r.id}/approve`)}
+                          title={`${t("approve")} · −$${Number(r.fee).toLocaleString()}`}>
+                          {t("approve")}
+                        </button>
+                        <button className="rounded-full border border-red-400/25 px-3 py-1 text-xs text-red-300 transition hover:bg-red-400/10"
+                          onClick={() => act(`/admin/address-requests/${r.id}/reject`)}>
+                          {t("reject")}
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table>
+            </div>
+            )}
           </GlassCard>
         )}
 
