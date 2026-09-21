@@ -48,7 +48,7 @@ export default function Landing() {
             {t("hero_sub")}
           </p>
           <div className="mt-8 flex items-center justify-center gap-3">
-            <Link href="#packages" className="btn-ghost">{t("view_packages")}</Link>
+            <a href="#packages" className="btn-ghost" onClick={(e) => { e.preventDefault(); document.getElementById("packages")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>{t("view_packages")}</a>
           </div>
 
         </div>
@@ -67,7 +67,7 @@ export default function Landing() {
         </Reveal>
       </section>
 
-      <section id="packages" className="mx-auto max-w-6xl px-4 pb-24">
+      <section id="packages" className="mx-auto max-w-6xl scroll-mt-24 px-4 pb-24">
         <Reveal>
           <h2 className="font-display text-center text-2xl">{t("packages")}</h2><div className="rule-gold" />
         </Reveal>
