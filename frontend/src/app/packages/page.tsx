@@ -21,11 +21,17 @@ export default function Packages() {
   const [packages, setPackages] = useState<Pkg[]>([]);
   const [selected, setSelected] = useState<Pkg | null>(null);
   const [ack, setAck] = useState(false);
-  const scroller = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    api<Pkg[]>("/packages", { auth: false }).then(setPackages).catch(() => {});
+    api<Pkg[]>("/packages", { auth: false })
+      .then((rows) => setPackages([...rows].sort((a, b) => a.min_deposit - b.min_deposit)))
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (selected) detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selected]);
 
   const invest = async () => {
     if (!selected) return;
@@ -46,50 +52,51 @@ export default function Packages() {
     }
   };
 
-  const scroll = (dir: number) =>
-    scroller.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
-
   return (
     <main>
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("packages")} />
 
-        <div className="relative mt-8">
-          <button onClick={() => scroll(-1)} aria-label="scroll left"
-            className="glass absolute -left-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full md:flex">‹</button>
-          <button onClick={() => scroll(1)} aria-label="scroll right"
-            className="glass absolute -right-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full md:flex">›</button>
-
-          <div ref={scroller}
-            className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {packages.map((p) => {
-              const active = selected?.id === p.id;
-              return (
-                <button key={p.id} onClick={() => { setSelected(p); setAck(false); }}
-                  className={`glass glass-hover flex aspect-square w-56 shrink-0 snap-start flex-col justify-between p-5 text-start transition ${
-                    active ? "border-accent ring-1 ring-accent" : ""
-                  }`}>
-                  <div>
-                    <p className="font-display text-xl">{p.name}</p>
-                    <p className="font-display mt-1 text-3xl tracking-tight">${Number(p.min_deposit).toLocaleString()}</p>
-                  </div>
-                  <div className="border-t border-border pt-3">
-                    <p className="text-[11px] text-muted">{t("daily")}</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {packages.map((p, i) => {
+            const active = selected?.id === p.id;
+            return (
+              <button key={p.id} onClick={() => { setSelected(p); setAck(false); }}
+                className={`surface glow-card flex flex-col p-5 text-start ${active ? "gold-edge" : ""}`}>
+                <div className="flex items-center justify-between">
+                  <p className="font-display text-xl">{p.name}</p>
+                  <span dir="ltr" className="flex items-end gap-[3px]" title={`${t("level")} ${i + 1}`}>
+                    {Array.from({ length: 9 }).map((_, b) => (
+                      <span key={b} style={{ height: `${4 + b}px` }}
+                        className={`w-[3px] rounded-full ${b <= i ? "bg-accent" : "bg-white/10"}`} />
+                    ))}
+                  </span>
+                </div>
+                <p className="font-display mt-2 text-4xl tracking-tight">${Number(p.min_deposit).toLocaleString()}</p>
+                <div className="mt-auto border-t border-border pt-3">
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-[10px] uppercase tracking-widest text-muted">{t("daily")}</p>
                     <p className="font-display text-lg text-accent">
                       {p.return_min_amount != null ? `$${p.return_min_amount} – $${p.return_max_amount}` : "—"}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-muted">{p.duration_days} {t("days")}</p>
                   </div>
-                </button>
-              );
-            })}
-          </div>
+                  <p className="mt-1 text-[11px] text-muted">{p.duration_days} {t("days")}</p>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {selected && (
-          <GlassCard className="mx-auto mt-8 max-w-md">
-            <h2 className="text-lg font-semibold">{selected.name}</h2>
+          <div ref={detailRef}>
+          <GlassCard className="mx-auto mt-8 max-w-md gold-edge">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-semibold">{selected.name}</h2>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-muted">
+                {t("level")} {packages.indexOf(selected) + 1}/9
+              </span>
+            </div>
             <dl className="mt-4 space-y-2 text-sm">
               <div className="flex justify-between"><dt className="text-muted">{t("price")}</dt><dd>${Number(selected.min_deposit).toLocaleString()}</dd></div>
               <div className="flex justify-between"><dt className="text-muted">{t("daily")}</dt><dd>{selected.return_min_amount != null ? `$${selected.return_min_amount} – $${selected.return_max_amount}` : "—"}</dd></div>
@@ -104,6 +111,7 @@ export default function Packages() {
               {t("activate_for")} ${Number(selected.min_deposit).toLocaleString()}
             </button>
           </GlassCard>
+          </div>
         )}
       </div>
     </main>
