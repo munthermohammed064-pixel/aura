@@ -106,7 +106,7 @@ export function NotifyBell() {
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen(!open)} aria-label={t("notifications")}
-        className="relative grid h-9 w-9 place-items-center rounded-full border border-border bg-surface transition hover:border-white/20">
+        className="relative grid h-9 w-9 place-items-center rounded-full border border-border bg-surface transition hover:border-ink/20">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
           <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
@@ -135,7 +135,7 @@ export function NotifyBell() {
                   setItems((xs) => xs.map((x) => x.id === n.id ? { ...x, read: true } : x));
                   setUnread((u) => Math.max(0, u - (n.read ? 0 : 1)));
                 }).catch(() => {})}
-                className={`block w-full rounded-xl px-3 py-2.5 text-start transition hover:bg-white/5 ${n.read ? "opacity-50" : ""}`}>
+                className={`block w-full rounded-xl px-3 py-2.5 text-start transition hover:bg-ink/5 ${n.read ? "opacity-50" : ""}`}>
                 <span className="mb-0.5 flex items-center gap-2">
                   {!n.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />}
                   <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent/80">
@@ -143,7 +143,7 @@ export function NotifyBell() {
                   </span>
                   <span className="ms-auto text-[9px] text-muted">{when(n.created_at)}</span>
                 </span>
-                <p className="text-[11px] leading-relaxed text-white/85">{text(n)}</p>
+                <p className="text-[11px] leading-relaxed text-ink/85">{text(n)}</p>
               </button>
             ))}
           </div>

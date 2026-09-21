@@ -17,7 +17,7 @@ export default function LegalPage({ params }: { params: Promise<{ page: string }
   }, [page]);
 
   return (
-    <main>
+    <main className="pb-20 md:pb-0">
       <Nav />
       <div className="mx-auto max-w-3xl px-4 py-10">
         <GlassCard>

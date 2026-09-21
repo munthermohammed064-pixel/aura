@@ -13,7 +13,7 @@ export function AuthShell({ children, title, sub }: {
 }) {
   const { t } = useT();
   return (
-    <main className="flex min-h-screen">
+    <main className="on-dark flex min-h-screen">
       {/* Left — cinematic LA panel */}
       <div className="relative hidden w-[45%] overflow-hidden lg:block">
         <Image src="/la-hero.jpg" alt="Los Angeles at night" fill priority sizes="45vw"

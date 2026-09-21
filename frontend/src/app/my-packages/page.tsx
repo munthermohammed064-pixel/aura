@@ -45,13 +45,13 @@ export default function MyPackages() {
             <p className="font-display mt-1 text-3xl tracking-tight">${i.amount.toLocaleString()}</p>
           </div>
           <span className={`rounded-full px-3 py-1 text-xs ${
-            i.status === "active" ? "bg-accent/15 text-accent" : "bg-white/10 text-muted"
+            i.status === "active" ? "bg-accent/15 text-accent" : "bg-ink/10 text-muted"
           }`}>
             {i.status === "active" ? t("days_left_fmt").replace("{n}", String(daysLeft)) : t("completed")}
           </span>
         </div>
         <div className="mt-5">
-          <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+          <div className="h-1.5 overflow-hidden rounded-full bg-ink/10">
             <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${pct}%` }} />
           </div>
           <div className="mt-2 flex justify-between text-xs text-muted">
@@ -74,7 +74,7 @@ export default function MyPackages() {
   };
 
   return (
-    <main>
+    <main className="pb-20 md:pb-0">
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("my_packages")} />

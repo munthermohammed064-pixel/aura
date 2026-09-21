@@ -26,7 +26,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {items.map((x) => (
           <div key={x.id}
             className={`glass pointer-events-auto px-5 py-2.5 text-xs shadow-2xl transition-all ${
-              x.kind === "err" ? "border-red-500/40 text-red-300" : "border-accent/40"
+              x.kind === "err" ? "border-red-500/40 text-red-700" : "border-accent/40"
             }`}>
             {x.text}
           </div>

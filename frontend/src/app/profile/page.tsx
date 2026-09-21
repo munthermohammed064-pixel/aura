@@ -113,7 +113,7 @@ export default function Profile() {
   };
 
   return (
-    <main>
+    <main className="pb-20 md:pb-0">
       <Nav />
       <div className="mx-auto max-w-2xl px-4 py-10 space-y-4">
         <div className="flex items-end justify-between">
@@ -158,7 +158,7 @@ export default function Profile() {
           {me?.default_withdraw_address ? (
             <div className="mb-3">
               <p className="text-[10px] uppercase tracking-widest text-muted">{t("approved_address")}</p>
-              <p className="mt-1 break-all rounded-xl bg-white/5 px-3 py-2 font-mono text-xs">{me.default_withdraw_address}</p>
+              <p className="mt-1 break-all rounded-xl bg-ink/[0.04] px-3 py-2 font-mono text-xs">{me.default_withdraw_address}</p>
               {me.withdraw_qr_image && (
                 <img src={`${API_URL.replace("/api", "")}${me.withdraw_qr_image}`} alt="Wallet barcode"
                   className="mt-2 h-28 w-28 rounded-xl border border-border object-contain" />
@@ -171,7 +171,7 @@ export default function Profile() {
               </p>
               {addrReq ? (
                 <div className="mt-3 rounded-xl border border-amber-400/25 bg-amber-400/5 px-3 py-2">
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-amber-300">{t("change_pending")}</p>
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-amber-700">{t("change_pending")}</p>
                   <p className="mt-1 break-all font-mono text-[10px] text-muted">{addrReq.new_address}</p>
                 </div>
               ) : changeOpen ? (

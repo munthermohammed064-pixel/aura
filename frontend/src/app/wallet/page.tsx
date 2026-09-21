@@ -101,7 +101,7 @@ export default function WalletPage() {
           <td className="py-2">
             ${Number(r.amount).toLocaleString()}
             {(r.star_penalty ?? 0) > 0 && (
-              <p className="text-[10px] text-red-300">−${Number(r.star_penalty).toLocaleString()} {t("star_penalty")}</p>
+              <p className="text-[10px] text-red-600">−${Number(r.star_penalty).toLocaleString()} {t("star_penalty")}</p>
             )}
           </td>
           <td className="py-2 capitalize">{t(r.status)}</td>
@@ -112,7 +112,7 @@ export default function WalletPage() {
   );
 
   return (
-    <main>
+    <main className="pb-20 md:pb-0">
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("wallet")} />
@@ -131,19 +131,43 @@ export default function WalletPage() {
           <GlassCard>
             <h2 className="mb-4 font-medium">{t("deposit")}</h2>
             <Step n={1} label={t("step_method")} done={!!dep.method} />
-            <select className="input mb-3" value={dep.method}
-              onChange={(e) => setDep({ ...dep, method: e.target.value })}>
-              {methods.map((m) => <option key={m.id} value={m.name} className="bg-[#14141a]">{m.name}</option>)}
-            </select>
+            {/* payment picker — glass cards, not a dropdown */}
+            <div className="mb-3 grid gap-2 sm:grid-cols-2">
+              {methods.map((m) => {
+                const sel = dep.method === m.name;
+                return (
+                  <button key={m.id} type="button" onClick={() => setDep({ ...dep, method: m.name })}
+                    className={`glass flex items-center gap-3 !rounded-xl px-3.5 py-3 text-start transition ${
+                      sel ? "!border-accent/60 ring-1 ring-accent/30" : "hover:border-ink/20"
+                    }`}>
+                    {m.qr_image ? (
+                      <img src={`${API_URL.replace("/api", "")}${m.qr_image}`} alt=""
+                        className="h-10 w-10 shrink-0 rounded-lg border border-border object-cover" />
+                    ) : (
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-border font-display text-sm text-accent">
+                        {m.name.slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{m.name}</span>
+                      <span className="block font-mono text-[10px] text-muted">
+                        ${m.min_amount} – ${Number(m.max_amount).toLocaleString()}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+              {!methods.length && <p className="col-span-full text-xs text-muted">{t("no_methods")}</p>}
+            </div>
             {(() => {
               const m = methods.find((x) => x.name === dep.method);
               return m ? (
                 <div className="mb-3">
                   {m.qr_image && (
                     <img src={`${API_URL.replace("/api", "")}${m.qr_image}`} alt="Payment QR"
-                      className="mx-auto mb-2 h-40 w-40 rounded-xl border border-border object-contain" />
+                      className="mx-auto mb-2 h-40 w-40 rounded-xl border border-border bg-white object-contain p-1" />
                   )}
-                  {m.details && <p className="whitespace-pre-wrap text-xs text-muted">{m.details}</p>}
+                  {m.details && <p className="whitespace-pre-wrap break-all rounded-xl bg-ink/[0.04] px-3 py-2 font-mono text-xs text-muted">{m.details}</p>}
                 </div>
               ) : null;
             })()}
@@ -190,7 +214,7 @@ export default function WalletPage() {
             {whitelist ? (
               <div className="mb-3">
                 <p className="mb-1 text-[10px] uppercase tracking-widest text-muted">{t("approved_address")}</p>
-                <p className="break-all rounded-xl bg-white/5 px-3 py-2 font-mono text-xs">{whitelist}</p>
+                <p className="break-all rounded-xl bg-ink/[0.04] px-3 py-2 font-mono text-xs">{whitelist}</p>
               </div>
             ) : (
               <p className="mb-3 rounded-xl border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted">
@@ -198,12 +222,12 @@ export default function WalletPage() {
               </p>
             )}
             {stars < 4 && (
-              <p className="mb-3 rounded-xl border border-red-400/30 bg-red-400/5 px-3 py-2 text-xs text-red-200">
+              <p className="mb-3 rounded-xl border border-red-600/30 bg-red-600/5 px-3 py-2 text-xs text-red-700">
                 {t("star_penalty_note").replace("{n}", String(4 - stars)).replace("{pct}", String((4 - stars) * 25))}
               </p>
             )}
             {isWeekend && (
-              <p className="mb-3 rounded-xl border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
+              <p className="mb-3 rounded-xl border border-amber-600/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
                 {t("wd_weekend_closed")}
               </p>
             )}

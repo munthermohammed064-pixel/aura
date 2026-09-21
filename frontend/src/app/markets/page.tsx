@@ -24,7 +24,7 @@ export default function Markets() {
   }, []);
 
   return (
-    <main>
+    <main className="pb-20 md:pb-0">
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("markets")} />
@@ -34,7 +34,7 @@ export default function Markets() {
             <GlassCard key={id} hover>
               <p className="text-sm capitalize text-muted">{id}</p>
               <p className="mt-2 text-2xl font-semibold">${p.usd.toLocaleString()}</p>
-              <p className={`mt-1 text-xs ${(p.usd_24h_change ?? 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+              <p className={`mt-1 text-xs ${(p.usd_24h_change ?? 0) >= 0 ? "text-green-700" : "text-red-600"}`}>
                 {(p.usd_24h_change ?? 0).toFixed(2)}% 24h
               </p>
             </GlassCard>

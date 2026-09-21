@@ -1,21 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Nav } from "@/components/Nav";
-import { PageHeader } from "@/components/PageHeader";
 import { CountUp } from "@/components/CountUp";
 import { GlassCard } from "@/components/Glass";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { Stars } from "@/components/Stars";
+import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 
 type Wallet = { available: number; pending: number; invested: number };
 type Tx = { id: string; kind: string; direction: string; amount: number; created_at: string };
+
 export default function Dashboard() {
   const { t } = useT();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [txs, setTxs] = useState<Tx[]>([]);
-
   const [me, setMe] = useState<{ serial: string; stars: number; full_name: string; email: string } | null>(null);
 
   useEffect(() => {
@@ -29,42 +30,68 @@ export default function Dashboard() {
   const initials = (me?.full_name?.trim() || me?.email || "·")
     .split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
+  const h = new Date().getHours();
+  const greeting = t(h < 12 ? "greet_morning" : h < 18 ? "greet_afternoon" : "greet_evening");
+
+  const realized = txs.filter((x) => x.kind === "return").reduce((s, x) => s + Number(x.amount), 0);
   const stats = [
-    [t("available"), wallet?.available],
-    [t("pending"), wallet?.pending],
     [t("invested"), wallet?.invested],
-    [t("realized_returns"), txs.filter((x) => x.kind === "return").reduce((s, x) => s + Number(x.amount), 0)],
+    [t("pending"), wallet?.pending],
+    [t("realized_returns"), realized],
   ];
 
   return (
-    <main>
+    <main className="pb-20 md:pb-0">
       <Nav />
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <PageHeader title={t("dashboard")}
-          right={me && (
-            <span className="surface flex items-center gap-2.5 px-3 py-1.5">
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-accent/30 bg-accent/10 font-display text-[11px] font-semibold tracking-wide text-accent">
-                {initials}
-              </span>
-              <span className="leading-tight">
-                <span className="block max-w-36 truncate text-xs font-medium">{displayName}</span>
-                <span className="block font-mono text-[9px] tracking-wider text-muted">{me.serial}</span>
-              </span>
-              <span className="ms-1 border-s border-border ps-2.5" title={t("your_stars")}>
-                <Stars value={me.stars ?? 4} size={11} />
-              </span>
-            </span>
-          )} />
-        <div className="grid gap-4 md:grid-cols-4">
+      <div className="mx-auto max-w-6xl px-4 py-8 md:py-10">
+
+        {/* Greeting — identity line, editorial */}
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="font-display text-3xl tracking-tight md:text-4xl">
+              {greeting}{displayName ? `, ${displayName.split(" ")[0]}` : ""}
+            </h1>
+            <p className="mt-2 flex items-center gap-2.5 text-xs text-muted">
+              <span className="font-mono tracking-wider">{t("private_member")} · {me?.serial ?? "—"}</span>
+              {me && <Stars value={me.stars ?? 4} size={11} />}
+            </p>
+          </div>
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-accent/40 bg-accent/10 font-display text-sm font-semibold tracking-wide text-accent">
+            {initials}
+          </span>
+        </div>
+
+        {/* Balance hero — warm black card, sheen number, two actions */}
+        <div className="on-dark relative overflow-hidden rounded-2xl p-7 md:p-9">
+          <div className="microprint absolute inset-0 opacity-60" />
+          <div className="relative">
+            <p className="text-[10px] uppercase tracking-[0.3em] text-white/45">{t("available")}</p>
+            <p className="font-display sheen mt-2 text-5xl tracking-tight md:text-6xl">
+              <CountUp value={Number(wallet?.available ?? 0)} prefix="$" />
+            </p>
+            <div className="mt-6 flex gap-3">
+              <Link href="/wallet" className="btn-ghost flex-1 md:flex-none">
+                <ArrowDownToLine size={15} /> {t("deposit")}
+              </Link>
+              <Link href="/wallet" className="btn-ghost flex-1 md:flex-none">
+                <ArrowUpFromLine size={15} /> {t("withdraw")}
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Secondary stats */}
+        <div className="mt-4 grid grid-cols-3 gap-3 md:gap-4">
           {stats.map(([label, v]) => (
-            <GlassCard key={label} className="glow-card">
-              <p className="text-xs text-muted">{label}</p>
-              <p className="mt-2 text-2xl font-semibold tracking-tight">
+            <GlassCard key={label} className="glow-card !p-4 md:!p-6">
+              <p className="text-[10px] uppercase tracking-widest text-muted md:text-xs">{label}</p>
+              <p className="mt-2 text-lg font-semibold tracking-tight md:text-2xl">
                 <CountUp value={Number(v ?? 0)} prefix="$" />
               </p>
             </GlassCard>
           ))}
         </div>
+
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <GlassCard>
             <h2 className="mb-4 font-medium">{t("wallet_split")}</h2>
@@ -76,24 +103,27 @@ export default function Dashboard() {
           </GlassCard>
         </div>
 
+        {/* Activity timeline — replaces the dense table */}
         <GlassCard className="mt-4">
-          <h2 className="mb-4 font-medium">{t("recent_activity")}</h2>
-          <table className="w-full text-sm">
-            <thead><tr className="text-left text-xs text-muted">
-              <th className="pb-2">{t("type")}</th><th className="pb-2">{t("direction")}</th>
-              <th className="pb-2">{t("amount")}</th><th className="pb-2">{t("date")}</th>
-            </tr></thead>
-            <tbody>
-              {txs.slice(0, 15).map((x) => (
-                <tr key={x.id} className="border-t border-border">
-                  <td className="py-2 capitalize">{t(x.kind)}</td>
-                  <td className="py-2">{t(x.direction)}</td>
-                  <td className="py-2">${Number(x.amount).toLocaleString()}</td>
-                  <td className="py-2 text-muted">{new Date(x.created_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <h2 className="mb-5 font-medium">{t("recent_activity")}</h2>
+          {txs.length === 0 && <p className="text-xs text-muted">{t("no_activity")}</p>}
+          <ol className="relative space-y-0 border-s border-border ps-5">
+            {txs.slice(0, 12).map((x) => (
+              <li key={x.id} className="relative pb-5 last:pb-0">
+                <span className={`absolute -start-[26px] top-1 h-2.5 w-2.5 rounded-full border-2 border-bg ${
+                  x.direction === "credit" ? "bg-accent" : "bg-muted"}`} />
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-sm capitalize">{t(x.kind)}</p>
+                  <p className={`font-mono text-sm ${x.direction === "credit" ? "text-green" : "text-muted"}`}>
+                    {x.direction === "credit" ? "+" : "−"}${Number(x.amount).toLocaleString()}
+                  </p>
+                </div>
+                <p className="mt-0.5 text-[11px] text-muted">
+                  {t(x.direction)} · {new Date(x.created_at).toLocaleDateString()}
+                </p>
+              </li>
+            ))}
+          </ol>
         </GlassCard>
       </div>
     </main>
@@ -103,9 +133,9 @@ export default function Dashboard() {
 function WalletSplit({ wallet }: { wallet: Wallet | null }) {
   const { t } = useT();
   const parts = [
-    { label: t("available"), v: Number(wallet?.available ?? 0), c: "#c9a962" },
-    { label: t("pending"), v: Number(wallet?.pending ?? 0), c: "#9b9ba1" },
-    { label: t("invested"), v: Number(wallet?.invested ?? 0), c: "#5a7d9a" },
+    { label: t("available"), v: Number(wallet?.available ?? 0), c: "#9A742C" },
+    { label: t("pending"), v: Number(wallet?.pending ?? 0), c: "#8A8375" },
+    { label: t("invested"), v: Number(wallet?.invested ?? 0), c: "#162B49" },
   ];
   const total = parts.reduce((s, p) => s + p.v, 0);
   if (total <= 0) return <p className="text-xs text-muted">{t("no_balance")}</p>;
@@ -156,7 +186,7 @@ function TxBars({ txs }: { txs: Tx[] }) {
             <span className="capitalize text-muted">{t(kind)}</span>
             <span className="font-mono">${amt.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
+          <div className="h-1.5 overflow-hidden rounded-full bg-ink/5">
             <div className="h-full rounded-full bg-accent transition-all duration-700"
               style={{ width: `${(amt / max) * 100}%` }} />
           </div>

@@ -7,6 +7,7 @@ import { ToastProvider } from "@/components/Toast";
 const DESC = "Private investment packages, structured with care in Los Angeles.";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://neexora.space"),
   title: process.env.NEXT_PUBLIC_PLATFORM_NAME ?? "Platform",
   description: DESC,
   openGraph: {

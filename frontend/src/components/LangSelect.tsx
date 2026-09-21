@@ -20,7 +20,7 @@ export function LangSelect() {
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen(!open)} aria-label="Language"
-        className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-xs transition hover:border-white/20">
+        className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-xs transition hover:border-ink/20">
         <span>{current.flag}</span>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M6 9l6 6 6-6" strokeLinecap="round" />
@@ -33,7 +33,7 @@ export function LangSelect() {
               <button key={l.code}
                 onClick={() => { setLang(l.code); setOpen(false); }}
                 className={`flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-start text-sm transition ${
-                  l.code === lang ? "bg-accent/15 text-accent" : "text-white/85 hover:bg-white/5"
+                  l.code === lang ? "bg-accent/15 text-accent" : "text-ink/85 hover:bg-ink/5"
                 }`}>
                 <span className="w-7 text-xs font-medium text-muted">{l.flag}</span>
                 <span className="flex-1">{l.label}</span>

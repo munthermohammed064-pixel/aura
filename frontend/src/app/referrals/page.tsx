@@ -27,7 +27,7 @@ export default function Referrals() {
   };
 
   return (
-    <main>
+    <main className="pb-20 md:pb-0">
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("referrals")} />
@@ -37,7 +37,7 @@ export default function Referrals() {
             <input className="input" readOnly value={data?.link ?? ""} />
             <button className="btn-ghost shrink-0" onClick={copy}>{copied ? t("copied") : t("copy")}</button>
           </div>
-          <p className="mt-3 text-xs text-muted">{t("code")} <span className="text-white">{data?.code}</span></p>
+          <p className="mt-3 text-xs text-muted">{t("code")} <span className="text-ink">{data?.code}</span></p>
           <div className="mt-4"><Disclaimer>{t("reward_note")}</Disclaimer></div>
         </GlassCard>
 

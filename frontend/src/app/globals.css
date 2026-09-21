@@ -4,45 +4,59 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Single source of truth for the theme — Apple minimalism + glassmorphism,
-   Los Angeles sunset palette */
+/* ─────────────────────────────────────────────────────────────
+   LA PRIVATE CAPITAL — California light, American money,
+   architectural glass. Ivory base; warm black for gravity.
+   ───────────────────────────────────────────────────────────── */
 :root {
-  --bg: #0e0e12;            /* warm near-black */
-  --surface: rgba(255, 255, 255, 0.045);
-  --border: rgba(255, 255, 255, 0.08);
-  --accent: #c9a962;        /* champagne gold */
-  --accent-2: #e8d5a8;      /* light champagne */
-  --sunset-rose: #d98a7e;   /* LA dusk rose */
-  --sunset-violet: #7a6a9e; /* LA dusk violet */
-  --muted: #a9a9b2;         /* raised contrast for readability */
+  --bg: 243 239 230;          /* #F3EFE6 — ivory / California sand */
+  --ink: 28 26 21;            /* #1C1A15 — warm ink */
+  --surface: 255 255 255;     /* card white */
+  --border: 226 218 199;      /* pre-mixed sand hairline */
+  --accent: 154 116 44;       /* #9A742C — deep brass, readable on ivory */
+  --accent-2: 201 169 98;     /* #C9A962 — champagne decor */
+  --green: 23 74 54;          /* #174A36 — dollar green */
+  --blue: 22 43 73;           /* #162B49 — federal blue */
+  --muted: 112 104 86;        /* warm stone gray */
 }
 
-* { color-scheme: dark; }
+/* Dark scope — warm black financial sections. Every var flips,
+   so ink/surface/border/muted utilities keep working inside. */
+.on-dark {
+  --bg: 12 11 9;              /* #0C0B09 warm black */
+  --ink: 243 239 230;         /* ivory text */
+  --surface: 26 24 19;
+  --border: 56 50 40;
+  --accent: 201 169 98;       /* brighter champagne on dark */
+  --muted: 166 157 139;
+  color-scheme: dark;
+  color: rgb(var(--ink));
+  background: rgb(var(--bg));
+}
+
+* { color-scheme: light; }
+.on-dark, .on-dark * { color-scheme: dark; }
 
 body {
-  background: var(--bg);
-  color: #f5f5f7;
+  background: rgb(var(--bg));
+  color: rgb(var(--ink));
   font-family: "IBM Plex Sans Arabic", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* subtle film grain — gives surfaces physical depth without heaviness */
+/* subtle paper grain — banknote stock, not film noise */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: .5;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
+  opacity: .4;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
 }
 main, header, footer { position: relative; z-index: 1; }
 
-/* champagne hairline on interactive surfaces */
-.surface { transition: border-color .25s ease; }
-a.surface:hover, button.surface:hover { border-color: rgba(201,169,98,.35); }
-
-::selection { background: rgba(201,169,98,.3); }
+::selection { background: rgb(201 169 98 / .3); }
 
 /* editorial serif for headlines + wordmark — Amiri covers Arabic, Georgia covers Latin */
 .font-display {
@@ -50,74 +64,164 @@ a.surface:hover, button.surface:hover { border-color: rgba(201,169,98,.35); }
   letter-spacing: -0.02em;
 }
 
-.glass {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border-radius: 1.25rem;
-}
+/* ── surfaces ── */
 
-/* opaque dropdown/popover surface — readable over any imagery */
-.menu {
-  background: #171310;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 1.25rem;
-  box-shadow: 0 24px 48px rgba(0,0,0,.6);
-}
-
-/* flat card surface — hairline border, no blur. Glass is reserved for nav/floating UI */
+/* flat card — opaque, hairline border, soft ambient shadow */
 .surface {
-  background: rgba(255,255,255,.025);
-  border: 1px solid var(--border);
+  background: rgb(var(--surface));
+  border: 1px solid rgb(var(--border));
   border-radius: 1.25rem;
+  box-shadow: 0 1px 2px rgb(28 26 21 / .05), 0 16px 40px -24px rgb(28 26 21 / .18);
+  transition: border-color .25s ease;
+}
+.on-dark .surface { box-shadow: 0 1px 2px rgb(0 0 0 / .3); }
+a.surface:hover, button.surface:hover { border-color: rgb(var(--accent) / .45); }
+
+/* architectural glass — reserved for nav, popovers, identity card,
+   wallet summary, payment picker */
+.glass {
+  background: rgb(var(--surface) / .62);
+  border: 1px solid rgb(var(--ink) / .1);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  border-radius: 1.25rem;
+  box-shadow: 0 20px 60px rgb(0 0 0 / .12);
+}
+.on-dark .glass {
+  background: rgb(255 255 255 / .07);
+  border-color: rgb(255 255 255 / .14);
+  box-shadow: 0 20px 60px rgb(0 0 0 / .3);
 }
 
-.glass-hover { transition: transform .2s ease, border-color .2s ease; }
-.glass-hover:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.18); }
+/* opaque dropdown/popover — readable over any imagery */
+.menu {
+  background: rgb(var(--surface));
+  border: 1px solid rgb(var(--border));
+  border-radius: 1.25rem;
+  box-shadow: 0 24px 48px rgb(28 26 21 / .16);
+}
+.on-dark .menu { background: #17150f; border-color: rgb(255 255 255 / .12); box-shadow: 0 24px 48px rgb(0 0 0 / .6); }
+
+.glass-hover { transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.glass-hover:hover { transform: translateY(-2px); border-color: rgb(var(--accent) / .4); }
+
+/* ── controls ── */
 
 .btn {
   @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition;
-  background: #f5f5f7;
-  color: #0a0a0f;
+  background: rgb(var(--ink));
+  color: rgb(var(--bg));
 }
-.btn:hover { background: #ffffff; }
+.btn:hover { filter: brightness(1.15); }
 .btn-ghost {
   @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid rgb(var(--ink) / .16);
+  color: rgb(var(--ink));
+  background: transparent;
 }
-.btn-ghost:hover { border-color: rgba(255,255,255,.2); }
+.btn-ghost:hover { border-color: rgb(var(--accent) / .5); }
 
 .input {
   @apply w-full rounded-xl px-4 py-2.5 text-sm outline-none transition;
-  background: rgba(255,255,255,.05);
-  border: 1px solid var(--border);
+  background: rgb(var(--surface));
+  border: 1px solid rgb(var(--border));
+  color: rgb(var(--ink));
 }
-.input:focus { border-color: var(--accent); }
+.input:focus { border-color: rgb(var(--accent)); }
+.input::placeholder { color: rgb(var(--muted) / .7); }
 
 .disclaimer {
   @apply text-xs leading-relaxed rounded-xl p-3;
-  color: var(--muted);
-  background: rgba(255,255,255,.03);
-  border: 1px dashed var(--border);
+  color: rgb(var(--muted));
+  background: rgb(var(--ink) / .03);
+  border: 1px dashed rgb(var(--border));
 }
 
-/* ---------- scroll reveal ---------- */
+/* ── USA-money details ── */
+
+/* engraved microprint — fine banknote lines */
+.microprint {
+  background-image: repeating-linear-gradient(
+    0deg, transparent 0 3px, rgb(var(--ink) / .045) 3px 4px);
+}
+
+/* editorial section number — 01 — Packages */
+.sec-num {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: .7rem;
+  letter-spacing: .35em;
+  text-transform: uppercase;
+  color: rgb(var(--accent));
+}
+.sec-num::after {
+  content: "";
+  display: inline-block;
+  width: 44px;
+  height: 1px;
+  margin-inline-start: .9rem;
+  vertical-align: middle;
+  background: linear-gradient(to right, rgb(var(--accent)), transparent);
+}
+
+/* circular seal — LA · PRIVATE CAPITAL */
+.seal {
+  position: relative;
+  border-radius: 9999px;
+  border: 1px solid rgb(var(--accent) / .5);
+}
+.seal::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  border: 1px solid rgb(var(--accent) / .3);
+}
+
+/* slow gold sheen sweeping across key figures */
+@keyframes sheen {
+  0%, 55% { background-position: 120% 0; }
+  100% { background-position: -20% 0; }
+}
+.sheen {
+  background: linear-gradient(105deg, rgb(var(--accent)) 42%, rgb(232 213 168) 50%, rgb(var(--accent)) 58%);
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sheen 7s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .sheen { animation: none; } }
+
+/* bottom sheet — mobile confirmations */
+@keyframes sheetup { from { transform: translateY(100%); } }
+.sheet {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 60;
+  border-radius: 1.5rem 1.5rem 0 0;
+  animation: sheetup .32s cubic-bezier(.2,.8,.3,1);
+}
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgb(12 11 9 / .45);
+  backdrop-filter: blur(3px);
+}
+
+/* ── scroll reveal ── */
 .reveal {
   opacity: 0;
   transform: translateY(24px);
   transition: opacity .7s cubic-bezier(.2,.65,.3,1), transform .7s cubic-bezier(.2,.65,.3,1);
 }
-.reveal-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
+.reveal-visible { opacity: 1; transform: translateY(0); }
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; transition: none; }
 }
 
-/* ---------- LA photo hero ---------- */
+/* ── LA photo ── */
 .hero-photo {
   position: absolute;
   inset: 0;
@@ -130,70 +234,64 @@ a.surface:hover, button.surface:hover { border-color: rgba(201,169,98,.35); }
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 55% at 50% 38%, rgba(201,169,98,.12), transparent 60%),
+    radial-gradient(ellipse 80% 55% at 50% 38%, rgba(201,169,98,.14), transparent 60%),
     radial-gradient(ellipse 90% 40% at 18% 82%, rgba(217,138,126,.10), transparent 65%),
-    radial-gradient(ellipse 90% 40% at 84% 76%, rgba(122,106,158,.10), transparent 65%),
-    linear-gradient(to bottom, rgba(10,10,15,.72) 0%, rgba(10,10,15,.5) 45%, var(--bg) 96%);
+    linear-gradient(to bottom, rgba(12,11,9,.72) 0%, rgba(12,11,9,.48) 45%, rgb(12 11 9) 96%);
 }
 
-/* editorial rule — thin gold line used under section headings */
+/* editorial rule — thin gold line under headings */
 .rule-gold {
   width: 56px;
   height: 1px;
   margin: 0 auto 2rem;
-  background: linear-gradient(to right, transparent, var(--accent), transparent);
+  background: linear-gradient(to right, transparent, rgb(var(--accent)), transparent);
 }
 .photo-band {
   border-radius: 1.25rem;
   overflow: hidden;
   position: relative;
 }
-.photo-band img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.photo-band img { width: 100%; height: 100%; object-fit: cover; }
 .photo-band::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(10,10,15,.75), transparent 60%);
+  background: linear-gradient(to top, rgba(12,11,9,.75), transparent 60%);
 }
 
-/* ---------- luxury polish ---------- */
+/* ── luxury polish ── */
 
-/* champagne edge + glow on hover — cards feel precious, not flat */
 .glow-card { position: relative; transition: border-color .3s ease, transform .25s ease, box-shadow .3s ease; }
 .glow-card:hover {
-  border-color: rgba(201,169,98,.35);
-  box-shadow: 0 0 0 1px rgba(201,169,98,.12), 0 12px 40px -18px rgba(201,169,98,.25);
+  border-color: rgb(var(--accent) / .45);
+  box-shadow: 0 0 0 1px rgb(var(--accent) / .12), 0 14px 44px -18px rgb(var(--accent) / .3);
   transform: translateY(-2px);
 }
 
-/* featured surface — full champagne gradient border */
+/* champagne gradient edge — top tiers & active selection */
 .gold-edge {
   border: 1px solid transparent !important;
   background:
-    linear-gradient(var(--bg), var(--bg)) padding-box,
-    linear-gradient(135deg, rgba(201,169,98,.65), rgba(201,169,98,.08) 40%, rgba(232,213,168,.45)) border-box !important;
+    linear-gradient(rgb(var(--surface)), rgb(var(--surface))) padding-box,
+    linear-gradient(135deg, rgb(var(--accent) / .7), rgb(var(--accent) / .12) 40%, rgb(var(--accent-2) / .5)) border-box !important;
 }
 
-/* financial figures align in columns — no jitter between digits */
+/* financial figures align in columns */
 .tabular { font-variant-numeric: tabular-nums; }
 
-/* skeleton shimmer — champagne-tinted loading state */
+/* champagne-tinted loading shimmer */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 .skeleton {
   border-radius: .75rem;
-  background: linear-gradient(100deg, rgba(255,255,255,.04) 40%, rgba(201,169,98,.09) 50%, rgba(255,255,255,.04) 60%);
+  background: linear-gradient(100deg, rgb(var(--ink) / .05) 40%, rgb(var(--accent) / .1) 50%, rgb(var(--ink) / .05) 60%);
   background-size: 200% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
 
-/* slow cinematic zoom for the LA photo */
+/* slow cinematic zoom for LA photos */
 @keyframes kenburns {
   0% { transform: scale(1) translateY(0); }
   100% { transform: scale(1.09) translateY(-1.5%); }

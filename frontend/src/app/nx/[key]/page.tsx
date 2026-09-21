@@ -330,7 +330,7 @@ export default function Admin() {
   // Wrong secret path → indistinguishable from a missing page
   if (!keyOk) {
     return (
-      <main className="grid min-h-[60vh] place-items-center px-4">
+      <main className="on-dark grid min-h-[60vh] place-items-center px-4">
         <div className="text-center">
           <p className="font-display text-4xl">404</p>
           <p className="mt-2 text-sm text-muted">{t("not_found")}</p>
@@ -341,7 +341,7 @@ export default function Admin() {
 
   if (gate === "checking") {
     return (
-      <main><Nav />
+      <main className="on-dark"><Nav />
         <div className="mx-auto max-w-6xl space-y-3 px-4 py-10">
           <div className="skeleton h-8 w-40" />
           <div className="skeleton h-64 w-full" />
@@ -353,7 +353,7 @@ export default function Admin() {
   // Hidden-console login: admin ID + password. No email, no signup links.
   if (gate === "login") {
     return (
-      <main className="grid min-h-[80vh] place-items-center px-4">
+      <main className="on-dark grid min-h-[80vh] place-items-center px-4">
         <GlassCard className="w-full max-w-sm">
           <form onSubmit={adminLogin} className="space-y-3">
             <input className="input font-mono" placeholder="ID" required autoComplete="off"
@@ -369,7 +369,7 @@ export default function Admin() {
   }
 
   return (
-    <main>
+    <main className="on-dark">
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("admin")} />
