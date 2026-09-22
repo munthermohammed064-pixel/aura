@@ -482,7 +482,7 @@ check("admin closes code", s == 200)
 s, b = call("POST", "/wallet/redeem-code", {"code": f"E2E-{uid}"}, token=r_tok)
 check("closed code rejected", s == 400)
 s, codes = call("GET", "/admin/codes", token=atok)
-mine = [c for c in codes if c["code"] == f"E2E-{uid}"]
+mine = [c for c in codes if c["code"].upper() == f"E2E-{uid}".upper()]
 check("code list shows redemption", mine and mine[0]["redemptions"] == 1 and float(mine[0]["total_paid"]) == 0.4, mine[:1])
 
 print()
