@@ -250,6 +250,10 @@ s, b = call("POST", "/admin/operators",
             {"login_id": f"nxop_{uid}", "password": "Operator123!xyz", "full_name": "E2E Op"}, token=atok)
 check("owner creates operator", s == 201 and b.get("role") == "admin", f"{s} {str(b)[:60]}")
 op_id = b.get("id")
+# The panel-key negative checks above burned several logins — wait out the
+# 10/min login window before the operator login.
+print("  (waiting 62s for /auth/login rate-limit window)")
+time.sleep(62)
 s, b = call("POST", "/auth/login", {"identifier": f"nxop_{uid}", "password": "Operator123!xyz"}, pk=True)
 otok = b.get("access_token")
 if otok:
