@@ -16,6 +16,12 @@ export const metadata: Metadata = {
     images: ["/la-hero.jpg"],
     type: "website",
   },
+  // Home-screen install: standalone chrome + the flag/NEXORA apple-icon.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: process.env.NEXT_PUBLIC_PLATFORM_NAME ?? "Nexora",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
