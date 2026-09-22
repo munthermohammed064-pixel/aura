@@ -166,7 +166,7 @@ class CodeIn(BaseModel):
     code: str = Field(min_length=3, max_length=32)
 
 
-@router.post("/redeem-code")
+@router.post("/wallet/redeem-code")
 @limiter.limit("10/minute")
 def redeem_code(request: Request, data: CodeIn, user: User = Depends(get_current_user),
                 db: Session = Depends(get_db)):
