@@ -2,8 +2,10 @@
 users (freeze/adjust/fee/withdraw-address), methods, settings, tickets,
 investments, audit log. Every action is audited; users are notified."""
 
+import re
+import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -13,7 +15,8 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_admin, get_owner
 from app.database import get_db
 from app.models.finance import (
-    Deposit, Investment, LedgerEntry, Package, PaymentMethod, ReferralCommission, Withdrawal,
+    CodeRedemption, Deposit, Investment, LedgerEntry, Package, PaymentMethod,
+    ReferralCommission, TradingCode, Withdrawal,
 )
 from app.models.platform import AuditLog, AddressRequest, Setting, Ticket
 from app.models.user import Session as UserSession
@@ -677,3 +680,71 @@ def toggle_operator(op_id: str, owner: User = Depends(get_owner), db: Session = 
     audit(db, owner, "operator.toggle", "user", op.id, {"is_active": op.is_active})
     db.commit()
     return _op_out(op)
+
+
+# ---------- Trading codes (daily return distribution) ----------
+_CODE_RE = re.compile(r"^[A-Z0-9-]{3,32}$")
+
+
+class CodeCreateIn(BaseModel):
+    code: str = Field("", max_length=32)          # blank → auto-generate NX-XXXXXX
+    ttl_minutes: int = Field(60, ge=5, le=4320)   # free TTL: 5 min → 3 days
+    amounts: dict[str, float] = {}                # {package_id: amount} — each inside the package's closed range
+
+
+@router.post("/codes", status_code=201)
+def create_code(data: CodeCreateIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    amounts = {str(k): round(float(v), 8) for k, v in (data.amounts or {}).items() if v and float(v) > 0}
+    if not amounts:
+        raise HTTPException(400, "Set an amount for at least one package")
+    pkgs = {str(p.id): p for p in db.query(Package).all()}
+    for pid, amt in amounts.items():
+        p = pkgs.get(pid)
+        if not p:
+            raise HTTPException(400, f"Unknown package {pid}")
+        lo = float(p.return_min_amount) if p.return_min_amount is not None else None
+        hi = float(p.return_max_amount) if p.return_max_amount is not None else None
+        if lo is not None and amt < lo or hi is not None and amt > hi:
+            rng = f"${lo:g}–${hi:g}" if lo is not None and hi is not None else (f"≤ ${hi:g}" if hi is not None else f"≥ ${lo:g}")
+            raise HTTPException(400, f"{p.name}: amount must stay inside its range ({rng})")
+
+    code = data.code.strip().upper() or f"NX-{secrets.token_hex(3).upper()}"
+    if not _CODE_RE.match(code):
+        raise HTTPException(400, "Code must be 3–32 chars: A–Z, 0–9, dash")
+    if db.query(TradingCode).filter(TradingCode.code == code).first():
+        raise HTTPException(400, "Code already exists")
+
+    tc = TradingCode(code=code, amounts=amounts,
+                     expires_at=datetime.now(timezone.utc) + timedelta(minutes=data.ttl_minutes),
+                     created_by=admin.id)
+    db.add(tc)
+    audit(db, admin, "code.create", "trading_code", code, {"amounts": amounts, "ttl": data.ttl_minutes})
+    db.commit()
+    return _code_out(db, tc)
+
+
+def _code_out(db: Session, tc: TradingCode) -> dict:
+    used, paid = db.query(func.count(CodeRedemption.id),
+                          func.coalesce(func.sum(CodeRedemption.amount), 0)).filter(
+                          CodeRedemption.code_id == tc.id).first()
+    return {"id": str(tc.id), "code": tc.code, "amounts": tc.amounts,
+            "expires_at": tc.expires_at.isoformat() if tc.expires_at else None,
+            "is_active": tc.is_active, "created_at": tc.created_at.isoformat() if tc.created_at else None,
+            "redemptions": int(used), "total_paid": float(paid)}
+
+
+@router.get("/codes")
+def list_codes(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    rows = db.query(TradingCode).order_by(TradingCode.created_at.desc()).limit(30).all()
+    return [_code_out(db, tc) for tc in rows]
+
+
+@router.post("/codes/{code_id}/close")
+def close_code(code_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    tc = db.get(TradingCode, uuid.UUID(code_id))
+    if not tc:
+        raise HTTPException(404, "Code not found")
+    tc.is_active = False
+    audit(db, admin, "code.close", "trading_code", tc.code)
+    db.commit()
+    return {"ok": True}

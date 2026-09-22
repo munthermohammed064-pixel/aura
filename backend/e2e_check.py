@@ -417,13 +417,15 @@ print("7) PACKAGES & INVESTMENT")
 print("=" * 70)
 s, p = call("POST", "/admin/packages", {
     "name": f"E2E Pkg {uid}", "description": "test pkg", "min_deposit": 15, "max_deposit": 1000,
-    "yield_min_pct": 3, "yield_max_pct": 7, "duration_days": 30, "is_active": True, "sort_order": 1}, token=atok)
+    "yield_min_pct": 3, "yield_max_pct": 7, "return_min_amount": 0.3, "return_max_amount": 0.5,
+    "duration_days": 30, "is_active": True, "sort_order": 1}, token=atok)
 check("create package", s == 201, str(p)[:70])
 pkg_id = p["id"]
 
 s, b = call("PUT", f"/admin/packages/{pkg_id}", {
     "name": f"E2E Pkg {uid}", "description": "edited", "min_deposit": 15, "max_deposit": 1000,
-    "yield_min_pct": 3, "yield_max_pct": 7, "duration_days": 30, "is_active": True, "sort_order": 1}, token=atok)
+    "yield_min_pct": 3, "yield_max_pct": 7, "return_min_amount": 0.3, "return_max_amount": 0.5,
+    "duration_days": 30, "is_active": True, "sort_order": 1}, token=atok)
 check("edit package keeps fields", s == 200 and b.get("description") == "edited")
 
 s, pkgs = call("GET", "/packages")
@@ -452,6 +454,36 @@ s, w = call("GET", "/wallet", token=tok)
 check("return credited", float(w["available"]) == 89, w["available"])
 s, invs = call("GET", "/investments", token=tok)
 check("investment completed + realized 3", invs[0]["status"] == "completed" and float(invs[0]["realized_return"]) == 3, invs[0])
+
+print()
+print("=" * 70)
+print("7b) TRADING CODES")
+print("=" * 70)
+# fresh active investment so redemption has something to pay (avail 89 -> 74)
+s, inv2 = call("POST", "/invest", {"package_id": pkg_id, "amount": 15, "acknowledge_risk": True}, token=tok)
+check("second invest for code test", s == 201, str(inv2)[:60])
+s, b = call("POST", "/admin/codes", {"code": f"E2E-{uid}", "ttl_minutes": 60, "amounts": {pkg_id: 0.4}}, token=atok)
+check("admin publishes code", s == 201, str(b)[:70])
+code_id = b.get("id")
+s, b = call("POST", "/admin/codes", {"ttl_minutes": 60, "amounts": {pkg_id: 9.9}}, token=atok)
+check("out-of-range amount rejected", s == 400)
+s, b = call("POST", "/wallet/redeem-code", {"code": f"E2E-{uid}"}, token=tok)
+check("redeem credits wallet $0.40", s == 200 and float(b.get("credited", 0)) == 0.4, b)
+s, w = call("GET", "/wallet", token=tok)
+check("wallet reflects code", abs(float(w["available"]) - 74.4) < 0.001, w["available"])
+s, b = call("POST", "/wallet/redeem-code", {"code": f"E2E-{uid}"}, token=tok)
+check("double redeem rejected", s == 400)
+s, b = call("POST", "/wallet/redeem-code", {"code": f"E2E-{uid}"}, token=r_tok)
+check("no active package rejected", s == 400)
+s, b = call("POST", "/wallet/redeem-code", {"code": "NOPE-999"}, token=tok)
+check("wrong code rejected", s == 400)
+s, b = call("POST", f"/admin/codes/{code_id}/close", {}, token=atok)
+check("admin closes code", s == 200)
+s, b = call("POST", "/wallet/redeem-code", {"code": f"E2E-{uid}"}, token=r_tok)
+check("closed code rejected", s == 400)
+s, codes = call("GET", "/admin/codes", token=atok)
+mine = [c for c in codes if c["code"] == f"E2E-{uid}"]
+check("code list shows redemption", mine and mine[0]["redemptions"] == 1 and float(mine[0]["total_paid"]) == 0.4, mine[:1])
 
 print()
 print("=" * 70)

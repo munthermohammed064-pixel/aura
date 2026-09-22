@@ -54,7 +54,11 @@ type UserDetail = {
     amount: number; note: string; created_at: string | null }[];
 };
 
-const TABS = ["stats", "packages", "investments", "deposits", "withdrawals", "users", "address_requests", "methods", "settings", "audit", "operators"] as const;
+type TCode = { id: string; code: string; amounts: Record<string, number>;
+  expires_at: string | null; is_active: boolean; created_at: string | null;
+  redemptions: number; total_paid: number };
+
+const TABS = ["stats", "packages", "investments", "codes", "deposits", "withdrawals", "users", "address_requests", "methods", "settings", "audit", "operators"] as const;
 // Owner-only surfaces — hidden for operators AND enforced server-side.
 const OWNER_TABS: string[] = ["methods", "settings", "audit", "operators"];
 const STAFF = ["admin", "owner"];
@@ -108,6 +112,9 @@ export default function Admin() {
   const [payingId, setPayingId] = useState<string | null>(null);
   const [txidInput, setTxidInput] = useState("");
   const [addrReqs, setAddrReqs] = useState<AddrReq[]>([]);
+  const [codes, setCodes] = useState<TCode[]>([]);
+  const [codeForm, setCodeForm] = useState<{ code: string; ttl: number; amounts: Record<string, string> }>({ code: "", ttl: 60, amounts: {} });
+  const [published, setPublished] = useState<TCode | null>(null);
 
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -149,6 +156,7 @@ export default function Admin() {
     }
     api<Inv[]>("/admin/investments").then(setInvestments).catch(() => {});
     api<AddrReq[]>("/admin/address-requests").then(setAddrReqs).catch(() => {});
+    api<TCode[]>("/admin/codes").then(setCodes).catch(() => {});
   };
 
   // Gate: secret path ok → check the session is actually an admin
@@ -194,6 +202,15 @@ export default function Admin() {
     api(path, { method: "POST", body: JSON.stringify(body) })
       .then(load)
       .catch((e) => toast(e instanceof Error ? e.message : t("failed"), "err"));
+
+  const publishCode = () => {
+    const amounts = Object.fromEntries(Object.entries(codeForm.amounts)
+      .filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)]));
+    api<TCode>("/admin/codes", { method: "POST",
+        body: JSON.stringify({ code: codeForm.code, ttl_minutes: codeForm.ttl, amounts }) })
+      .then((c) => { setPublished(c); setCodeForm({ code: "", ttl: 60, amounts: {} }); load(); })
+      .catch((e) => toast(e instanceof Error ? e.message : t("failed"), "err"));
+  };
 
   const [editingPkg, setEditingPkg] = useState<string | null>(null);
 
@@ -520,6 +537,88 @@ export default function Admin() {
             </table>
             <Pager total={investments.length} page={invPage} setPage={setInvPage} />
           </GlassCard>
+        )}
+
+        {tab === "codes" && (
+          <div className="space-y-4">
+            <GlassCard>
+              <p className="mb-3 font-display text-sm">{t("codes_new")}</p>
+              <div className="mb-3 grid gap-2 md:grid-cols-2">
+                <input className="input font-mono uppercase" placeholder={t("codes_code")}
+                  value={codeForm.code} maxLength={32}
+                  onChange={(e) => setCodeForm({ ...codeForm, code: e.target.value.toUpperCase() })} />
+                <input className="input" type="number" min={5} max={4320} placeholder={t("codes_ttl")}
+                  value={codeForm.ttl}
+                  onChange={(e) => setCodeForm({ ...codeForm, ttl: Number(e.target.value) })} />
+              </div>
+              <p className="mb-2 text-xs text-muted">{t("codes_per_pkg")}</p>
+              <div className="grid gap-2 md:grid-cols-3">
+                {packages.filter((p) => p.is_active).map((p) => (
+                  <div key={p.id}>
+                    <p className="mb-1 flex items-baseline justify-between text-xs">
+                      <span className="font-medium">{p.name}</span>
+                      <span className="font-mono text-[10px] text-muted">
+                        {p.return_min_amount != null && p.return_max_amount != null
+                          ? `$${p.return_min_amount}–$${p.return_max_amount}` : "—"}
+                      </span>
+                    </p>
+                    <input className="input !py-1.5" type="number" step="0.01" min={0}
+                      value={codeForm.amounts[p.id] ?? ""}
+                      placeholder={p.return_min_amount != null ? String(p.return_min_amount) : "0"}
+                      onChange={(e) => setCodeForm({ ...codeForm,
+                        amounts: { ...codeForm.amounts, [p.id]: e.target.value } })} />
+                  </div>
+                ))}
+              </div>
+              <button className="btn mt-4" onClick={publishCode}>{t("codes_publish")}</button>
+              {published && (
+                <div className="mt-4 rounded-xl border border-accent/30 bg-accent/5 p-3">
+                  <p className="mb-1 text-xs text-ok">{t("codes_published")}</p>
+                  <pre className="whitespace-pre-wrap font-mono text-xs">{`NEXORA — trading code
+
+${published.code}
+${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at).toLocaleString() : "—"}`}</pre>
+                  <button className="btn-ghost mt-2 px-3 py-1 text-xs"
+                    onClick={() => navigator.clipboard.writeText(`NEXORA — trading code
+
+${published.code}
+${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at).toLocaleString() : ""}`).then(() => toast(t("copied"), "ok"))}>
+                    {t("copy")}
+                  </button>
+                </div>
+              )}
+            </GlassCard>
+            <GlassCard>
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-xs text-muted">
+                  <th className="pb-2">Code</th><th className="pb-2">{t("codes_valid_until")}</th>
+                  <th className="pb-2">{t("status")}</th><th className="pb-2">{t("codes_uses")}</th>
+                  <th className="pb-2">$</th><th className="pb-2"></th>
+                </tr></thead>
+                <tbody>{codes.map((c) => {
+                  const expired = c.expires_at ? new Date(c.expires_at) < new Date() : false;
+                  return (
+                    <tr key={c.id} className="border-t border-border">
+                      <td className="py-2 font-mono text-xs font-semibold">{c.code}</td>
+                      <td className="py-2 text-xs text-muted">{c.expires_at ? new Date(c.expires_at).toLocaleString() : "—"}</td>
+                      <td className="py-2 text-xs">{c.is_active && !expired
+                        ? <span className="text-ok">{t("codes_active")}</span>
+                        : <span className="text-muted">{t("codes_expired")}</span>}</td>
+                      <td className="py-2 text-xs">{c.redemptions}</td>
+                      <td className="py-2 font-mono text-xs">${c.total_paid.toFixed(2)}</td>
+                      <td className="py-2 text-end">
+                        {c.is_active && !expired && (
+                          <button onClick={() => act(`/admin/codes/${c.id}/close`)}
+                            className="btn-ghost px-3 py-1 text-xs">{t("codes_close")}</button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}</tbody>
+              </table>
+              {codes.length === 0 && <p className="text-xs text-muted">{t("codes_none")}</p>}
+            </GlassCard>
+          </div>
         )}
 
         {tab === "deposits" && (

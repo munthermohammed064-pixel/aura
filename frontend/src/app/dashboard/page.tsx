@@ -18,6 +18,9 @@ export default function Dashboard() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [txs, setTxs] = useState<Tx[]>([]);
   const [me, setMe] = useState<{ serial: string; stars: number; full_name: string; email: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [codeMsg, setCodeMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [codeBusy, setCodeBusy] = useState(false);
 
   useEffect(() => {
     api<Wallet>("/wallet").then(setWallet).catch(() => {});
@@ -32,6 +35,24 @@ export default function Dashboard() {
 
   const h = new Date().getHours();
   const greeting = t(h < 12 ? "greet_morning" : h < 18 ? "greet_afternoon" : "greet_evening");
+
+  const redeemCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code.trim() || codeBusy) return;
+    setCodeBusy(true); setCodeMsg(null);
+    try {
+      const r = await api<{ credited: number }>("/wallet/redeem-code",
+        { method: "POST", body: JSON.stringify({ code }) });
+      setCodeMsg({ ok: true, text: t("code_credited", { amount: `$${r.credited}` }) });
+      setCode("");
+      api<Wallet>("/wallet").then(setWallet).catch(() => {});
+      api<Tx[]>("/wallet/transactions").then(setTxs).catch(() => {});
+    } catch (err) {
+      setCodeMsg({ ok: false, text: err instanceof Error ? err.message : "Error" });
+    } finally {
+      setCodeBusy(false);
+    }
+  };
 
   const realized = txs.filter((x) => x.kind === "return").reduce((s, x) => s + Number(x.amount), 0);
   const stats = [
@@ -79,6 +100,27 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Trading code — daily redemption, sits directly under the balance */}
+        <GlassCard className="mt-4 !p-5 md:!p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-medium">{t("code_title")}</h2>
+              <p className="mt-1 text-xs text-muted">{t("code_hint")}</p>
+            </div>
+            <form onSubmit={redeemCode} className="flex min-w-0 flex-1 gap-2 md:max-w-sm">
+              <input className="input flex-1 font-mono uppercase" placeholder={t("code_ph")}
+                value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
+                maxLength={32} autoComplete="off" />
+              <button className="btn shrink-0" disabled={codeBusy || !code.trim()}>
+                {t("code_redeem")}
+              </button>
+            </form>
+          </div>
+          {codeMsg && (
+            <p className={`mt-3 text-sm ${codeMsg.ok ? "text-green" : "text-red-400"}`}>{codeMsg.text}</p>
+          )}
+        </GlassCard>
 
         {/* Secondary stats */}
         <div className="mt-4 grid grid-cols-3 gap-3 md:gap-4">

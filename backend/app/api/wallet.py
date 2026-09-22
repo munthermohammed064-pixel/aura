@@ -5,13 +5,15 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 limiter = Limiter(key_func=get_remote_address)
 
 from app.core.deps import get_current_user
 from app.database import get_db
-from app.models.finance import Deposit, LedgerEntry, PaymentMethod, Withdrawal
+from app.models.finance import CodeRedemption, Deposit, Investment, LedgerEntry, PaymentMethod, TradingCode, Withdrawal
 from app.models.user import User
 from app.schemas import (
     DepositIn, DepositOut, WalletOut, WithdrawalOut, WithdrawIn,
@@ -158,3 +160,59 @@ def create_withdrawal(request: Request, data: WithdrawIn, user: User = Depends(g
 @router.get("/withdrawals", response_model=list[WithdrawalOut])
 def my_withdrawals(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(Withdrawal).filter(Withdrawal.user_id == user.id).order_by(Withdrawal.created_at.desc()).all()
+
+
+class CodeIn(BaseModel):
+    code: str = Field(min_length=3, max_length=32)
+
+
+@router.post("/redeem-code")
+@limiter.limit("10/minute")
+def redeem_code(request: Request, data: CodeIn, user: User = Depends(get_current_user),
+                db: Session = Depends(get_db)):
+    """Redeem an admin-published trading code: every active investment collects
+    the amount the admin set for its package. Atomic — the redemption row's
+    unique constraint wins any double-submit race before money moves."""
+    tc = db.query(TradingCode).filter(TradingCode.code == data.code.strip().upper()).first()
+    now = datetime.now(timezone.utc)
+    exp = tc.expires_at
+    if exp and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if not tc or not tc.is_active or not exp or exp <= now:
+        raise HTTPException(400, "Invalid or expired code")
+
+    invs = db.query(Investment).filter(
+        Investment.user_id == user.id, Investment.status == "active").all()
+    if not invs:
+        raise HTTPException(400, "You need an active package to redeem a code")
+
+    amounts = tc.amounts or {}
+    try:
+        red = CodeRedemption(code_id=tc.id, user_id=user.id, amount=0)
+        db.add(red)
+        db.flush()  # reserves (code_id, user_id) — a parallel retry dies here
+        total = 0.0
+        for inv in invs:
+            amt = amounts.get(str(inv.package_id))
+            if not amt or float(amt) <= 0:
+                continue
+            amt = float(amt)
+            ledger.post(db, user_id=user.id, kind="return", direction="credit",
+                        bucket="available", amount=amt, reference_type="trading_code",
+                        reference_id=tc.id, idempotency_key=f"code:{tc.id}:{inv.id}",
+                        note=f"Trading code {tc.code}")
+            inv.realized_return += amt
+            total += amt
+        if total <= 0:
+            raise HTTPException(400, "This code does not apply to your packages")
+        red.amount = total
+        from app.services.notify import notify_user
+        notify_user(db, user.id, "code_redeemed", {"amount": f"${total:.2f}"})
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(400, "Code already redeemed")
+    except ledger.LedgerError as e:
+        db.rollback()
+        raise HTTPException(400, str(e))
+    return {"ok": True, "credited": round(total, 2)}
