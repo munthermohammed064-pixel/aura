@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.models.platform import Setting
 
 DEFAULTS: dict[str, dict] = {
-    "platform": {"name": "Los Angeles", "maintenance_mode": False, "default_lang": "en"},
+    "platform": {"name": "Nexora", "maintenance_mode": False, "default_lang": "en"},
     "deposit": {"min": 10, "max": 100000},
     "withdrawal": {"min": 10, "max": 50000, "fee_pct": 20, "fee_flat": 0},
     "referral": {"levels": 1, "l1_pct": 15, "l2_pct": 0, "l3_pct": 0},

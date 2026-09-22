@@ -1,5 +1,5 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
-export const PLATFORM_NAME = process.env.NEXT_PUBLIC_PLATFORM_NAME ?? "Los Angeles";
+export const PLATFORM_NAME = process.env.NEXT_PUBLIC_PLATFORM_NAME ?? "Nexora";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;

@@ -110,7 +110,7 @@ cd "$APP_DIR/frontend"
 # whatever env files were copied from the dev machine.
 {
   echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}"
-  echo "NEXT_PUBLIC_PLATFORM_NAME=${NEXT_PUBLIC_PLATFORM_NAME:-Los Angeles}"
+  echo "NEXT_PUBLIC_PLATFORM_NAME=${NEXT_PUBLIC_PLATFORM_NAME:-Nexora}"
   echo "NEXT_PUBLIC_ADMIN_PATH=${NEXT_PUBLIC_ADMIN_PATH:-ops-dev}"
 } > .env.local
 npm ci --no-audit --no-fund

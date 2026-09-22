@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    PLATFORM_NAME: str = "Los Angeles"
+    PLATFORM_NAME: str = "Nexora"
     DATABASE_URL: str = "postgresql+psycopg2://postgres:postgres@db:5432/platform"
     SECRET_KEY: str = "change-me-in-env"
     # "development" enables /docs + localhost CORS. Anything else = hardened.

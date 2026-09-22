@@ -1,4 +1,4 @@
-// Banknote-style circular seal — "LOS ANGELES · PRIVATE CAPITAL".
+// Banknote-style circular seal — "NEXORA · LOS ANGELES".
 // Decorative only; inherits accent color via currentColor.
 export function Seal({ size = 64, className = "" }: { size?: number; className?: string }) {
   return (
@@ -11,7 +11,7 @@ export function Seal({ size = 64, className = "" }: { size?: number; className?:
       </defs>
       <text fontSize="7" letterSpacing="2.4" fill="currentColor" fillOpacity=".75"
         fontFamily="ui-monospace, Menlo, monospace">
-        <textPath href="#seal-arc">LOS ANGELES · PRIVATE CAPITAL ·</textPath>
+        <textPath href="#seal-arc">NEXORA · LOS ANGELES ·</textPath>
       </text>
       {/* A-mark */}
       <path d="M41 62 L50 40 L59 62" stroke="currentColor" strokeWidth="2" fill="none"
