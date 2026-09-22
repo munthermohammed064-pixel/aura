@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [code, setCode] = useState("");
   const [codeMsg, setCodeMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [codeBusy, setCodeBusy] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     api<Wallet>("/wallet").then(setWallet).catch(() => {});
@@ -101,14 +102,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Trading code — daily redemption, sits directly under the balance */}
-        <GlassCard className="mt-4 !p-5 md:!p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="font-medium">{t("code_title")}</h2>
-              <p className="mt-1 text-xs text-muted">{t("code_hint")}</p>
-            </div>
-            <form onSubmit={redeemCode} className="flex min-w-0 flex-1 gap-2 md:max-w-sm">
+        {/* Trading code + invite link — the two daily actions side by side */}
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <GlassCard className="!p-5 md:!p-6">
+            <h2 className="font-medium">{t("code_title")}</h2>
+            <p className="mt-1 text-xs text-muted">{t("code_hint")}</p>
+            <form onSubmit={redeemCode} className="mt-3 flex gap-2">
               <input className="input flex-1 font-mono uppercase" placeholder={t("code_ph")}
                 value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
                 maxLength={32} autoComplete="off" />
@@ -116,11 +115,28 @@ export default function Dashboard() {
                 {t("code_redeem")}
               </button>
             </form>
-          </div>
-          {codeMsg && (
-            <p className={`mt-3 text-sm ${codeMsg.ok ? "text-green" : "text-red-400"}`}>{codeMsg.text}</p>
-          )}
-        </GlassCard>
+            {codeMsg && (
+              <p className={`mt-3 text-sm ${codeMsg.ok ? "text-green" : "text-red-400"}`}>{codeMsg.text}</p>
+            )}
+          </GlassCard>
+
+          <GlassCard className="!p-5 md:!p-6">
+            <h2 className="font-medium">{t("your_ref_link")}</h2>
+            <p className="mt-1 text-xs text-muted">{t("ref_note")}</p>
+            <div className="mt-3 flex gap-2">
+              <input className="input min-w-0 flex-1 font-mono text-xs" readOnly
+                value={me ? `${typeof window !== "undefined" ? window.location.origin : ""}/register?ref=${me.serial}` : ""} />
+              <button className="btn-ghost shrink-0" disabled={!me}
+                onClick={() => {
+                  if (!me) return;
+                  navigator.clipboard.writeText(`${window.location.origin}/register?ref=${me.serial}`)
+                    .then(() => { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); });
+                }}>
+                {linkCopied ? t("copied") : t("copy")}
+              </button>
+            </div>
+          </GlassCard>
+        </div>
 
         {/* Secondary stats */}
         <div className="mt-4 grid grid-cols-3 gap-3 md:gap-4">
