@@ -175,7 +175,7 @@ def redeem_code(request: Request, data: CodeIn, user: User = Depends(get_current
     unique constraint wins any double-submit race before money moves."""
     tc = db.query(TradingCode).filter(TradingCode.code == data.code.strip().upper()).first()
     now = datetime.now(timezone.utc)
-    exp = tc.expires_at
+    exp = tc.expires_at if tc else None
     if exp and exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
     if not tc or not tc.is_active or not exp or exp <= now:
@@ -201,7 +201,7 @@ def redeem_code(request: Request, data: CodeIn, user: User = Depends(get_current
                         bucket="available", amount=amt, reference_type="trading_code",
                         reference_id=tc.id, idempotency_key=f"code:{tc.id}:{inv.id}",
                         note=f"Trading code {tc.code}")
-            inv.realized_return += amt
+            inv.realized_return = float(inv.realized_return) + amt
             total += amt
         if total <= 0:
             raise HTTPException(400, "This code does not apply to your packages")
