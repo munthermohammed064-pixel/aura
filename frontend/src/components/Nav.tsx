@@ -37,23 +37,26 @@ const BOTTOM = [
   ["account", "/profile", User],
 ] as const;
 
-// Admin console lives on a per-deployment secret path — never a plain "/admin".
-const ADMIN_HREF = `/nx/${process.env.NEXT_PUBLIC_ADMIN_PATH || ""}`;
-
 export function Nav() {
   const { t } = useT();
   const pathname = usePathname();
   const router = useRouter();
   const [authed, setAuthed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminHref, setAdminHref] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     const hasToken = !!getToken();
     setAuthed(hasToken);
-    if (!hasToken) { setIsAdmin(false); return; }
-    api<{ role: string }>("/auth/me").then((u) => setIsAdmin(["admin", "owner"].includes(u.role))).catch(() => {});
+    if (!hasToken) { setIsAdmin(false); setAdminHref(""); return; }
+    api<{ role: string }>("/auth/me").then((u) => {
+      const staff = ["admin", "owner"].includes(u.role);
+      setIsAdmin(staff);
+      const pk = localStorage.getItem("nx_panel");
+      if (staff && pk) setAdminHref(`/nx/${pk}`);
+    }).catch(() => {});
   }, [pathname]);
 
   useEffect(() => { setMenuOpen(false); setMoreOpen(false); }, [pathname]);
@@ -62,6 +65,7 @@ export function Nav() {
     clearTokens();
     setAuthed(false);
     setIsAdmin(false);
+    setAdminHref("");
     router.push("/login");
   };
 
@@ -125,8 +129,8 @@ export function Nav() {
           {!authed && <div className="flex-1" />}
 
           <div className="flex items-center gap-2">
-            {isAdmin && (
-              <Link href={ADMIN_HREF} className="hidden rounded-full border border-accent/40 px-3 py-1.5 text-xs text-accent md:block">
+            {isAdmin && adminHref && (
+              <Link href={adminHref} className="hidden rounded-full border border-accent/40 px-3 py-1.5 text-xs text-accent md:block">
                 {t("admin")}
               </Link>
             )}
@@ -177,8 +181,8 @@ export function Nav() {
                   {t(key)}
                 </Link>
               ))}
-              {isAdmin && (
-                <Link href={ADMIN_HREF} className="rounded-xl px-4 py-2.5 text-sm text-accent">{t("admin")}</Link>
+              {isAdmin && adminHref && (
+                <Link href={adminHref} className="rounded-xl px-4 py-2.5 text-sm text-accent">{t("admin")}</Link>
               )}
               <button onClick={logout} className="flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-start text-sm text-muted hover:text-ink">
                 <LogOut size={15} strokeWidth={1.8} />

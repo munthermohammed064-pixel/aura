@@ -7,6 +7,8 @@ Type=simple
 User=nexora
 Group=nexora
 WorkingDirectory=__APP_DIR__/frontend/.next/standalone
+# ADMIN_PANEL_KEY reaches the /nx server gate through the shared env file.
+EnvironmentFile=__APP_DIR__/.env
 Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=HOSTNAME=127.0.0.1

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 limiter = Limiter(key_func=get_remote_address)
 
 from app.config import settings
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, panel_key_ok
 from app.core.security import (
     create_access_token, create_refresh_token, decode_token,
     hash_password, verify_password,
@@ -32,12 +32,16 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _issue_tokens(db: Session, user: User, request: Request) -> TokenOut:
+    # Staff sessions live hours, not the 30-day user window — a leaked admin
+    # refresh token is worthless quickly even if the panel key also leaked.
+    ttl = (timedelta(hours=settings.STAFF_SESSION_HOURS) if user.role in ("admin", "owner")
+           else timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS))
     session = UserSession(
         user_id=user.id,
         refresh_token_hash="",
         user_agent=request.headers.get("user-agent", "")[:255],
         ip=request.client.host if request.client else "",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        expires_at=datetime.now(timezone.utc) + ttl,
     )
     db.add(session)
     db.flush()
@@ -133,6 +137,12 @@ def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(401, "Invalid credentials")
     if user.is_frozen or not user.is_active:
         raise HTTPException(403, "Account disabled")
+    if user.role in ("admin", "owner") and not panel_key_ok(request):
+        # Staff login without the panel key fails exactly like bad credentials —
+        # no signal that the account exists or that a second secret is needed.
+        seclog.warning("staff_login_no_key user=%s ip=%s", user.id,
+                       request.client.host if request.client else "?")
+        raise HTTPException(401, "Invalid credentials")
     user.login_attempts = 0
     user.login_locked_until = None
     return _issue_tokens(db, user, request)
@@ -179,6 +189,13 @@ def refresh(data: RefreshIn, request: Request, db: Session = Depends(get_db)):
         session.revoked = True
         db.commit()
         seclog.warning("session_theft_suspect user=%s sid=%s ip=%s", user.id, session.id, ip)
+        raise HTTPException(401, "Session revoked")
+    if user.role in ("admin", "owner") and not panel_key_ok(request):
+        # Staff refresh needs the panel key too — a stolen staff refresh token
+        # alone can never extend a session.
+        session.revoked = True
+        db.commit()
+        seclog.warning("staff_refresh_no_key user=%s sid=%s ip=%s", user.id, session.id, ip)
         raise HTTPException(401, "Session revoked")
     session.revoked = True  # rotation
     return _issue_tokens(db, user, request)

@@ -1,9 +1,11 @@
+import secrets
 import uuid
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.core.security import decode_token
 from app.database import get_db
 from app.models.user import Session as UserSession
@@ -41,15 +43,23 @@ def get_current_user(
 STAFF_ROLES = ("admin", "owner")
 
 
-def get_admin(user: User = Depends(get_current_user)) -> User:
+def panel_key_ok(request: Request) -> bool:
+    """The staff surface needs a second secret besides credentials: the
+    X-Panel-Key header must equal ADMIN_PANEL_KEY. It never ships in the JS
+    bundle — the /nx page reads it from the URL and echoes it per request."""
+    key = request.headers.get("x-panel-key", "")
+    return bool(settings.ADMIN_PANEL_KEY) and secrets.compare_digest(key, settings.ADMIN_PANEL_KEY)
+
+
+def get_admin(request: Request, user: User = Depends(get_current_user)) -> User:
     """Day-to-day operations access: deposits, withdrawals, users, packages."""
-    if user.role not in STAFF_ROLES:
+    if user.role not in STAFF_ROLES or not panel_key_ok(request):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin access required")
     return user
 
 
-def get_owner(user: User = Depends(get_current_user)) -> User:
+def get_owner(request: Request, user: User = Depends(get_current_user)) -> User:
     """Company-control access: payment methods, settings, audit, staff."""
-    if user.role != "owner":
+    if user.role != "owner" or not panel_key_ok(request):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Owner access required")
     return user

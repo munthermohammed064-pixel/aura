@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    # Staff sessions live shorter — a leaked admin token dies within a day.
+    STAFF_SESSION_HOURS: int = 24
+    # Second secret for the staff surface: /nx/<key> page gate + X-Panel-Key
+    # header on staff login, refresh and every /admin/* call. Empty = admin API
+    # stays closed (fail-closed, never fails open).
+    ADMIN_PANEL_KEY: str = ""
     ALGORITHM: str = "HS256"
     CORS_ORIGINS: str = "http://localhost:3000"
     FRONTEND_URL: str = "http://localhost:3000"

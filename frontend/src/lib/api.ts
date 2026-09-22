@@ -14,6 +14,14 @@ export function setTokens(access: string, refresh: string) {
 export function clearTokens() {
   localStorage.removeItem("access_token");
   localStorage.removeItem("refresh_token");
+  localStorage.removeItem("nx_panel");
+}
+
+// The staff panel key lives only in the browser that logged into /nx — never
+// in the bundle. Every /admin/* call and every staff refresh must carry it.
+function panelKey(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("nx_panel");
 }
 
 // Redirect once — concurrent 401s must not fight over location.href, and a
@@ -38,6 +46,10 @@ export async function api<T = unknown>(
   if (auth !== false) {
     const token = getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
+  }
+  const pk = panelKey();
+  if (pk && (path.startsWith("/admin") || path === "/auth/refresh" || path === "/auth/login")) {
+    headers["X-Panel-Key"] = pk;
   }
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
   if (res.status === 401 && typeof window !== "undefined" && auth !== false && !_retried) {
@@ -78,9 +90,12 @@ async function doRefresh(): Promise<boolean> {
   const refresh = localStorage.getItem("refresh_token");
   if (!refresh) return false;
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const pk = panelKey();
+    if (pk) headers["X-Panel-Key"] = pk;
     const res = await fetch(`${API_URL}/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ refresh_token: refresh }),
     });
     if (!res.ok) return false;

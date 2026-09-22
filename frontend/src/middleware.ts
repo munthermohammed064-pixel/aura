@@ -5,7 +5,7 @@ import type { NextRequest } from "next/server";
 // path gets a bare HTTP 404 — indistinguishable from a nonexistent route.
 export function middleware(req: NextRequest) {
   const key = req.nextUrl.pathname.split("/")[2] ?? "";
-  if (key !== (process.env.NEXT_PUBLIC_ADMIN_PATH || "")) {
+  if (key !== (process.env.ADMIN_PANEL_KEY || "")) {
     return new NextResponse("404 Not Found", { status: 404 });
   }
   return NextResponse.next();

@@ -4,6 +4,7 @@ Usage: .venv/Scripts/python.exe e2e_check.py  (backend must be on :8000)
 Exits non-zero on first failure; prints PASS/FAIL per check.
 """
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -16,6 +17,26 @@ ROOT = BASE.replace("/api", "")
 PASS, FAIL = 0, 0
 
 
+def _panel_key():
+    """Staff calls need X-Panel-Key = ADMIN_PANEL_KEY. Read it from env or the
+    deployment .env (repo root / backend dir)."""
+    key = os.environ.get("ADMIN_PANEL_KEY", "")
+    if key:
+        return key
+    for p in (".env", "../.env"):
+        try:
+            for line in open(p):
+                if line.startswith("ADMIN_PANEL_KEY="):
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
+        except OSError:
+            pass
+    return ""
+
+
+PANEL_KEY = _panel_key()
+STAFF_TOKENS = set()  # access tokens of admin/owner sessions — auto-carry the key
+
+
 def check(name, ok, extra=""):
     global PASS, FAIL
     if ok:
@@ -26,7 +47,8 @@ def check(name, ok, extra=""):
         print(f"  *** FAIL {name} {extra}")
 
 
-def call(method, path, body=None, token=None, form=None, ua=None):
+def call(method, path, body=None, token=None, form=None, ua=None, pk=None):
+    # pk=None → auto-attach the panel key for staff tokens; True → force; False → never.
     if form is not None:
         data, ctype = form
         req = urllib.request.Request(BASE + path, data=data, method=method)
@@ -38,6 +60,8 @@ def call(method, path, body=None, token=None, form=None, ua=None):
     req.add_header("User-Agent", ua or "e2e-check/1.0")
     if token:
         req.add_header("Authorization", f"Bearer {token}")
+    if pk is True or (pk is None and token in STAFF_TOKENS):
+        req.add_header("X-Panel-Key", PANEL_KEY)
     try:
         with urllib.request.urlopen(req, timeout=15) as r:
             return r.status, json.loads(r.read() or b"{}")
@@ -71,8 +95,10 @@ def make_admin(login_id, password="Admin123!xyz"):
     db.add(u)
     db.commit()
     db.close()
-    s, b = call("POST", "/auth/login", {"identifier": login_id, "password": password})
-    return b.get("access_token"), s
+    s, b = call("POST", "/auth/login", {"identifier": login_id, "password": password}, pk=True)
+    if b.get("access_token"):
+        STAFF_TOKENS.add(b["access_token"])
+    return b.get("access_token"), s, b.get("refresh_token")
 
 
 print("=" * 70)
@@ -193,11 +219,24 @@ print("=" * 70)
 print("2) ADMIN SETUP")
 print("=" * 70)
 admin_id = f"nxadmin_{uid}"
-atok, astat = make_admin(admin_id)
+atok, astat, artk = make_admin(admin_id)
 check("admin login via login_id", astat == 200 and bool(atok), f"got {astat}")
 # admin email login must fail — admins authenticate by ID only
 s, b = call("POST", "/auth/login", {"identifier": f"{admin_id}@internal.local", "password": "Admin123!xyz"})
 check("admin email login rejected", s == 401, f"got {s}")
+
+# panel key gate: correct staff creds without X-Panel-Key = plain 401
+s, b = call("POST", "/auth/login", {"identifier": admin_id, "password": "Admin123!xyz"}, pk=False)
+check("staff login without panel key rejected", s == 401, f"got {s}")
+s, b = call("GET", "/admin/stats", token=atok, pk=False)
+check("admin API without panel key rejected", s == 403, f"got {s}")
+# staff refresh without the key is rejected AND kills the session — re-login after
+s, b = call("POST", "/auth/refresh", {"refresh_token": artk}, pk=False)
+check("staff refresh without panel key rejected", s == 401, f"got {s}")
+s, b = call("POST", "/auth/login", {"identifier": admin_id, "password": "Admin123!xyz"}, pk=True)
+atok = b.get("access_token")
+STAFF_TOKENS.add(atok)
+check("staff re-login after revoked session", s == 200 and bool(atok), f"got {s}")
 
 s, stats = call("GET", "/admin/stats", token=atok)
 check("admin stats", s == 200 and "users" in stats, str(stats)[:80])
@@ -211,8 +250,10 @@ s, b = call("POST", "/admin/operators",
             {"login_id": f"nxop_{uid}", "password": "Operator123!xyz", "full_name": "E2E Op"}, token=atok)
 check("owner creates operator", s == 201 and b.get("role") == "admin", f"{s} {str(b)[:60]}")
 op_id = b.get("id")
-s, b = call("POST", "/auth/login", {"identifier": f"nxop_{uid}", "password": "Operator123!xyz"})
+s, b = call("POST", "/auth/login", {"identifier": f"nxop_{uid}", "password": "Operator123!xyz"}, pk=True)
 otok = b.get("access_token")
+if otok:
+    STAFF_TOKENS.add(otok)
 check("operator login", s == 200 and bool(otok), f"got {s}")
 s, b = call("GET", "/admin/deposits", token=otok)
 check("operator can read deposits", s == 200, f"got {s}")

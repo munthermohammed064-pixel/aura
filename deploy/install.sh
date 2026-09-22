@@ -57,9 +57,9 @@ if [ "${ADMIN_PASSWORD:-admin1234}" = "admin1234" ]; then
   set_env ADMIN_PASSWORD "$NEW_ADMIN_PW"
   echo "==> Generated admin password: $NEW_ADMIN_PW  (saved in .env)"
 fi
-if [ -z "${NEXT_PUBLIC_ADMIN_PATH:-}" ]; then
+if [ -z "${ADMIN_PANEL_KEY:-}" ]; then
   NEW_ADMIN_PATH="ops-$(head -c5 /dev/urandom | od -An -tx1 | tr -d ' \n')"
-  set_env NEXT_PUBLIC_ADMIN_PATH "$NEW_ADMIN_PATH"
+  set_env ADMIN_PANEL_KEY "$NEW_ADMIN_PATH"
   echo "==> Generated hidden admin path: /nx/$NEW_ADMIN_PATH"
 fi
 
@@ -111,7 +111,7 @@ cd "$APP_DIR/frontend"
 {
   echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}"
   echo "NEXT_PUBLIC_PLATFORM_NAME=${NEXT_PUBLIC_PLATFORM_NAME:-Nexora}"
-  echo "NEXT_PUBLIC_ADMIN_PATH=${NEXT_PUBLIC_ADMIN_PATH:-ops-dev}"
+  echo "ADMIN_PANEL_KEY=${ADMIN_PANEL_KEY:-ops-dev}"
 } > .env.local
 npm ci --no-audit --no-fund
 npm run build
@@ -154,7 +154,7 @@ if [ -n "$DOMAIN" ]; then BASE_URL="https://$DOMAIN"; else BASE_URL="http://$(cu
 echo
 echo "Done. Backend 127.0.0.1:8000 · Frontend 127.0.0.1:3000"
 echo "Public: $BASE_URL"
-echo "Admin console: $BASE_URL/nx/$(grep -oP '^NEXT_PUBLIC_ADMIN_PATH=\K.*' "$ENV_FILE" 2>/dev/null || echo '<see .env>')"
+echo "Admin console: $BASE_URL/nx/$(grep -oP '^ADMIN_PANEL_KEY=\K.*' "$ENV_FILE" 2>/dev/null || echo '<see .env>')"
 echo "Admin ID: $(grep -oP '^ADMIN_ID=\K.*' "$ENV_FILE" 2>/dev/null || echo '<see .env>')"
 [ -z "$DOMAIN" ] && echo "(set DOMAIN in .env + rerun for HTTPS)"
 systemctl --no-pager --full status nexora-backend nexora-frontend | grep -E "●|Active:" || true
