@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.core.deps import bearer, get_current_user
@@ -28,6 +28,13 @@ class ProfileUpdate(BaseModel):
 class WithdrawAddressIn(BaseModel):
     address: str = Field(min_length=8, max_length=255)
     qr_image: str | None = Field(None, max_length=500)
+
+    @field_validator("qr_image")
+    @classmethod
+    def _own_uploads_only(cls, v: str | None) -> str | None:
+        if v and not v.startswith("/uploads/"):
+            raise ValueError("Invalid image path")
+        return v
 
 
 @router.put("")

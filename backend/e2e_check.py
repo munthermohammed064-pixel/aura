@@ -110,6 +110,9 @@ s, b = call("POST", "/auth/refresh", {"refresh_token": refresh2})
 check("refresh rotates", s == 200 and b.get("refresh_token") != refresh2)
 s, b = call("POST", "/auth/refresh", {"refresh_token": refresh2})
 check("old refresh revoked", s == 401)
+# replaying a rotated token nukes the whole session family (theft response)
+s, b = call("GET", "/auth/me", token=tok2)
+check("family revoked after replay", s == 401, f"got {s}")
 
 # session-theft guard: same refresh token from a different browser fingerprint -> revoked
 s, b = call("POST", "/auth/login", {"identifier": u_email, "password": u_pw}, ua="browser-A")
@@ -118,6 +121,11 @@ s, b = call("POST", "/auth/refresh", {"refresh_token": stolen}, ua="browser-B")
 check("stolen-UA refresh rejected", s == 401, f"got {s}")
 s, b = call("POST", "/auth/refresh", {"refresh_token": stolen}, ua="browser-A")
 check("revoked session stays dead", s == 401, f"got {s}")
+
+# register token was killed by the family revoke — sign back in
+s, b = call("POST", "/auth/login", {"identifier": u_email, "password": u_pw})
+check("re-login after family revoke", s == 200, f"got {s}")
+tok = b["access_token"]
 
 # email verification — when a mailer is configured the code is emailed (not
 # echoed), so we seed a known-code hash straight into the dev DB instead.

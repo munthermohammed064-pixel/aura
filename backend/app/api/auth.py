@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 limiter = Limiter(key_func=get_remote_address)
 
+from app.config import settings
 from app.core.deps import get_current_user
 from app.core.security import (
     create_access_token, create_refresh_token, decode_token,
@@ -36,7 +37,7 @@ def _issue_tokens(db: Session, user: User, request: Request) -> TokenOut:
         refresh_token_hash="",
         user_agent=request.headers.get("user-agent", "")[:255],
         ip=request.client.host if request.client else "",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
     )
     db.add(session)
     db.flush()
@@ -49,7 +50,8 @@ def _issue_tokens(db: Session, user: User, request: Request) -> TokenOut:
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == data.email).first():
+    email = data.email.lower()
+    if db.query(User).filter(func.lower(User.email) == email).first():
         raise HTTPException(409, "Email already registered")
     referrer = None
     if data.referral_code:
@@ -63,7 +65,7 @@ def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
         next_serial = (db.query(func.max(User.serial_no)).scalar() or 0) + 1
         user = User(
             serial_no=next_serial,
-            email=data.email,
+            email=email,
             password_hash=hash_password(data.password),
             full_name=data.full_name,
             referral_code=secrets.token_hex(4).upper(),
@@ -76,7 +78,7 @@ def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
         except IntegrityError:
             db.rollback()
             user = None
-            if db.query(User).filter(User.email == data.email).first():
+            if db.query(User).filter(func.lower(User.email) == email).first():
                 raise HTTPException(409, "Email already registered")
     if user is None:
         raise HTTPException(500, "Could not allocate user serial")
@@ -98,7 +100,7 @@ def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
 def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
     ident = data.identifier.strip()
     if "@" in ident:
-        user = db.query(User).filter(User.email == ident).first()
+        user = db.query(User).filter(func.lower(User.email) == ident.lower()).first()
         # Admin accounts never authenticate by email — only via their login_id
         # on the hidden console route. Email-guessing an admin gets a plain 401.
         if user and user.role in ("admin", "owner"):
@@ -144,18 +146,31 @@ def refresh(data: RefreshIn, request: Request, db: Session = Depends(get_db)):
         user = db.get(User, uuid.UUID(payload["sub"]))
     except Exception:
         raise HTTPException(401, "Invalid refresh token")
-    exp = session.expires_at if session else None
+    ua = request.headers.get("user-agent", "")[:255]
+    ip = request.client.host if request.client else ""
+    if not session or not user or not user.is_active or user.is_frozen:
+        raise HTTPException(401, "Session revoked")
+    if session.revoked:
+        # Replaying an already-rotated token is the signature of theft: the
+        # attacker used the stolen token first and the legit client's copy is
+        # now dead. Nuke the whole family — the attacker's rotated session
+        # dies too; the legit user just signs in again.
+        if verify_password(data.refresh_token, session.refresh_token_hash):
+            db.query(UserSession).filter(UserSession.user_id == session.user_id).update({"revoked": True})
+            from app.services.notify import notify_user
+            notify_user(db, user.id, "security_alert", {})
+            db.commit()
+            seclog.warning("refresh_reuse family_revoked user=%s sid=%s ip=%s", user.id, session.id, ip)
+        raise HTTPException(401, "Session revoked")
+    exp = session.expires_at
     if exp and exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
-    if not session or session.revoked or not user or not user.is_active or user.is_frozen \
-            or (exp and exp < datetime.now(timezone.utc)):
+    if exp and exp < datetime.now(timezone.utc):
         raise HTTPException(401, "Session revoked")
     if not verify_password(data.refresh_token, session.refresh_token_hash):
         raise HTTPException(401, "Invalid refresh token")
     # Session-theft guard: a stolen refresh token is useless from a different
     # browser fingerprint. Admin sessions additionally bind to the login IP.
-    ua = request.headers.get("user-agent", "")[:255]
-    ip = request.client.host if request.client else ""
     if (session.user_agent and ua and session.user_agent != ua) or \
        (user.role in ("admin", "owner") and session.ip and ip and session.ip != ip):
         session.revoked = True
@@ -187,7 +202,7 @@ def me(user: User = Depends(get_current_user)):
 @router.post("/forgot")
 @limiter.limit("5/minute")
 def forgot_password(data: ForgotIn, request: Request, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == data.email).first()
+    user = db.query(User).filter(func.lower(User.email) == data.email.lower()).first()
     # Always return ok — don't leak whether the email exists
     if not user:
         return {"ok": True}

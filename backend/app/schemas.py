@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 # ---- Auth ----
@@ -105,11 +105,21 @@ class InvestmentOut(BaseModel):
 
 
 # ---- Deposits / Withdrawals ----
+def _upload_path(v: str | None) -> str | None:
+    """User-supplied image fields must reference our own uploads dir — an
+    external URL would load attacker content inside the admin console."""
+    if v and not v.startswith("/uploads/"):
+        raise ValueError("Invalid image path")
+    return v
+
+
 class DepositIn(BaseModel):
     amount: float = Field(gt=0)
     method: str
     proof: str = ""
     screenshot: str = Field(min_length=1)  # uploaded image path — mandatory
+
+    _v_shot = field_validator("screenshot")(_upload_path)
 
 
 class DepositOut(BaseModel):
@@ -178,6 +188,8 @@ class PaymentMethodIn(BaseModel):
     name: str
     details: str = ""
     qr_image: str = ""
+
+    _v_qr = field_validator("qr_image")(_upload_path)
     min_amount: float = 0
     max_amount: float = 0
     is_active: bool = True

@@ -97,6 +97,8 @@ def stream_ticket(user: User = Depends(get_current_user), creds=Depends(bearer))
     for k, (_, _, exp) in list(_STREAM_TICKETS.items()):
         if exp < now:
             _STREAM_TICKETS.pop(k, None)
+    while len(_STREAM_TICKETS) >= 10000:  # bound memory — drop oldest
+        _STREAM_TICKETS.pop(next(iter(_STREAM_TICKETS)))
     ticket = uuid.uuid4().hex
     _STREAM_TICKETS[ticket] = (user.id, sid, now + timedelta(seconds=60))
     return {"ticket": ticket}
