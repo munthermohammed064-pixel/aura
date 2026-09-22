@@ -23,14 +23,14 @@ def run():
         if not db.get(Setting, key):
             db.add(Setting(key=key, value=value))
 
-    admin = db.query(User).filter(User.role == "admin").first()
+    admin = db.query(User).filter(User.role.in_(("admin", "owner"))).first()
     if not admin:
         admin = User(
             email=ADMIN_EMAIL,
             login_id=ADMIN_ID,
             password_hash=hash_password(ADMIN_PASSWORD),
             full_name="Admin",
-            role="admin",
+            role="owner",
             email_verified=True,
             referral_code=secrets.token_hex(4).upper(),
         )

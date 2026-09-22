@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
@@ -12,6 +12,7 @@ from app.models.platform import AddressRequest
 from app.models.user import Session as UserSession
 from app.models.user import User
 from app.services.notify import notify_admins
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -46,7 +47,8 @@ def update_profile(data: ProfileUpdate, user: User = Depends(get_current_user), 
 
 
 @router.post("/withdraw-address")
-def set_withdraw_address(data: WithdrawAddressIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def set_withdraw_address(request: Request, data: WithdrawAddressIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """One-time withdrawal address + wallet barcode setup. Locks permanently —
     afterwards only an admin can change it."""
     if user.default_withdraw_address:
@@ -62,7 +64,8 @@ ADDRESS_CHANGE_FEE = 5.0
 
 
 @router.post("/withdraw-address/request", status_code=201)
-def request_address_change(data: WithdrawAddressIn, user: User = Depends(get_current_user),
+@limiter.limit("10/minute")
+def request_address_change(request: Request, data: WithdrawAddressIn, user: User = Depends(get_current_user),
                            db: Session = Depends(get_db)):
     """Request a withdrawal-address change. The flat fee is charged from the
     user's available balance only when an admin approves."""
@@ -95,7 +98,8 @@ def my_address_request(user: User = Depends(get_current_user), db: Session = Dep
 
 
 @router.post("/password")
-def change_password(data: PasswordChange, creds: HTTPAuthorizationCredentials = Depends(bearer),
+@limiter.limit("10/minute")
+def change_password(request: Request, data: PasswordChange, creds: HTTPAuthorizationCredentials = Depends(bearer),
                     user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not verify_password(data.current, user.password_hash):
         raise HTTPException(400, "Current password incorrect")

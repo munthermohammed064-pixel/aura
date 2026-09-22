@@ -86,10 +86,13 @@ def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
     from app.services.notify import notify_user
     notify_user(db, user.id, "welcome", {"serial": user.serial})
     code = f"{secrets.randbelow(1000000):06d}"
-    user.verify_token_hash = hash_password(code)
-    user.verify_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
-    user.verify_attempts = 0
     sent = mailer.send_verification(user.email, code)
+    if sent:
+        # Arm the code only when the mail actually left — a failed send must
+        # not start the resend cooldown on a code nobody received.
+        user.verify_token_hash = hash_password(code)
+        user.verify_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+        user.verify_attempts = 0
     tokens = _issue_tokens(db, user, request)
     tokens.verification_sent = sent
     return tokens
@@ -244,12 +247,12 @@ def send_verification(request: Request, user: User = Depends(get_current_user), 
     if exp and exp > datetime.now(timezone.utc) + timedelta(minutes=9):
         raise HTTPException(429, "Code already sent — wait a minute before resending")
     code = f"{secrets.randbelow(1000000):06d}"
+    if not mailer.send_verification(user.email, code):
+        raise HTTPException(503, "Verification email could not be sent. Try again shortly.")
     user.verify_token_hash = hash_password(code)
     user.verify_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
     user.verify_attempts = 0
     db.commit()
-    if not mailer.send_verification(user.email, code):
-        raise HTTPException(503, "Verification email could not be sent. Try again shortly.")
     return {"ok": True}
 
 

@@ -16,22 +16,35 @@ export function clearTokens() {
   localStorage.removeItem("refresh_token");
 }
 
+// Redirect once — concurrent 401s must not fight over location.href, and a
+// page that is already /login must not reload-loop.
+let loginRedirecting = false;
+
+function redirectToLogin() {
+  if (loginRedirecting) return;
+  loginRedirecting = true;
+  if (window.location.pathname !== "/login") {
+    window.location.href = "/login";
+  }
+}
+
 export async function api<T = unknown>(
   path: string,
-  opts: RequestInit & { auth?: boolean } = {},
+  opts: RequestInit & { auth?: boolean; _retried?: boolean } = {},
 ): Promise<T> {
+  const { auth, _retried, ...init } = opts;
   const headers: Record<string, string> =
-    opts.body instanceof FormData ? {} : { "Content-Type": "application/json" };
-  if (opts.auth !== false) {
+    init.body instanceof FormData ? {} : { "Content-Type": "application/json" };
+  if (auth !== false) {
     const token = getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
-  const res = await fetch(`${API_URL}${path}`, { ...opts, headers });
-  if (res.status === 401 && typeof window !== "undefined" && opts.auth !== false) {
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  if (res.status === 401 && typeof window !== "undefined" && auth !== false && !_retried) {
     const refreshed = await tryRefresh();
-    if (refreshed) return api(path, opts);
+    if (refreshed) return api(path, { ...opts, _retried: true });
     clearTokens();
-    window.location.href = "/login";
+    redirectToLogin();
     throw new Error("Unauthorized");
   }
   const body = await res.json().catch(() => ({}));
@@ -43,14 +56,25 @@ export async function api<T = unknown>(
       : `Request failed (${res.status})`;
     if (res.status === 403 && /frozen/i.test(detail) && typeof window !== "undefined") {
       clearTokens();
-      window.location.href = "/login";
+      redirectToLogin();
     }
     throw new Error(detail);
   }
   return body as T;
 }
 
+// Single-flight: two concurrent 401s must share ONE refresh call — the second
+// would replay an already-rotated token, which the backend treats as theft and
+// kills the whole session family.
+let refreshPromise: Promise<boolean> | null = null;
+
 async function tryRefresh(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = doRefresh().finally(() => { refreshPromise = null; });
+  return refreshPromise;
+}
+
+async function doRefresh(): Promise<boolean> {
   const refresh = localStorage.getItem("refresh_token");
   if (!refresh) return false;
   try {
