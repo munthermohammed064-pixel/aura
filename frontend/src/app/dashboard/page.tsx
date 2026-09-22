@@ -12,11 +12,13 @@ import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 
 type Wallet = { available: number; pending: number; invested: number };
 type Tx = { id: string; kind: string; direction: string; amount: number; created_at: string };
+type Inv = { id: string; package_name: string; amount: number; status: string };
 
 export default function Dashboard() {
   const { t } = useT();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [txs, setTxs] = useState<Tx[]>([]);
+  const [invs, setInvs] = useState<Inv[]>([]);
   const [me, setMe] = useState<{ serial: string; stars: number; full_name: string; email: string } | null>(null);
   const [code, setCode] = useState("");
   const [codeMsg, setCodeMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -26,6 +28,7 @@ export default function Dashboard() {
   useEffect(() => {
     api<Wallet>("/wallet").then(setWallet).catch(() => {});
     api<Tx[]>("/wallet/transactions").then(setTxs).catch(() => {});
+    api<Inv[]>("/investments").then(setInvs).catch(() => {});
     api<{ serial: string; stars: number; full_name: string; email: string }>("/auth/me")
       .then(setMe).catch(() => {});
   }, []);
@@ -34,8 +37,10 @@ export default function Dashboard() {
   const initials = (me?.full_name?.trim() || me?.email || "·")
     .split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
-  const h = new Date().getHours();
-  const greeting = t(h < 12 ? "greet_morning" : h < 18 ? "greet_afternoon" : "greet_evening");
+  // Active packages ride beside the member's name — biggest first.
+  const activePkgs = invs.filter((i) => i.status === "active")
+    .sort((a, b) => b.amount - a.amount);
+  const topPkg = activePkgs[0];
 
   const redeemCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,11 +72,19 @@ export default function Dashboard() {
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-8 md:py-10">
 
-        {/* Greeting — identity line, editorial */}
+        {/* Identity line — name + active package badge */}
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl tracking-tight md:text-4xl">
-              {greeting}{displayName ? `, ${displayName.split(" ")[0]}` : ""}
+            <h1 className="flex flex-wrap items-center gap-3 font-display text-3xl tracking-tight md:text-4xl">
+              <span>{displayName.split(" ")[0] || me?.serial || "—"}</span>
+              {topPkg && (
+                <span className="inline-flex items-center gap-2 rounded-full border border-accent/50 bg-accent/10 px-5 py-1.5 align-middle font-display text-lg font-semibold tracking-wide text-accent md:text-xl">
+                  {topPkg.package_name}
+                  {activePkgs.length > 1 && (
+                    <span className="text-xs font-normal opacity-70">+{activePkgs.length - 1}</span>
+                  )}
+                </span>
+              )}
             </h1>
             <p className="mt-2 flex items-center gap-2.5 text-xs text-muted">
               <span className="font-mono tracking-wider">{t("private_member")} · {me?.serial ?? "—"}</span>
@@ -104,7 +117,7 @@ export default function Dashboard() {
 
         {/* Trading code + invite link — the two daily actions side by side */}
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <GlassCard className="!p-5 md:!p-6">
+          <GlassCard id="redeem" className="!p-5 md:!p-6 scroll-mt-28">
             <h2 className="font-medium">{t("code_title")}</h2>
             <p className="mt-1 text-xs text-muted">{t("code_hint")}</p>
             <form onSubmit={redeemCode} className="mt-3 flex gap-2">

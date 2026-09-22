@@ -44,6 +44,7 @@ const dict: Record<string, D> = {
   login: { en: "Log in", ar: "تسجيل الدخول", es: "Entrar", fr: "Connexion", tr: "Giriş", ru: "Войти", de: "Anmelden" },
   logout: { en: "Log out", ar: "تسجيل الخروج", es: "Salir", fr: "Déconnexion", tr: "Çıkış", ru: "Выйти", de: "Abmelden" },
   more: { en: "More", ar: "المزيد", es: "Más", fr: "Plus", tr: "Daha", ru: "Ещё", de: "Mehr" },
+  nav_code: { en: "Code", ar: "الكود", es: "Código", fr: "Code", tr: "Kod", ru: "Код", de: "Code" },
   needs_action: { en: "Needs your action", ar: "يتطلب إجراءك", es: "Requiere tu acción", fr: "Action requise", tr: "İşlem gerekli", ru: "Требуется действие", de: "Aktion erforderlich" },
   step_method: { en: "Choose payment method", ar: "اختر طريقة الدفع", es: "Elige método de pago", fr: "Choisir le moyen de paiement", tr: "Ödeme yöntemi seç", ru: "Выберите способ оплаты", de: "Zahlungsmethode wählen" },
   step_proof: { en: "Upload payment screenshot", ar: "ارفع لقطة الدفع", es: "Sube la captura del pago", fr: "Téléverser la capture du paiement", tr: "Ödeme ekran görüntüsü yükle", ru: "Загрузите скриншот оплаты", de: "Zahlungs-Screenshot hochladen" },
