@@ -12,9 +12,12 @@ from app.models.platform import AddressRequest
 from app.models.user import Session as UserSession
 from app.models.user import User
 from app.services.notify import notify_admins
-from app.core.limiter import limiter
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 router = APIRouter(prefix="/profile", tags=["profile"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 class PasswordChange(BaseModel):
