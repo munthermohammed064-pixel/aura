@@ -37,6 +37,11 @@
 * { color-scheme: light; }
 .on-dark, .on-dark * { color-scheme: dark; }
 
+html, body {
+  /* nothing may ever push the page sideways on phone/webview */
+  overflow-x: clip;
+}
+
 body {
   background: rgb(var(--bg));
   color: rgb(var(--ink));

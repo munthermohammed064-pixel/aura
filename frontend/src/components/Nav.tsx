@@ -62,6 +62,14 @@ export function Nav() {
 
   useEffect(() => { setMenuOpen(false); setMoreOpen(false); }, [pathname]);
 
+  // Same-page hash links don't always scroll via the router — force it.
+  const goCode = (e: React.MouseEvent) => {
+    if (pathname === "/dashboard") {
+      e.preventDefault();
+      document.getElementById("redeem")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   const logout = () => {
     clearTokens();
     setAuthed(false);
@@ -77,7 +85,7 @@ export function Nav() {
           {authed ? (
             <div className="flex shrink-0 cursor-default items-center gap-3">
               <Logo size={36} className="text-ink" />
-              <span className="font-display text-base font-semibold tracking-[0.18em] uppercase">
+              <span className="hidden font-display text-base font-semibold tracking-[0.18em] uppercase min-[430px]:inline">
                 {PLATFORM_NAME}
               </span>
               <USFlag className="h-6 w-10 rounded-[3px]" />
@@ -85,7 +93,7 @@ export function Nav() {
           ) : (
             <Link href="/" className="flex shrink-0 items-center gap-3">
               <Logo size={36} className="text-ink" />
-              <span className="font-display text-base font-semibold tracking-[0.18em] uppercase">
+              <span className="hidden font-display text-base font-semibold tracking-[0.18em] uppercase min-[430px]:inline">
                 {PLATFORM_NAME}
               </span>
               <USFlag className="h-6 w-10 rounded-[3px]" />
@@ -125,7 +133,7 @@ export function Nav() {
                   </div>
                 )}
               </div>
-              <Link href="/dashboard#redeem"
+              <Link href="/dashboard#redeem" onClick={goCode}
                 className="ms-1 flex items-center gap-2 rounded-full border border-accent/50 bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/20">
                 <Ticket size={15} strokeWidth={1.8} />
                 {t("nav_code")}
@@ -134,7 +142,7 @@ export function Nav() {
           )}
           {!authed && <div className="flex-1" />}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
             {isAdmin && adminHref && (
               <Link href={adminHref} className="hidden rounded-full border border-accent/40 px-3 py-1.5 text-xs text-accent md:block">
                 {t("admin")}
@@ -163,7 +171,7 @@ export function Nav() {
             )}
 
             {authed && (
-              <Link href="/dashboard#redeem" aria-label={t("nav_code")}
+              <Link href="/dashboard#redeem" onClick={goCode} aria-label={t("nav_code")}
                 className="grid h-10 w-10 place-items-center rounded-full border border-accent/50 bg-accent/10 text-accent transition hover:bg-accent/20 md:hidden">
                 <Ticket size={17} strokeWidth={1.8} />
               </Link>
@@ -184,7 +192,7 @@ export function Nav() {
         {menuOpen && authed && (
           <div className="border-t border-border bg-bg/95 px-4 pb-4 pt-2 backdrop-blur-xl md:hidden">
             <div className="flex flex-col gap-1">
-              <Link href="/dashboard#redeem"
+              <Link href="/dashboard#redeem" onClick={goCode}
                 className="flex items-center gap-2.5 rounded-xl border border-accent/40 bg-accent/10 px-4 py-2.5 text-sm font-medium text-accent transition">
                 <Ticket size={15} strokeWidth={1.8} />
                 {t("nav_code")}
@@ -218,10 +226,10 @@ export function Nav() {
               const active = pathname === href;
               return (
                 <Link key={key} href={href}
-                  className={`flex flex-col items-center gap-1 py-2.5 text-[9px] font-medium uppercase tracking-wider transition ${
+                  className={`flex flex-col items-center gap-1 py-3 text-[10px] font-medium uppercase tracking-wider transition ${
                     active ? "text-accent" : "text-muted"
                   }`}>
-                  <Icon size={17} strokeWidth={active ? 2 : 1.6} />
+                  <Icon size={19} strokeWidth={active ? 2 : 1.6} />
                   {t(key)}
                 </Link>
               );

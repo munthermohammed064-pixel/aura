@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useState, ReactNode } from "react";
 
 export type Lang = "en" | "ar" | "es" | "fr" | "tr" | "ru" | "de";
 
@@ -13,8 +13,6 @@ export const LANGS: { code: Lang; label: string; flag: string }[] = [
   { code: "ru", label: "Русский", flag: "RU" },
   { code: "de", label: "Deutsch", flag: "DE" },
 ];
-
-const RTL: Lang[] = ["ar"];
 
 type D = Record<Lang, string>;
 
@@ -573,14 +571,18 @@ const LangCtx = createContext<{ lang: Lang; setLang: (l: Lang) => void; t: (k: s
   lang: "en", setLang: () => {}, t: (k) => k,
 });
 
+// Apply before paint — no EN flash. Layout NEVER flips: the platform stays LTR
+// in every language, only the text translates (Arabic glyphs render correctly
+// inline via Unicode bidi — no dir=rtl, no mirrored layout, no shift).
+const useIsoLayout = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>("en");
 
-  useEffect(() => {
+  useIsoLayout(() => {
     const apply = (l: Lang) => {
       setLangState(l);
       document.documentElement.lang = l;
-      document.documentElement.dir = RTL.includes(l) ? "rtl" : "ltr";
     };
     const saved = localStorage.getItem("lang") as Lang | null;
     if (saved && LANGS.some((l) => l.code === saved)) { apply(saved); return; }
@@ -599,7 +601,6 @@ export function LangProvider({ children }: { children: ReactNode }) {
     setLangState(l);
     localStorage.setItem("lang", l);
     document.documentElement.lang = l;
-    document.documentElement.dir = RTL.includes(l) ? "rtl" : "ltr";
   };
 
   const t = (k: string, params?: Record<string, unknown>) => {

@@ -12,12 +12,15 @@ export function CountUp({ value, decimals = 2, prefix = "", className = "" }: {
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || !("IntersectionObserver" in window)) { setIsVisible(true); return; }
+    // In-app webviews (Telegram etc.) sometimes never fire the observer —
+    // the number must not stay at 0 forever: force-run after 600ms.
+    const fallback = window.setTimeout(() => setIsVisible(true), 600);
     const obs = new IntersectionObserver(([e]) => {
       if (e.isIntersecting) { setIsVisible(true); obs.disconnect(); }
     }, { threshold: 0.4 });
     obs.observe(el);
-    return () => obs.disconnect();
+    return () => { obs.disconnect(); clearTimeout(fallback); };
   }, []);
 
   // Animate from current displayed value to the new one — runs on first

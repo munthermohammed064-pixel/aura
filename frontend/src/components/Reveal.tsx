@@ -10,13 +10,17 @@ export function Reveal({ children, className = "", delay = 0 }: {
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    // No IntersectionObserver (in-app webviews) → show immediately.
+    if (!el || !("IntersectionObserver" in window)) { setVisible(true); return; }
+    // And if it exists but never fires, reveal anyway — invisible content
+    // forever is worse than a skipped animation.
+    const fallback = window.setTimeout(() => setVisible(true), 700);
     const obs = new IntersectionObserver(
       ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
       { threshold: 0.12 },
     );
     obs.observe(el);
-    return () => obs.disconnect();
+    return () => { obs.disconnect(); clearTimeout(fallback); };
   }, []);
 
   return (
