@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [codeMsg, setCodeMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [codeBusy, setCodeBusy] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showAllTx, setShowAllTx] = useState(false);
 
   useEffect(() => {
     api<Wallet>("/wallet").then(setWallet).catch(() => {});
@@ -179,7 +180,7 @@ export default function Dashboard() {
           <h2 className="mb-5 font-medium">{t("recent_activity")}</h2>
           {txs.length === 0 && <p className="text-xs text-muted">{t("no_activity")}</p>}
           <ol className="relative space-y-0 border-s border-border ps-5">
-            {txs.slice(0, 12).map((x) => (
+            {(showAllTx ? txs : txs.slice(0, 5)).map((x) => (
               <li key={x.id} className="relative pb-5 last:pb-0">
                 <span className={`absolute -start-[26px] top-1 h-2.5 w-2.5 rounded-full border-2 border-bg ${
                   x.direction === "credit" ? "bg-accent" : "bg-muted"}`} />
@@ -195,6 +196,12 @@ export default function Dashboard() {
               </li>
             ))}
           </ol>
+          {txs.length > 5 && (
+            <button onClick={() => setShowAllTx(!showAllTx)}
+              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border py-2.5 text-xs font-medium text-muted transition hover:border-accent/40 hover:text-accent">
+              {showAllTx ? t("show_less") : t("see_all", { n: txs.length })}
+            </button>
+          )}
         </GlassCard>
       </div>
     </main>
