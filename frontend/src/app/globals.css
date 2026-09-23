@@ -43,8 +43,13 @@
 
 html, body {
   /* nothing may ever push the page sideways on phone/webview */
-  overflow-x: clip;
+  overflow-x: hidden; /* fallback for webviews without `clip` support */
+  overflow-x: clip;   /* modern: doesn't create a scroll container */
 }
+
+/* grid/flex children may shrink below content size — stops track blowout
+   (the classic cause of a page that pans sideways like an image) */
+:where(.grid > *, .flex > *) { min-width: 0; }
 
 body {
   min-height: 100vh;

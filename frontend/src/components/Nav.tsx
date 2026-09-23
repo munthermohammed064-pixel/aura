@@ -33,6 +33,7 @@ const LINKS = [...PRIMARY, ...MORE];
 const BOTTOM = [
   ["dashboard", "/dashboard", LayoutDashboard],
   ["packages", "/packages", Package],
+  ["nav_code", "/dashboard#redeem", Ticket],
   ["wallet", "/wallet", Wallet],
   ["activity", "/my-packages", Activity],
   ["account", "/profile", User],
@@ -221,11 +222,12 @@ export function Nav() {
       {/* Mobile bottom bar — thumb-reach nav for the five core screens */}
       {authed && (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
-          <div className="mx-auto grid max-w-md grid-cols-5">
+          <div className="mx-auto grid max-w-md grid-cols-6">
             {BOTTOM.map(([key, href, Icon]) => {
               const active = pathname === href;
               return (
                 <Link key={key} href={href}
+                  onClick={key === "nav_code" ? goCode : undefined}
                   className={`flex flex-col items-center gap-1 py-3 text-[10px] font-medium uppercase tracking-wider transition ${
                     active ? "text-accent" : "text-muted"
                   }`}>

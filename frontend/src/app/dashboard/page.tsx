@@ -122,7 +122,7 @@ export default function Dashboard() {
             <h2 className="font-medium">{t("code_title")}</h2>
             <p className="mt-1 text-xs text-muted">{t("code_hint")}</p>
             <form onSubmit={redeemCode} className="mt-3 flex gap-2">
-              <input className="input flex-1 font-mono uppercase" placeholder={t("code_ph")}
+              <input className="input min-w-0 flex-1 font-mono uppercase" placeholder={t("code_ph")}
                 value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
                 maxLength={32} autoComplete="off" />
               <button className="btn shrink-0" disabled={codeBusy || !code.trim()}>
