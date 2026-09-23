@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { LangProvider } from "@/lib/i18n";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
@@ -22,6 +22,13 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: process.env.NEXT_PUBLIC_PLATFORM_NAME ?? "Nexora",
   },
+};
+
+// Edge-to-edge on notched phones + webviews; safe-area insets become usable.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -22,7 +22,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={{ toast }}>
       {children}
-      <div className="pointer-events-none fixed bottom-6 left-1/2 z-[100] flex -translate-x-1/2 flex-col items-center gap-2">
+      <div className="pointer-events-none fixed bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] left-1/2 z-[100] flex w-max max-w-[92vw] -translate-x-1/2 flex-col items-center gap-2 md:bottom-6">
         {items.map((x) => (
           <div key={x.id}
             className={`glass pointer-events-auto px-5 py-2.5 text-xs shadow-2xl transition-all ${

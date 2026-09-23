@@ -27,7 +27,7 @@ export default function Referrals() {
   };
 
   return (
-    <main className="pb-20 md:pb-0">
+    <main className="page-pad">
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("referrals")} />
@@ -62,7 +62,7 @@ export default function Referrals() {
           <table className="w-full text-sm">
             <tbody>{data?.referred.map((u) => (
               <tr key={u.id} className="border-t border-border">
-                <td className="py-2">{u.email}</td>
+                <td className="break-all py-2">{u.email}</td>
                 <td className="py-2 text-right text-muted">{new Date(u.joined).toLocaleDateString()}</td>
               </tr>
             ))}</tbody>

@@ -69,7 +69,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <main className="pb-20 md:pb-0">
+    <main className="page-pad">
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-8 md:py-10">
 
@@ -102,7 +102,7 @@ export default function Dashboard() {
           <div className="microprint absolute inset-0 opacity-60" />
           <div className="relative">
             <p className="text-[10px] uppercase tracking-[0.3em] text-white/45">{t("available")}</p>
-            <p className="font-display sheen mt-2 text-5xl tracking-tight md:text-6xl">
+            <p className="font-display sheen mt-2 text-4xl tracking-tight min-[400px]:text-5xl md:text-6xl">
               <CountUp value={Number(wallet?.available ?? 0)} prefix="$" />
             </p>
             <div className="mt-6 flex gap-3">

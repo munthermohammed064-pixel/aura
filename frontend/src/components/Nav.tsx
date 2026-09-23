@@ -190,7 +190,7 @@ export function Nav() {
         </nav>
 
         {menuOpen && authed && (
-          <div className="border-t border-border bg-bg/95 px-4 pb-4 pt-2 backdrop-blur-xl md:hidden">
+          <div className="max-h-[70dvh] overflow-y-auto border-t border-border bg-bg/95 px-4 pb-4 pt-2 backdrop-blur-xl md:hidden">
             <div className="flex flex-col gap-1">
               <Link href="/dashboard#redeem" onClick={goCode}
                 className="flex items-center gap-2.5 rounded-xl border border-accent/40 bg-accent/10 px-4 py-2.5 text-sm font-medium text-accent transition">
@@ -220,7 +220,7 @@ export function Nav() {
 
       {/* Mobile bottom bar — thumb-reach nav for the five core screens */}
       {authed && (
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg/85 backdrop-blur-xl md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
           <div className="mx-auto grid max-w-md grid-cols-5">
             {BOTTOM.map(([key, href, Icon]) => {
               const active = pathname === href;

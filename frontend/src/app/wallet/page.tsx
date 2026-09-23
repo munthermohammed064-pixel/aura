@@ -112,7 +112,7 @@ export default function WalletPage() {
   );
 
   return (
-    <main className="pb-20 md:pb-0">
+    <main className="page-pad">
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("wallet")} />

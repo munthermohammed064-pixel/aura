@@ -37,12 +37,18 @@
 * { color-scheme: light; }
 .on-dark, .on-dark * { color-scheme: dark; }
 
+/* clears the mobile bottom bar + iPhone home indicator on authed pages */
+.page-pad { padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 768px) { .page-pad { padding-bottom: 0; } }
+
 html, body {
   /* nothing may ever push the page sideways on phone/webview */
   overflow-x: clip;
 }
 
 body {
+  min-height: 100vh;
+  min-height: 100dvh; /* webview/mobile URL-bar safe */
   background: rgb(var(--bg));
   color: rgb(var(--ink));
   font-family: "IBM Plex Sans Arabic", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
