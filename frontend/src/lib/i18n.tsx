@@ -93,6 +93,7 @@ const dict: Record<string, D> = {
   days: { en: "days", ar: "يوم", es: "días", fr: "jours", tr: "gün", ru: "дней", de: "Tage" },
   daily: { en: "Daily", ar: "يوميًا", es: "Diario", fr: "Par jour", tr: "Günlük", ru: "В день", de: "Täglich" },
   active: { en: "Active", ar: "نشط", es: "Activo", fr: "Actif", tr: "Aktif", ru: "Активен", de: "Aktiv" },
+  cancelled: { en: "Cancelled", ar: "ملغى", es: "Cancelado", fr: "Annulé", tr: "İptal edildi", ru: "Отменён", de: "Storniert" },
   completed: { en: "Completed", ar: "مكتمل", es: "Completado", fr: "Terminé", tr: "Tamamlandı", ru: "Завершён", de: "Abgeschlossen" },
   days_left_fmt: { en: "{n}d left", ar: "متبقٍ {n} يوم", es: "quedan {n}d", fr: "{n}j restants", tr: "{n} gün kaldı", ru: "осталось {n} дн.", de: "noch {n} Tage" },
   // ---------- landing ----------
