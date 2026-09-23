@@ -1,0 +1,26 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/nx_deploy && chmod 600 ~/.ssh/nx_deploy
+          ssh-keyscan -H 187.124.9.200 >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/nx_deploy -o ConnectTimeout=20 root@187.124.9.200 '
+            set -e
+            cd /opt/nexora
+            git pull --ff-only
+            bash deploy/update.sh
+            systemctl is-active nexora-backend nexora-frontend caddy
+            curl -s -o /dev/null -w "site:%{http_code}\n" https://neexora.space/
+          '
