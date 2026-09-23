@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Nav } from "@/components/Nav";
 import { CountUp } from "@/components/CountUp";
 import { GlassCard } from "@/components/Glass";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { Stars } from "@/components/Stars";
-import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Activity } from "lucide-react";
 import { SkeletonRows } from "@/components/Skeleton";
+import { Empty } from "@/components/Empty";
 
 type Wallet = { available: number; pending: number; invested: number };
 type Tx = { id: string; kind: string; direction: string; amount: number; created_at: string };
@@ -43,6 +44,37 @@ export default function Dashboard() {
     ]).then(() => { setLoading(false); setLoadErr(failed); });
   };
   useEffect(load, []);
+
+  // pull-to-refresh — only arms at absolute scroll-top, never hijacks a real scroll
+  const [pull, setPull] = useState(0);
+  const pullRef = useRef(0);
+  const startY = useRef(0);
+  useEffect(() => {
+    const onStart = (e: TouchEvent) => {
+      if (window.scrollY <= 0) { startY.current = e.touches[0].clientY; pullRef.current = -1; }
+    };
+    const onMove = (e: TouchEvent) => {
+      if (pullRef.current === 0) return;
+      const d = e.touches[0].clientY - startY.current;
+      if (pullRef.current === -1) pullRef.current = d > 12 ? d : 0; // dead zone — a real scroll-down never triggers
+      if (pullRef.current > 0 && window.scrollY <= 0) {
+        pullRef.current = d;
+        setPull(Math.min(d / 2.5, 90));
+      }
+    };
+    const onEnd = () => {
+      if (pullRef.current > 70) load();
+      pullRef.current = 0; setPull(0);
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, []);
 
   const displayName = me?.full_name?.trim() || me?.email || "";
   const initials = (me?.full_name?.trim() || me?.email || "·")
@@ -86,6 +118,14 @@ export default function Dashboard() {
 
   return (
     <main className="page-pad">
+      {/* pull indicator */}
+      <div aria-hidden className="pointer-events-none fixed left-1/2 top-3 z-[80] -translate-x-1/2 transition-opacity"
+        style={{ opacity: pull > 8 ? 1 : 0 }}>
+        <div className="grid h-8 w-8 place-items-center rounded-full border border-border bg-surface/90 shadow-md backdrop-blur">
+          <span className={`text-accent transition-transform ${pull > 70 ? "rotate-180" : ""}`}
+            style={{ transform: pull <= 70 ? `rotate(${pull * 2.5}deg)` : undefined }}>↓</span>
+        </div>
+      </div>
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-8 md:py-10">
 
@@ -208,7 +248,7 @@ export default function Dashboard() {
             </div>
           )}
           {loading && txs.length === 0 && <SkeletonRows n={4} />}
-          {!loading && txs.length === 0 && !loadErr && <p className="text-xs text-muted">{t("no_activity")}</p>}
+          {!loading && txs.length === 0 && !loadErr && <Empty icon={Activity} text={t("no_activity")} />}
           <ol className="relative space-y-0 border-s border-border ps-5">
             {(showAllTx ? txs : txs.slice(0, 5)).map((x) => (
               <li key={x.id} className="relative pb-5 last:pb-0">
@@ -285,7 +325,7 @@ function TxBars({ txs }: { txs: Tx[] }) {
   }
   const rows = [...byKind.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
   const max = Math.max(...rows.map((r) => r[1]), 1);
-  if (!rows.length) return <p className="text-xs text-muted">{t("no_activity")}</p>;
+  if (!rows.length) return <Empty icon={Activity} text={t("no_activity")} />;
   return (
     <div className="space-y-2.5">
       {rows.map(([kind, amt]) => (

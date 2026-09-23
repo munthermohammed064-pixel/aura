@@ -45,7 +45,19 @@ html, body {
   /* nothing may ever push the page sideways on phone/webview */
   overflow-x: hidden; /* fallback for webviews without `clip` support */
   overflow-x: clip;   /* modern: doesn't create a scroll container */
+  /* finger pans only scroll vertically — horizontal page-drag is dead.
+     inner scrollers (admin tables) keep their own pan-x. */
+  touch-action: pan-y;
 }
+
+/* kill the gray tap flash on touch devices */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* thin theme-matched scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgb(var(--ink) / .18); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--accent) / .45); }
 
 /* grid/flex children may shrink below content size — stops track blowout
    (the classic cause of a page that pans sideways like an image) */
@@ -328,6 +340,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   background-size: 200% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
+
+/* soft page-enter on every navigation */
+@keyframes pagein {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.page-enter { animation: pagein .28s cubic-bezier(.2,.65,.3,1); }
+@media (prefers-reduced-motion: reduce) { .page-enter { animation: none; } }
 
 /* slow cinematic zoom for LA photos */
 @keyframes kenburns {

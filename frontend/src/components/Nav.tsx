@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Activity, Briefcase, ChevronDown, LayoutDashboard, LogOut, Package,
+  Activity, Briefcase, ChevronDown, History, LayoutDashboard, LogOut, Package,
   Ticket, TrendingUp, User, Users, Wallet,
 } from "lucide-react";
 import { api, clearTokens, getToken, PLATFORM_NAME } from "@/lib/api";
@@ -24,6 +24,7 @@ const PRIMARY = [
 const MORE = [
   ["my_packages", "/my-packages", Briefcase],
   ["referrals", "/referrals", Users],
+  ["account_activity", "/activity", History],
   ["markets", "/markets", TrendingUp],
 ] as const;
 
@@ -228,9 +229,10 @@ export function Nav() {
               return (
                 <Link key={key} href={href}
                   onClick={key === "nav_code" ? goCode : undefined}
-                  className={`flex flex-col items-center gap-1 py-3 text-[10px] font-medium uppercase tracking-wider transition ${
+                  className={`relative flex flex-col items-center gap-1 py-3 text-[10px] font-medium uppercase tracking-wider transition ${
                     active ? "text-accent" : "text-muted"
                   }`}>
+                  {active && <span className="absolute top-1 h-1 w-1 rounded-full bg-accent" />}
                   <Icon size={19} strokeWidth={active ? 2 : 1.6} />
                   {t(key)}
                 </Link>
