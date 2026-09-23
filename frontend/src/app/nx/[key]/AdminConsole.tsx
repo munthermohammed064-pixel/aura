@@ -68,6 +68,9 @@ const WD_STATUS: Record<string, string> = {
   approved: "border-sky-400/30 bg-sky-400/10 text-sky-300",
   paid: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
   rejected: "border-red-400/30 bg-red-400/10 text-red-300",
+  active: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+  completed: "border-sky-400/30 bg-sky-400/10 text-sky-300",
+  cancelled: "border-red-400/30 bg-red-400/10 text-red-300",
 };
 const EMPTY_PKG = { name: "", description: "", min_deposit: 0, max_deposit: 0, yield_min_pct: 0, yield_max_pct: 0, return_min_amount: 0, return_max_amount: 0, duration_days: 365, is_active: true, sort_order: 0 };
 const EMPTY_METHOD = { name: "", details: "", qr_image: "", min_amount: 0, max_amount: 0, is_active: true };
@@ -517,7 +520,11 @@ export default function AdminConsole() {
                   <td className="py-2">${Number(i.amount).toLocaleString("en-US")}</td>
                   <td className="py-2">${Number(i.realized_return).toLocaleString("en-US")}</td>
                   <td className="py-2 text-xs text-muted">{new Date(i.ends_at).toLocaleDateString("en-US")}</td>
-                  <td className="py-2 capitalize">{t(i.status)}</td>
+                  <td className="py-2">
+                    <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-medium capitalize ${WD_STATUS[i.status] ?? "border-white/10 bg-white/5 text-muted"}`}>
+                      {t(i.status)}
+                    </span>
+                  </td>
                   <td className="py-2">
                     {i.status === "active" && (
                       <button className="btn-ghost px-3 py-1 text-xs" onClick={() => settleInv(i)}>
@@ -660,7 +667,11 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                   </td>
                   <td className="py-2">${Number(d.amount).toLocaleString("en-US")}</td>
                   <td className="py-2 text-xs">{d.method}</td>
-                  <td className="py-2 capitalize">{t(d.status)}</td>
+                  <td className="py-2">
+                    <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-medium capitalize ${WD_STATUS[d.status] ?? "border-white/10 bg-white/5 text-muted"}`}>
+                      {t(d.status)}
+                    </span>
+                  </td>
                   <td className="py-2 text-xs">
                     {d.proof && <p className="mb-1 font-mono text-[10px] text-muted">{d.proof}</p>}
                     {d.screenshot && (
@@ -1280,7 +1291,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                               {d.screenshot && (
                                 <button onClick={() => setPreview(`${apiBase}${d.screenshot}`)} className="text-accent underline">{t("view")}</button>
                               )}
-                              <span className="capitalize text-muted">{t(d.status)}</span>
+                              <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium capitalize ${WD_STATUS[d.status] ?? "border-white/10 bg-white/5 text-muted"}`}>{t(d.status)}</span>
                             </span>
                           </div>
                         ))}

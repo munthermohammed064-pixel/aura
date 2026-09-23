@@ -53,6 +53,9 @@ html, body {
 /* kill the gray tap flash on touch devices */
 * { -webkit-tap-highlight-color: transparent; }
 
+/* bank-statement digits — every table's numbers align vertically */
+table { font-variant-numeric: tabular-nums; }
+
 /* thin theme-matched scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }

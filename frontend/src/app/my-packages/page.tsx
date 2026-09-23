@@ -7,6 +7,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { GlassCard } from "@/components/Glass";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { Empty } from "@/components/Empty";
+import { Briefcase } from "lucide-react";
 
 type Inv = {
   id: string; package_name: string; amount: number; status: string;
@@ -85,7 +87,7 @@ export default function MyPackages() {
           </div>
         ) : invs.length === 0 ? (
           <GlassCard className="mt-6 text-center">
-            <p className="text-muted">{t("no_investments")}</p>
+            <Empty icon={Briefcase} text={t("no_investments")} />
             <Link href="/packages" className="btn mt-4">{t("browse_packages")}</Link>
           </GlassCard>
         ) : (

@@ -9,6 +9,7 @@ import { api, API_URL } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useToast } from "@/components/Toast";
 import { SkeletonRows } from "@/components/Skeleton";
+import { StatusPill } from "@/components/StatusPill";
 import { useNotifyStream } from "@/lib/useNotifyStream";
 
 type Method = { id: string; name: string; details: string; qr_image: string; min_amount: number; max_amount: number };
@@ -122,14 +123,14 @@ export default function WalletPage() {
       </tr></thead>
       <tbody>{rows.map((r) => (
         <tr key={r.id} className="border-t border-border">
-          <td className="py-2">
+          <td className="py-2 tabular-nums">
             ${Number(r.amount).toLocaleString("en-US")}
             {(r.star_penalty ?? 0) > 0 && (
               <p className="text-[10px] text-red-600">−${Number(r.star_penalty).toLocaleString("en-US")} {t("star_penalty")}</p>
             )}
           </td>
-          <td className="py-2 capitalize">{t(r.status)}</td>
-          <td className="py-2 text-muted">{new Date(r.created_at).toLocaleDateString("en-US")}</td>
+          <td className="py-2"><StatusPill status={r.status} /></td>
+          <td className="py-2 text-muted tabular-nums">{new Date(r.created_at).toLocaleDateString("en-US")}</td>
         </tr>
       ))}</tbody>
     </table>

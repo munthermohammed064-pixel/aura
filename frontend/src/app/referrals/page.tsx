@@ -7,6 +7,8 @@ import { CountUp } from "@/components/CountUp";
 import { Disclaimer, GlassCard } from "@/components/Glass";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { Empty } from "@/components/Empty";
+import { Users } from "lucide-react";
 
 type Data = {
   code: string; link: string; total_earned: number;
@@ -58,7 +60,7 @@ export default function Referrals() {
 
         <GlassCard className="mt-4">
           <h2 className="mb-4 font-medium">{t("invited_users")}</h2>
-          {data?.referred.length === 0 && <p className="text-xs text-muted">{t("no_referred")}</p>}
+          {data?.referred.length === 0 && <Empty icon={Users} text={t("no_referred")} />}
           <table className="w-full text-sm">
             <tbody>{data?.referred.map((u) => (
               <tr key={u.id} className="border-t border-border">
