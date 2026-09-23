@@ -55,7 +55,11 @@ export default function Dashboard() {
       api<Wallet>("/wallet").then(setWallet).catch(() => {});
       api<Tx[]>("/wallet/transactions").then(setTxs).catch(() => {});
     } catch (err) {
-      setCodeMsg({ ok: false, text: err instanceof Error ? err.message : "Error" });
+      const raw = err instanceof Error ? err.message : "";
+      const key = /invalid or expired/i.test(raw) ? "code_err_invalid"
+        : /active package/i.test(raw) || /does not apply/i.test(raw) ? "code_err_no_pkg"
+        : /already redeemed/i.test(raw) ? "code_err_used" : null;
+      setCodeMsg({ ok: false, text: key ? t(key) : raw || "Error" });
     } finally {
       setCodeBusy(false);
     }

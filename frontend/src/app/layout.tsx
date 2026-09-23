@@ -22,6 +22,9 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: process.env.NEXT_PUBLIC_PLATFORM_NAME ?? "Nexora",
   },
+  // The app has its own 7-language dictionary — browser auto-translate
+  // only mangles it ("packages" → مكياجات, "Nexora" → نيكصورة). Block it.
+  other: { google: "notranslate" },
 };
 
 // Edge-to-edge on notched phones + webviews; safe-area insets become usable.
@@ -33,7 +36,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" dir="ltr">
+    <html lang="en" dir="ltr" translate="no" className="notranslate">
       <body className="min-h-screen bg-bg antialiased">
         <LangProvider>
           <ToastProvider>
