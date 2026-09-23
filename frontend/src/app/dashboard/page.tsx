@@ -77,13 +77,16 @@ export default function Dashboard() {
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-8 md:py-10">
 
-        {/* Identity line — name + active package badge */}
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="flex flex-wrap items-center gap-3 font-display text-3xl tracking-tight md:text-4xl">
-              <span>{displayName.split(" ")[0] || me?.serial || "—"}</span>
+        {/* Identity line — avatar beside the name, badge + serial under it */}
+        <div className="mb-8 flex items-center gap-4">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-accent/40 bg-accent/10 font-display text-lg font-semibold tracking-wide text-accent">
+            {initials}
+          </span>
+          <div className="min-w-0">
+            <h1 className="flex flex-wrap items-center gap-x-3 gap-y-2 font-display text-2xl tracking-tight md:text-4xl">
+              <span className="truncate">{displayName || me?.serial || "—"}</span>
               {topPkg && (
-                <span className="inline-flex items-center gap-2 rounded-full border border-accent/50 bg-accent/10 px-5 py-1.5 align-middle font-display text-lg font-semibold tracking-wide text-accent md:text-xl">
+                <span className="inline-flex items-center gap-2 rounded-full border border-accent/50 bg-accent/10 px-4 py-1 font-display text-base font-semibold tracking-wide text-accent md:text-lg">
                   {topPkg.package_name}
                   {activePkgs.length > 1 && (
                     <span className="text-xs font-normal opacity-70">+{activePkgs.length - 1}</span>
@@ -91,14 +94,11 @@ export default function Dashboard() {
                 </span>
               )}
             </h1>
-            <p className="mt-2 flex items-center gap-2.5 text-xs text-muted">
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
               <span className="font-mono tracking-wider">{t("private_member")} · {me?.serial ?? "—"}</span>
               {me && <Stars value={me.stars ?? 4} size={11} />}
             </p>
           </div>
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-accent/40 bg-accent/10 font-display text-sm font-semibold tracking-wide text-accent">
-            {initials}
-          </span>
         </div>
 
         {/* Balance hero — warm black card, sheen number, two actions */}
