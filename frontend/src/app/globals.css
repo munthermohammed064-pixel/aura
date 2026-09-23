@@ -56,6 +56,18 @@ html, body {
 /* bank-statement digits — every table's numbers align vertically */
 table { font-variant-numeric: tabular-nums; }
 
+/* narrow screens: admin tables scroll inside their own frame — the table
+   becomes the scroll container, so pan-x stays inside it and the page
+   itself can never be dragged sideways */
+@media (max-width: 768px) {
+  .admin-shell table {
+    display: block;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* thin theme-matched scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }

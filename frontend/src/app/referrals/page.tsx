@@ -8,7 +8,7 @@ import { Disclaimer, GlassCard } from "@/components/Glass";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { Empty } from "@/components/Empty";
-import { Users } from "lucide-react";
+import { Share2, Users } from "lucide-react";
 
 type Data = {
   code: string; link: string; total_earned: number;
@@ -21,11 +21,19 @@ export default function Referrals() {
   const { t } = useT();
   const [data, setData] = useState<Data | null>(null);
   const [copied, setCopied] = useState(false);
+  const [canShare, setCanShare] = useState(false);
 
-  useEffect(() => { api<Data>("/referrals").then(setData).catch(() => {}); }, []);
+  useEffect(() => {
+    api<Data>("/referrals").then(setData).catch(() => {});
+    setCanShare(typeof navigator !== "undefined" && !!navigator.share);
+  }, []);
 
   const copy = () => {
     if (data) navigator.clipboard.writeText(data.link).then(() => setCopied(true));
+  };
+
+  const share = () => {
+    if (data) navigator.share({ title: "NEXORA", url: data.link }).catch(() => {});
   };
 
   return (
@@ -36,8 +44,13 @@ export default function Referrals() {
         <GlassCard>
           <p className="text-xs text-muted">{t("your_ref_link")}</p>
           <div className="mt-2 flex gap-2">
-            <input className="input" readOnly value={data?.link ?? ""} />
+            <input className="input min-w-0" readOnly value={data?.link ?? ""} />
             <button className="btn-ghost shrink-0" onClick={copy}>{copied ? t("copied") : t("copy")}</button>
+            {canShare && (
+              <button className="btn-ghost flex shrink-0 items-center gap-1.5" onClick={share}>
+                <Share2 size={14} />{t("share")}
+              </button>
+            )}
           </div>
           <p className="mt-3 text-xs text-muted">{t("code")} <span className="text-ink">{data?.code}</span></p>
           <div className="mt-4"><Disclaimer>{t("reward_note")}</Disclaimer></div>

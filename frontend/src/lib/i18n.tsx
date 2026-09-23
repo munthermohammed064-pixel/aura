@@ -86,6 +86,7 @@ const dict: Record<string, D> = {
   saved: { en: "Saved.", ar: "تم الحفظ.", es: "Guardado.", fr: "Enregistré.", tr: "Kaydedildi.", ru: "Сохранено.", de: "Gespeichert." },
   copy: { en: "Copy", ar: "نسخ", es: "Copiar", fr: "Copier", tr: "Kopyala", ru: "Копировать", de: "Kopieren" },
   copied: { en: "Copied", ar: "تم النسخ", es: "Copiado", fr: "Copié", tr: "Kopyalandı", ru: "Скопировано", de: "Kopiert" },
+  share: { en: "Share", ar: "مشاركة", es: "Compartir", fr: "Partager", tr: "Paylaş", ru: "Поделиться", de: "Teilen" },
   loading: { en: "Loading…", ar: "جارٍ التحميل…", es: "Cargando…", fr: "Chargement…", tr: "Yükleniyor…", ru: "Загрузка…", de: "Laden…" },
   failed: { en: "Failed", ar: "فشل", es: "Error", fr: "Échec", tr: "Başarısız", ru: "Ошибка", de: "Fehlgeschlagen" },
   price: { en: "Price", ar: "السعر", es: "Precio", fr: "Prix", tr: "Fiyat", ru: "Цена", de: "Preis" },

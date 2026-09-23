@@ -393,7 +393,7 @@ export default function AdminConsole() {
   }
 
   return (
-    <main className="on-dark">
+    <main className="on-dark admin-shell">
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("admin")} />
