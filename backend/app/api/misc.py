@@ -237,9 +237,13 @@ def forex():
 def public_config(db: Session = Depends(get_db)):
     def produce():
         platform = get_setting(db, "platform")
+        withdrawal = get_setting(db, "withdrawal")
         return {"platform_name": platform.get("name", settings.PLATFORM_NAME),
                 "maintenance_mode": platform.get("maintenance_mode", False),
-                "default_lang": platform.get("default_lang", "en")}
+                "default_lang": platform.get("default_lang", "en"),
+                # Public fee schedule — the withdraw confirm sheet shows exact math.
+                "withdrawal_fee_pct": withdrawal.get("fee_pct", 0),
+                "withdrawal_fee_flat": withdrawal.get("fee_flat", 0)}
     return get_or_set("config:public", 15, produce)
 
 

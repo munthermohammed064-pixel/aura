@@ -32,7 +32,7 @@ export default function Landing() {
   const glance = [packages[2], packages[5], packages[8]].filter(Boolean);
 
   return (
-    <main className="pb-20 md:pb-0">
+    <main className="page-pad">
       <Nav />
 
       {/* ── Hero — cinematic LA dusk, split layout ── */}

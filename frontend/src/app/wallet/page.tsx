@@ -14,7 +14,8 @@ import { useNotifyStream } from "@/lib/useNotifyStream";
 type Method = { id: string; name: string; details: string; qr_image: string; min_amount: number; max_amount: number };
 type Wallet = { available: number; pending: number; invested: number };
 type Row = { id: string; amount: number; status: string; created_at: string; method?: string; address?: string; fee?: number; star_penalty?: number };
-type Me = { default_withdraw_address: string | null; stars: number };
+type Me = { default_withdraw_address: string | null; stars: number; withdraw_fee_pct: number | null };
+type Cfg = { withdrawal_fee_pct: number; withdrawal_fee_flat: number };
 
 export default function WalletPage() {
   const { t } = useT();
@@ -30,6 +31,10 @@ export default function WalletPage() {
   const [whitelist, setWhitelist] = useState<string | null>(null);
   const [stars, setStars] = useState(4);
   const [loading, setLoading] = useState(true);
+  const [confirmWd, setConfirmWd] = useState(false);
+  const [wdBusy, setWdBusy] = useState(false);
+  const [cfg, setCfg] = useState<Cfg>({ withdrawal_fee_pct: 0, withdrawal_fee_flat: 0 });
+  const [feePct, setFeePct] = useState<number | null>(null);
 
   const load = () => {
     api<Wallet>("/wallet").then(setWallet).catch(() => {});
@@ -42,8 +47,10 @@ export default function WalletPage() {
     api<Me>("/auth/me").then((u) => {
       setWhitelist(u.default_withdraw_address);
       setStars(u.stars ?? 4);
+      setFeePct(u.withdraw_fee_pct);
       if (u.default_withdraw_address) setWd((w) => ({ ...w, address: u.default_withdraw_address! }));
     }).catch(() => {}).finally(() => setLoading(false));
+    api<Cfg>("/config").then(setCfg).catch(() => {});
   };
   useEffect(load, []);
   useEffect(() => {
@@ -74,12 +81,28 @@ export default function WalletPage() {
 
   const isWeekend = [0, 6].includes(new Date().getUTCDay());
 
+  const effPct = feePct ?? cfg.withdrawal_fee_pct;
+  const wdAmt = Number(wd.amount) || 0;
+  const wdFee = Math.round((wdAmt * effPct / 100 + cfg.withdrawal_fee_flat) * 100) / 100;
+  const wdPenalty = Math.round(wdAmt * Math.max(0, 4 - stars) * 0.25 * 100) / 100;
+  const wdNet = Math.round((wdAmt - wdPenalty) * 100) / 100;
+
+  const openConfirm = () => {
+    if (!wdAmt || wdAmt <= 0) return toast(t("enter_amount"), "err");
+    setConfirmWd(true);
+  };
+
   const submitWithdrawal = async () => {
+    if (wdBusy) return;
+    setWdBusy(true);
     try {
-      await api("/withdrawals", { method: "POST", body: JSON.stringify({ ...wd, amount: Number(wd.amount) }) });
+      await api("/withdrawals", { method: "POST", body: JSON.stringify({ ...wd, amount: wdAmt }) });
       toast(t("wd_submitted"));
+      setConfirmWd(false);
+      setWd({ ...wd, amount: "" });
       load();
     } catch (e) { toast(e instanceof Error ? e.message : t("failed"), "err"); }
+    setWdBusy(false);
   };
 
   const Step = ({ n, label, done }: { n: number; label: string; done?: boolean }) => (
@@ -232,7 +255,7 @@ export default function WalletPage() {
               </p>
             )}
             <Disclaimer>{t("wd_disclaimer")}</Disclaimer>
-            <button className="btn mt-4 w-full disabled:opacity-50" onClick={submitWithdrawal} disabled={isWeekend}>{t("request_withdrawal")}</button>
+            <button className="btn mt-4 w-full disabled:opacity-50" onClick={openConfirm} disabled={isWeekend || !whitelist}>{t("request_withdrawal")}</button>
           </GlassCard>
         </div>
 
@@ -243,6 +266,40 @@ export default function WalletPage() {
             {loading ? <SkeletonRows n={3} /> : <Table rows={withdrawals} />}</GlassCard>
         </div>
       </div>
+
+      {/* Withdraw confirmation — full math before anything moves */}
+      {confirmWd && (
+        <>
+          <div className="sheet-backdrop" onClick={() => !wdBusy && setConfirmWd(false)} />
+          <div className="sheet bg-bg px-5 pb-8 pt-5">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-ink/15" />
+            <h2 className="font-display text-xl tracking-tight">{t("confirm_withdrawal")}</h2>
+            <div className="mt-4 space-y-2.5 text-sm">
+              <div className="flex justify-between"><span className="text-muted">{t("amount")}</span>
+                <span className="font-mono">${wdAmt.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></div>
+              <div className="flex justify-between"><span className="text-muted">{t("fee")}</span>
+                <span className="font-mono">−${wdFee.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></div>
+              {wdPenalty > 0 && (
+                <div className="flex justify-between"><span className="text-muted">{t("star_penalty")}</span>
+                  <span className="font-mono text-red-600">−${wdPenalty.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></div>
+              )}
+              <div className="flex justify-between border-t border-border pt-2.5 font-semibold">
+                <span>{t("net_payout")}</span>
+                <span className="font-mono text-accent">${wdNet.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></div>
+            </div>
+            <p className="mt-4 text-[10px] uppercase tracking-widest text-muted">{t("to_address")}</p>
+            <p className="mt-1 break-all rounded-xl bg-ink/[0.04] px-3 py-2 font-mono text-xs">{whitelist}</p>
+            <div className="mt-5 flex gap-3">
+              <button className="btn flex-1" onClick={submitWithdrawal} disabled={wdBusy}>
+                {wdBusy ? t("loading") : t("confirm")}
+              </button>
+              <button className="btn-ghost flex-1" onClick={() => setConfirmWd(false)} disabled={wdBusy}>
+                {t("cancel")}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </main>
   );
 }

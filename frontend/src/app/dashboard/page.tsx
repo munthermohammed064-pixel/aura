@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { Stars } from "@/components/Stars";
 import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { SkeletonRows } from "@/components/Skeleton";
 
 type Wallet = { available: number; pending: number; invested: number };
 type Tx = { id: string; kind: string; direction: string; amount: number; created_at: string };
@@ -25,14 +26,23 @@ export default function Dashboard() {
   const [codeBusy, setCodeBusy] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showAllTx, setShowAllTx] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState(false);
+  const [flash, setFlash] = useState<number | null>(null);
 
-  useEffect(() => {
-    api<Wallet>("/wallet").then(setWallet).catch(() => {});
-    api<Tx[]>("/wallet/transactions").then(setTxs).catch(() => {});
-    api<Inv[]>("/investments").then(setInvs).catch(() => {});
-    api<{ serial: string; stars: number; full_name: string; email: string }>("/auth/me")
-      .then(setMe).catch(() => {});
-  }, []);
+  const load = () => {
+    setLoading(true); setLoadErr(false);
+    let failed = false;
+    const fail = () => { failed = true; };
+    Promise.allSettled([
+      api<Wallet>("/wallet").then(setWallet).catch(fail),
+      api<Tx[]>("/wallet/transactions").then(setTxs).catch(fail),
+      api<Inv[]>("/investments").then(setInvs).catch(fail),
+      api<{ serial: string; stars: number; full_name: string; email: string }>("/auth/me")
+        .then(setMe).catch(fail),
+    ]).then(() => { setLoading(false); setLoadErr(failed); });
+  };
+  useEffect(load, []);
 
   const displayName = me?.full_name?.trim() || me?.email || "";
   const initials = (me?.full_name?.trim() || me?.email || "·")
@@ -52,6 +62,8 @@ export default function Dashboard() {
         { method: "POST", body: JSON.stringify({ code }) });
       setCodeMsg({ ok: true, text: t("code_credited", { amount: `$${r.credited}` }) });
       setCode("");
+      setFlash(r.credited);
+      setTimeout(() => setFlash(null), 2800);
       api<Wallet>("/wallet").then(setWallet).catch(() => {});
       api<Tx[]>("/wallet/transactions").then(setTxs).catch(() => {});
     } catch (err) {
@@ -102,12 +114,19 @@ export default function Dashboard() {
         </div>
 
         {/* Balance hero — warm black card, sheen number, two actions */}
-        <div className="on-dark relative overflow-hidden rounded-2xl p-7 md:p-9">
+        <div className={`on-dark relative overflow-hidden rounded-[1.25rem] p-7 md:p-9 ${flash != null ? "gold-flash" : ""}`}>
           <div className="microprint absolute inset-0 opacity-60" />
+          {flash != null && (
+            <span className="credit-float absolute end-6 top-6 rounded-full border border-accent/50 bg-accent/15 px-3 py-1 font-mono text-sm font-semibold text-accent-2">
+              +${flash.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+            </span>
+          )}
           <div className="relative">
             <p className="text-[10px] uppercase tracking-[0.3em] text-white/45">{t("available")}</p>
             <p className="font-display sheen mt-2 text-4xl tracking-tight min-[400px]:text-5xl md:text-6xl">
-              <CountUp value={Number(wallet?.available ?? 0)} prefix="$" />
+              {loading && wallet === null
+                ? <span className="skeleton inline-block h-12 w-44 md:h-16 md:w-64" />
+                : <CountUp value={Number(wallet?.available ?? 0)} prefix="$" />}
             </p>
             <div className="mt-6 flex gap-3">
               <Link href="/wallet" className="btn-ghost flex-1 md:flex-none">
@@ -161,7 +180,7 @@ export default function Dashboard() {
           {stats.map(([label, v]) => (
             <GlassCard key={label} className="glow-card !p-4 md:!p-6">
               <p className="text-[10px] uppercase tracking-widest text-muted md:text-xs">{label}</p>
-              <p className="mt-2 text-lg font-semibold tracking-tight md:text-2xl">
+              <p className="mt-2 text-xl font-semibold tracking-tight md:text-2xl">
                 <CountUp value={Number(v ?? 0)} prefix="$" />
               </p>
             </GlassCard>
@@ -182,7 +201,14 @@ export default function Dashboard() {
         {/* Activity timeline — replaces the dense table */}
         <GlassCard className="mt-4">
           <h2 className="mb-5 font-medium">{t("recent_activity")}</h2>
-          {txs.length === 0 && <p className="text-xs text-muted">{t("no_activity")}</p>}
+          {loadErr && (
+            <div className="mb-4 flex items-center justify-between rounded-xl border border-red-600/25 bg-red-600/5 px-3 py-2">
+              <p className="text-xs text-red-700">{t("load_failed")}</p>
+              <button onClick={load} className="text-xs font-medium text-accent hover:underline">{t("retry")}</button>
+            </div>
+          )}
+          {loading && txs.length === 0 && <SkeletonRows n={4} />}
+          {!loading && txs.length === 0 && !loadErr && <p className="text-xs text-muted">{t("no_activity")}</p>}
           <ol className="relative space-y-0 border-s border-border ps-5">
             {(showAllTx ? txs : txs.slice(0, 5)).map((x) => (
               <li key={x.id} className="relative pb-5 last:pb-0">

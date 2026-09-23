@@ -208,6 +208,22 @@ a.surface:hover, button.surface:hover { border-color: rgb(var(--accent) / .45); 
 }
 @media (prefers-reduced-motion: reduce) { .sheen { animation: none; } }
 
+/* gold pulse on the balance card when a code credits funds */
+@keyframes goldflash {
+  0% { box-shadow: 0 0 0 0 rgb(201 169 98 / .5); }
+  100% { box-shadow: 0 0 0 26px rgb(201 169 98 / 0); }
+}
+.gold-flash { animation: goldflash 1.3s ease-out 2; }
+
+/* "+$X" chip floats up and fades after a credit */
+@keyframes creditfloat {
+  0% { opacity: 0; transform: translateY(10px) scale(.9); }
+  15% { opacity: 1; transform: translateY(0) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
+.credit-float { animation: creditfloat 2.6s ease-out forwards; }
+
 /* bottom sheet — mobile confirmations */
 @keyframes sheetup { from { transform: translateY(100%); } }
 .sheet {

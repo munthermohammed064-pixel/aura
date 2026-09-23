@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Nav } from "@/components/Nav";
 import { GlassCard } from "@/components/Glass";
-import { api, API_URL } from "@/lib/api";
+import { api, API_URL, getToken } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { Stars } from "@/components/Stars";
 
@@ -28,6 +28,14 @@ export default function Profile() {
   const [sessions, setSessions] = useState<Sess[]>([]);
   const [verifyToken, setVerifyToken] = useState("");
   const [msg, setMsg] = useState("");
+
+  // Which session is THIS device — decode the sid from the access token.
+  const currentSid = (() => {
+    try {
+      const tok = getToken();
+      return tok ? (JSON.parse(atob(tok.split(".")[1])) as { sid?: string }).sid ?? "" : "";
+    } catch { return ""; }
+  })();
 
   const load = () => {
     api<Me>("/auth/me").then((u) => {
@@ -242,20 +250,47 @@ export default function Profile() {
           <h2 className="mb-4 font-medium">{t("active_sessions")}</h2>
           {sessions.length === 0 && <p className="text-xs text-muted">{t("no_sessions")}</p>}
           <div className="space-y-2">
-            {sessions.map((s) => (
-              <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-xs">{s.user_agent || t("unknown_device")}</p>
-                  <p className="text-[10px] text-muted">{s.ip} — {new Date(s.created_at).toLocaleDateString("en-US")}</p>
+            {sessions.map((s) => {
+              const current = s.id === currentSid;
+              return (
+                <div key={s.id} className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 ${
+                  current ? "border-accent/40 bg-accent/5" : "border-border"}`}>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium">
+                      {parseUA(s.user_agent) || t("unknown_device")}
+                      {current && <span className="ms-2 rounded-full bg-accent/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-accent">{t("this_session")}</span>}
+                    </p>
+                    <p className="text-[10px] text-muted">{s.ip} · {new Date(s.created_at).toLocaleDateString("en-US")}</p>
+                  </div>
+                  {!current && (
+                    <button className="btn-ghost shrink-0 px-3 py-1 text-[10px]" onClick={() => revoke(s.id)}>
+                      {t("end_session")}
+                    </button>
+                  )}
                 </div>
-                <button className="btn-ghost shrink-0 px-3 py-1 text-[10px]" onClick={() => revoke(s.id)}>
-                  {t("revoke")}
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </GlassCard>
       </div>
     </main>
   );
+}
+
+// "Mozilla/5.0 (Linux; Android 13…) Chrome/…" → "Chrome · Android"
+function parseUA(ua: string): string {
+  if (!ua) return "";
+  const browser = /Telegram/i.test(ua) ? "Telegram"
+    : /Edg\//.test(ua) ? "Edge"
+    : /CriOS\//.test(ua) ? "Chrome"
+    : /FxiOS\//.test(ua) ? "Firefox"
+    : /Chrome\//.test(ua) ? "Chrome"
+    : /Firefox\//.test(ua) ? "Firefox"
+    : /Safari\//.test(ua) ? "Safari" : "";
+  const os = /iPhone|iPad/.test(ua) ? "iOS"
+    : /Android/.test(ua) ? "Android"
+    : /Windows/.test(ua) ? "Windows"
+    : /Mac OS/.test(ua) ? "macOS"
+    : /Linux/.test(ua) ? "Linux" : "";
+  return [browser, os].filter(Boolean).join(" · ");
 }
