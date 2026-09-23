@@ -77,7 +77,7 @@ export default function Landing() {
                       <p className="font-mono text-[10px] tracking-wider text-white/45">{p.duration_days}d · {t("incl_weekends")}</p>
                     </div>
                     <div className="text-end">
-                      <p className="font-display text-xl text-accent">${Number(p.min_deposit).toLocaleString()}</p>
+                      <p className="font-display text-xl text-accent">${Number(p.min_deposit).toLocaleString("en-US")}</p>
                       <p className="font-mono text-[10px] text-white/45">{t("daily")} {p.return_min_amount != null ? `>$${p.return_min_amount}` : "—"}</p>
                     </div>
                   </div>
@@ -128,7 +128,7 @@ export default function Landing() {
                       {p.description && <span className="mt-0.5 block text-xs text-muted">{p.description}</span>}
                     </td>
                     <td className="px-5 py-4 font-display text-lg text-accent">
-                      ${Number(p.min_deposit).toLocaleString()}
+                      ${Number(p.min_deposit).toLocaleString("en-US")}
                     </td>
                     <td className="px-5 py-4 text-ink/85">
                       {p.return_min_amount != null ? `> $${p.return_min_amount}` : "—"}

@@ -191,11 +191,11 @@ export default function Dashboard() {
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="text-sm capitalize">{t(x.kind)}</p>
                   <p className={`font-mono text-sm ${x.direction === "credit" ? "text-green" : "text-muted"}`}>
-                    {x.direction === "credit" ? "+" : "−"}${Number(x.amount).toLocaleString()}
+                    {x.direction === "credit" ? "+" : "−"}${Number(x.amount).toLocaleString("en-US")}
                   </p>
                 </div>
                 <p className="mt-0.5 text-[11px] text-muted">
-                  {t(x.direction)} · {new Date(x.created_at).toLocaleDateString()}
+                  {t(x.direction)} · {new Date(x.created_at).toLocaleDateString("en-US")}
                 </p>
               </li>
             ))}
@@ -242,7 +242,7 @@ function WalletSplit({ wallet }: { wallet: Wallet | null }) {
           <div key={p.label} className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full" style={{ background: p.c }} />
             <span className="text-muted">{p.label}</span>
-            <span className="ml-auto font-mono">${p.v.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            <span className="ml-auto font-mono">${p.v.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
           </div>
         ))}
       </div>
@@ -266,7 +266,7 @@ function TxBars({ txs }: { txs: Tx[] }) {
         <div key={kind}>
           <div className="mb-1 flex justify-between text-[11px]">
             <span className="capitalize text-muted">{t(kind)}</span>
-            <span className="font-mono">${amt.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            <span className="font-mono">${amt.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-ink/5">
             <div className="h-full rounded-full bg-accent transition-all duration-700"

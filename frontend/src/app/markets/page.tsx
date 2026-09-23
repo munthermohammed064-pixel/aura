@@ -33,7 +33,7 @@ export default function Markets() {
           {Object.entries(prices).map(([id, p]) => (
             <GlassCard key={id} hover>
               <p className="text-sm capitalize text-muted">{id}</p>
-              <p className="mt-2 text-2xl font-semibold">${p.usd.toLocaleString()}</p>
+              <p className="mt-2 text-2xl font-semibold">${p.usd.toLocaleString("en-US")}</p>
               <p className={`mt-1 text-xs ${(p.usd_24h_change ?? 0) >= 0 ? "text-green-700" : "text-red-600"}`}>
                 {(p.usd_24h_change ?? 0).toFixed(2)}% 24h
               </p>
@@ -52,7 +52,7 @@ export default function Markets() {
             {fx.pairs.map((p) => (
               <GlassCard key={p.pair} hover className="!p-4">
                 <p className="font-mono text-xs text-muted">{p.pair}</p>
-                <p className="font-display mt-1.5 text-xl tracking-tight">{p.rate.toLocaleString(undefined, { minimumFractionDigits: 4 })}</p>
+                <p className="font-display mt-1.5 text-xl tracking-tight">{p.rate.toLocaleString("en-US", { minimumFractionDigits: 4 })}</p>
               </GlassCard>
             ))}
             {fx.pairs.length === 0 && (

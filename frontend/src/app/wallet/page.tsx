@@ -99,13 +99,13 @@ export default function WalletPage() {
       <tbody>{rows.map((r) => (
         <tr key={r.id} className="border-t border-border">
           <td className="py-2">
-            ${Number(r.amount).toLocaleString()}
+            ${Number(r.amount).toLocaleString("en-US")}
             {(r.star_penalty ?? 0) > 0 && (
-              <p className="text-[10px] text-red-600">−${Number(r.star_penalty).toLocaleString()} {t("star_penalty")}</p>
+              <p className="text-[10px] text-red-600">−${Number(r.star_penalty).toLocaleString("en-US")} {t("star_penalty")}</p>
             )}
           </td>
           <td className="py-2 capitalize">{t(r.status)}</td>
-          <td className="py-2 text-muted">{new Date(r.created_at).toLocaleDateString()}</td>
+          <td className="py-2 text-muted">{new Date(r.created_at).toLocaleDateString("en-US")}</td>
         </tr>
       ))}</tbody>
     </table>
@@ -151,7 +151,7 @@ export default function WalletPage() {
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium">{m.name}</span>
                       <span className="block font-mono text-[10px] text-muted">
-                        ${m.min_amount} – ${Number(m.max_amount).toLocaleString()}
+                        ${m.min_amount} – ${Number(m.max_amount).toLocaleString("en-US")}
                       </span>
                     </span>
                   </button>

@@ -42,7 +42,7 @@ export default function MyPackages() {
         <div className="flex items-start justify-between">
           <div>
             <p className="font-display text-xl">{i.package_name}</p>
-            <p className="font-display mt-1 text-3xl tracking-tight">${i.amount.toLocaleString()}</p>
+            <p className="font-display mt-1 text-3xl tracking-tight">${i.amount.toLocaleString("en-US")}</p>
           </div>
           <span className={`rounded-full px-3 py-1 text-xs ${
             i.status === "active" ? "bg-accent/15 text-accent" : "bg-ink/10 text-muted"
@@ -55,8 +55,8 @@ export default function MyPackages() {
             <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${pct}%` }} />
           </div>
           <div className="mt-2 flex justify-between text-xs text-muted">
-            <span>{new Date(i.started_at).toLocaleDateString()}</span>
-            <span>{new Date(i.ends_at).toLocaleDateString()}</span>
+            <span>{new Date(i.started_at).toLocaleDateString("en-US")}</span>
+            <span>{new Date(i.ends_at).toLocaleDateString("en-US")}</span>
           </div>
         </div>
         <div className="mt-4 flex justify-between border-t border-border pt-3 text-sm">
@@ -67,7 +67,7 @@ export default function MyPackages() {
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-muted">{t("realized_return")}</span>
-          <span className="text-accent">${i.realized_return.toLocaleString()}</span>
+          <span className="text-accent">${i.realized_return.toLocaleString("en-US")}</span>
         </div>
       </GlassCard>
     );

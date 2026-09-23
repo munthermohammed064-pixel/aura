@@ -481,7 +481,7 @@ export default function AdminConsole() {
                 <tbody>{packages.map((p) => (
                   <tr key={p.id} className="border-t border-border">
                     <td className="py-2">{p.name}</td>
-                    <td className="py-2">${Number(p.min_deposit).toLocaleString()}</td>
+                    <td className="py-2">${Number(p.min_deposit).toLocaleString("en-US")}</td>
                     <td className="py-2">{p.return_min_amount != null ? `$${p.return_min_amount}–$${p.return_max_amount}` : `${p.yield_min_pct}–${p.yield_max_pct}%`}</td>
                     <td className="py-2">{p.duration_days}</td>
                     <td className="py-2">{p.is_active ? t("yes") : t("no")}</td>
@@ -514,9 +514,9 @@ export default function AdminConsole() {
                     <p className="font-mono text-[10px] text-accent">{i.user_serial}</p>
                   </td>
                   <td className="py-2">{i.package_name}</td>
-                  <td className="py-2">${Number(i.amount).toLocaleString()}</td>
-                  <td className="py-2">${Number(i.realized_return).toLocaleString()}</td>
-                  <td className="py-2 text-xs text-muted">{new Date(i.ends_at).toLocaleDateString()}</td>
+                  <td className="py-2">${Number(i.amount).toLocaleString("en-US")}</td>
+                  <td className="py-2">${Number(i.realized_return).toLocaleString("en-US")}</td>
+                  <td className="py-2 text-xs text-muted">{new Date(i.ends_at).toLocaleDateString("en-US")}</td>
                   <td className="py-2 capitalize">{t(i.status)}</td>
                   <td className="py-2">
                     {i.status === "active" && (
@@ -570,12 +570,12 @@ export default function AdminConsole() {
                   <pre className="whitespace-pre-wrap font-mono text-xs">{`NEXORA — trading code
 
 ${published.code}
-${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at).toLocaleString() : "—"}`}</pre>
+${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at).toLocaleString("en-US") : "—"}`}</pre>
                   <button className="btn-ghost mt-2 px-3 py-1 text-xs"
                     onClick={() => navigator.clipboard.writeText(`NEXORA — trading code
 
 ${published.code}
-${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at).toLocaleString() : ""}`).then(() => toast(t("copied"), "ok"))}>
+${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at).toLocaleString("en-US") : ""}`).then(() => toast(t("copied"), "ok"))}>
                     {t("copy")}
                   </button>
                 </div>
@@ -593,7 +593,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                   return (
                     <tr key={c.id} className="border-t border-border">
                       <td className="py-2 font-mono text-xs font-semibold">{c.code}</td>
-                      <td className="py-2 text-xs text-muted">{c.expires_at ? new Date(c.expires_at).toLocaleString() : "—"}</td>
+                      <td className="py-2 text-xs text-muted">{c.expires_at ? new Date(c.expires_at).toLocaleString("en-US") : "—"}</td>
                       <td className="py-2 text-xs">{c.is_active && !expired
                         ? <span className="text-ok">{t("codes_active")}</span>
                         : <span className="text-muted">{t("codes_expired")}</span>}</td>
@@ -658,7 +658,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                     <p className="text-xs">{d.user_email}</p>
                     <p className="font-mono text-[10px] text-accent">{d.user_serial}</p>
                   </td>
-                  <td className="py-2">${Number(d.amount).toLocaleString()}</td>
+                  <td className="py-2">${Number(d.amount).toLocaleString("en-US")}</td>
                   <td className="py-2 text-xs">{d.method}</td>
                   <td className="py-2 capitalize">{t(d.status)}</td>
                   <td className="py-2 text-xs">
@@ -714,12 +714,12 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                   </td>
                   <td className="whitespace-nowrap py-3 pe-4">
                     <p className="font-display text-base font-semibold text-accent">
-                      ${Number(w.net_payout ?? w.amount).toLocaleString()}
+                      ${Number(w.net_payout ?? w.amount).toLocaleString("en-US")}
                     </p>
                     <p className="mt-0.5 text-[10px] text-muted">
-                      ${Number(w.amount).toLocaleString()}
-                      {(w.fee ?? 0) > 0 && <> − ${Number(w.fee).toLocaleString()} {t("fee")}</>}
-                      {(w.star_penalty ?? 0) > 0 && <> · −${Number(w.star_penalty).toLocaleString()} ★</>}
+                      ${Number(w.amount).toLocaleString("en-US")}
+                      {(w.fee ?? 0) > 0 && <> − ${Number(w.fee).toLocaleString("en-US")} {t("fee")}</>}
+                      {(w.star_penalty ?? 0) > 0 && <> · −${Number(w.star_penalty).toLocaleString("en-US")} ★</>}
                     </p>
                   </td>
                   <td className="max-w-56 py-3 pe-4">
@@ -820,7 +820,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                     </div>
                   </td>
                   <td className="py-2 text-xs text-muted">
-                    {u.wallet ? `$${Number(u.wallet.available).toLocaleString()} ${t("avail_inv_fmt")} · $${Number(u.wallet.invested).toLocaleString()} ${t("inv_short")}` : "—"}
+                    {u.wallet ? `$${Number(u.wallet.available).toLocaleString("en-US")} ${t("avail_inv_fmt")} · $${Number(u.wallet.invested).toLocaleString("en-US")} ${t("inv_short")}` : "—"}
                   </td>
                   <td className="max-w-40 py-2" onClick={(e) => e.stopPropagation()}>
                     {u.default_withdraw_address ? (
@@ -901,7 +901,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                     </div>
                     {r.qr_image && <a href={`${apiBase}${r.qr_image}`} target="_blank" className="mt-1 block text-[10px] text-accent underline">QR</a>}
                   </td>
-                  <td className="whitespace-nowrap py-3 pe-4 font-display text-sm text-accent">−${Number(r.fee).toLocaleString()}</td>
+                  <td className="whitespace-nowrap py-3 pe-4 font-display text-sm text-accent">−${Number(r.fee).toLocaleString("en-US")}</td>
                   <td className="py-3 pe-4">
                     <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-medium capitalize ${WD_STATUS[r.status] ?? "border-white/10 bg-white/5 text-muted"}`}>
                       {t(r.status)}
@@ -912,7 +912,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                       <div className="flex gap-1.5">
                         <button className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-black transition hover:brightness-110"
                           onClick={() => act(`/admin/address-requests/${r.id}/approve`)}
-                          title={`${t("approve")} · −$${Number(r.fee).toLocaleString()}`}>
+                          title={`${t("approve")} · −$${Number(r.fee).toLocaleString("en-US")}`}>
                           {t("approve")}
                         </button>
                         <button className="rounded-full border border-red-400/25 px-3 py-1 text-xs text-red-300 transition hover:bg-red-400/10"
@@ -976,7 +976,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                       {m.details && <p className="mt-0.5 max-w-56 truncate font-mono text-[10px] text-muted" title={m.details}>{m.details}</p>}
                     </td>
                     <td className="whitespace-nowrap py-3 pe-4 text-[10px] text-muted">
-                      {m.min_amount > 0 || m.max_amount > 0 ? `$${Number(m.min_amount).toLocaleString()} – ${m.max_amount > 0 ? `$${Number(m.max_amount).toLocaleString()}` : "∞"}` : "—"}
+                      {m.min_amount > 0 || m.max_amount > 0 ? `$${Number(m.min_amount).toLocaleString("en-US")} – ${m.max_amount > 0 ? `$${Number(m.max_amount).toLocaleString("en-US")}` : "∞"}` : "—"}
                     </td>
                     <td className="py-3 pe-4">
                       {m.qr_image ? (
@@ -1152,7 +1152,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                     )}
                   </td>
                   <td className="py-2 text-muted">{a.target_type} {a.target_id?.slice(0, 8)}</td>
-                  <td className="py-2 text-muted">{new Date(a.created_at).toLocaleString()}</td>
+                  <td className="py-2 text-muted">{new Date(a.created_at).toLocaleString("en-US")}</td>
                 </tr>
               ))}</tbody>
             </table>
@@ -1243,7 +1243,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                       </div>
                       <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted">
                         {detail.user.full_name && <span>{detail.user.full_name}</span>}
-                        <span>{t("joined")}: {detail.user.created_at ? new Date(detail.user.created_at).toLocaleDateString() : "—"}</span>
+                        <span>{t("joined")}: {detail.user.created_at ? new Date(detail.user.created_at).toLocaleDateString("en-US") : "—"}</span>
                         <span>{t("verified")}: {detail.user.email_verified ? t("yes") : t("no")}</span>
                         <span>{t("custom_fee")}: {detail.user.withdraw_fee_pct != null ? `${detail.user.withdraw_fee_pct}%` : "—"}</span>
                       </div>
@@ -1258,7 +1258,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                         {[["available", detail.wallet.available], ["pending", detail.wallet.pending], ["invested", detail.wallet.invested]].map(([k, v]) => (
                           <div key={k as string} className="rounded-xl border border-border bg-white/[0.03] p-3 text-center">
                             <p className="text-[10px] uppercase tracking-wide text-muted">{t(k as string)}</p>
-                            <p className="mt-1 font-display text-lg">${Number(v).toLocaleString()}</p>
+                            <p className="mt-1 font-display text-lg">${Number(v).toLocaleString("en-US")}</p>
                           </div>
                         ))}
                       </div>
@@ -1275,7 +1275,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                       <div className="max-h-40 space-y-1.5 overflow-y-auto">
                         {detail.deposits.map((d) => (
                           <div key={d.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-3 py-2 text-xs">
-                            <span>${Number(d.amount).toLocaleString()} · {d.method}</span>
+                            <span>${Number(d.amount).toLocaleString("en-US")} · {d.method}</span>
                             <span className="flex items-center gap-2">
                               {d.screenshot && (
                                 <button onClick={() => setPreview(`${apiBase}${d.screenshot}`)} className="text-accent underline">{t("view")}</button>
@@ -1293,8 +1293,8 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                       <div className="max-h-40 space-y-1.5 overflow-y-auto">
                         {detail.withdrawals.map((w) => (
                           <div key={w.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-3 py-2 text-xs">
-                            <span>${Number(w.amount).toLocaleString()}
-                              {(w.star_penalty ?? 0) > 0 && <span className="text-red-300"> (−${Number(w.star_penalty).toLocaleString()})</span>}
+                            <span>${Number(w.amount).toLocaleString("en-US")}
+                              {(w.star_penalty ?? 0) > 0 && <span className="text-red-300"> (−${Number(w.star_penalty).toLocaleString("en-US")})</span>}
                             </span>
                             <span className="capitalize text-muted">{t(w.status)}{w.txid ? " · " + w.txid.slice(0, 10) : ""}</span>
                           </div>
@@ -1308,9 +1308,9 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                       <div className="max-h-40 space-y-1.5 overflow-y-auto">
                         {detail.investments.map((i) => (
                           <div key={i.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-3 py-2 text-xs">
-                            <span>{i.package_name ?? "—"} · ${Number(i.amount).toLocaleString()}</span>
+                            <span>{i.package_name ?? "—"} · ${Number(i.amount).toLocaleString("en-US")}</span>
                             <span className="capitalize text-muted">
-                              {t(i.status)}{i.realized_return ? ` +$${Number(i.realized_return).toLocaleString()}` : ""}
+                              {t(i.status)}{i.realized_return ? ` +$${Number(i.realized_return).toLocaleString("en-US")}` : ""}
                             </span>
                           </div>
                         ))}
@@ -1325,11 +1325,11 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                           <div key={e.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-3 py-1.5 text-[11px]">
                             <span className="text-muted">
                               <span className={e.direction === "credit" ? "text-emerald-300" : "text-red-300"}>
-                                {e.direction === "credit" ? "+" : "−"}${Number(e.amount).toLocaleString()}
+                                {e.direction === "credit" ? "+" : "−"}${Number(e.amount).toLocaleString("en-US")}
                               </span>
                               {" "}{e.kind} · {e.bucket}
                             </span>
-                            <span className="shrink-0 text-muted">{e.created_at ? new Date(e.created_at).toLocaleDateString() : ""}</span>
+                            <span className="shrink-0 text-muted">{e.created_at ? new Date(e.created_at).toLocaleDateString("en-US") : ""}</span>
                           </div>
                         ))}
                         {detail.ledger.length === 0 && <p className="text-xs text-muted">—</p>}

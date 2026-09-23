@@ -44,7 +44,7 @@ export function CountUp({ value, decimals = 2, prefix = "", className = "" }: {
 
   return (
     <span ref={ref} className={`tabular ${className}`}>
-      {prefix}{display.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: decimals })}
+      {prefix}{display.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: decimals })}
     </span>
   );
 }

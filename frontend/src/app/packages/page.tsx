@@ -62,7 +62,7 @@ export default function Packages() {
         </span>
       </div>
       <dl className="mt-4 space-y-2 text-sm">
-        <div className="flex justify-between"><dt className="text-muted">{t("price")}</dt><dd className="font-display text-lg text-accent">${Number(selected.min_deposit).toLocaleString()}</dd></div>
+        <div className="flex justify-between"><dt className="text-muted">{t("price")}</dt><dd className="font-display text-lg text-accent">${Number(selected.min_deposit).toLocaleString("en-US")}</dd></div>
         <div className="flex justify-between"><dt className="text-muted">{t("daily")}</dt><dd>{selected.return_min_amount != null ? `> $${selected.return_min_amount}` : "—"}</dd></div>
         <div className="flex justify-between"><dt className="text-muted">{t("duration")}</dt><dd>{selected.duration_days} {t("days")} · {t("incl_weekends")}</dd></div>
       </dl>
@@ -72,7 +72,7 @@ export default function Packages() {
         {t("reg_ack")}
       </label>
       <button className="btn mt-4 w-full" onClick={invest}>
-        {t("activate_for")} ${Number(selected.min_deposit).toLocaleString()}
+        {t("activate_for")} ${Number(selected.min_deposit).toLocaleString("en-US")}
       </button>
     </div>
   );
@@ -100,7 +100,7 @@ export default function Packages() {
                       ))}
                     </span>
                   </div>
-                  <p className="font-display mt-2 text-4xl tracking-tight">${Number(p.min_deposit).toLocaleString()}</p>
+                  <p className="font-display mt-2 text-4xl tracking-tight">${Number(p.min_deposit).toLocaleString("en-US")}</p>
                   <div className="mt-auto border-t border-border pt-3">
                     <div className="flex items-baseline justify-between">
                       <p className="text-[10px] uppercase tracking-widest text-muted">{t("daily")}</p>

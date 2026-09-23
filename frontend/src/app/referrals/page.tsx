@@ -63,7 +63,7 @@ export default function Referrals() {
             <tbody>{data?.referred.map((u) => (
               <tr key={u.id} className="border-t border-border">
                 <td className="break-all py-2">{u.email}</td>
-                <td className="py-2 text-right text-muted">{new Date(u.joined).toLocaleDateString()}</td>
+                <td className="py-2 text-right text-muted">{new Date(u.joined).toLocaleDateString("en-US")}</td>
               </tr>
             ))}</tbody>
           </table>
@@ -80,8 +80,8 @@ export default function Referrals() {
               <tr key={c.id} className="border-t border-border">
                 <td className="py-2">L{c.level}</td>
                 <td className="py-2">{c.pct}%</td>
-                <td className="py-2">${Number(c.amount).toLocaleString()}</td>
-                <td className="py-2 text-muted">{new Date(c.created_at).toLocaleDateString()}</td>
+                <td className="py-2">${Number(c.amount).toLocaleString("en-US")}</td>
+                <td className="py-2 text-muted">{new Date(c.created_at).toLocaleDateString("en-US")}</td>
               </tr>
             ))}</tbody>
           </table>
