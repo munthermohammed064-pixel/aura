@@ -33,9 +33,9 @@ export default function Login() {
   return (
     <AuthShell title={t("welcome_back")} sub={t("sign_in_sub")}>
       <form onSubmit={submit} className="space-y-3">
-        <input className="input" type="email" placeholder={t("email")} required
+        <input className="input" type="email" placeholder={t("email")} required autoComplete="email" inputMode="email"
           onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <input className="input" type="password" placeholder={t("password")} required
+        <input className="input" type="password" placeholder={t("password")} required autoComplete="current-password"
           onChange={(e) => setForm({ ...form, password: e.target.value })} />
         {error && <p className="text-xs text-red-400">{error}</p>}
         <button className="btn w-full disabled:opacity-50" type="submit" disabled={busy}>{t("login")}</button>

@@ -36,13 +36,13 @@ function RegisterForm() {
   return (
     <>
       <form onSubmit={submit} className="space-y-3">
-        <input className="input" placeholder={t("full_name")}
+        <input className="input" placeholder={t("full_name")} autoComplete="name"
           onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
-        <input className="input" type="email" placeholder={t("email")} required
+        <input className="input" type="email" placeholder={t("email")} required autoComplete="email" inputMode="email"
           onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <input className="input" type="password" placeholder={t("password_ph")} required minLength={8}
+        <input className="input" type="password" placeholder={t("password_ph")} required minLength={8} autoComplete="new-password"
           onChange={(e) => setForm({ ...form, password: e.target.value })} />
-        <input className="input" placeholder={t("ref_code_ph")} value={form.referral_code}
+        <input className="input" placeholder={t("ref_code_ph")} value={form.referral_code} autoComplete="off"
           onChange={(e) => setForm({ ...form, referral_code: e.target.value })} />
         <label className="flex items-start gap-2 text-xs text-muted">
           <input type="checkbox" className="mt-0.5" checked={ack} onChange={(e) => setAck(e.target.checked)} />

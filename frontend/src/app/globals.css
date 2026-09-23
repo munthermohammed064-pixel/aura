@@ -129,6 +129,7 @@ a.surface:hover, button.surface:hover { border-color: rgb(var(--accent) / .45); 
   color: rgb(var(--bg));
 }
 .btn:hover { filter: brightness(1.15); }
+.btn:active, .btn-ghost:active { transform: scale(.97); }
 .btn-ghost {
   @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition;
   border: 1px solid rgb(var(--ink) / .16);
@@ -143,7 +144,12 @@ a.surface:hover, button.surface:hover { border-color: rgb(var(--accent) / .45); 
   border: 1px solid rgb(var(--border));
   color: rgb(var(--ink));
 }
-.input:focus { border-color: rgb(var(--accent)); }
+.input:focus { border-color: rgb(var(--accent)); box-shadow: 0 0 0 3px rgb(var(--accent) / .14); }
+
+/* number spinners are not premium */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .input::placeholder { color: rgb(var(--muted) / .7); }
 
 .disclaimer {

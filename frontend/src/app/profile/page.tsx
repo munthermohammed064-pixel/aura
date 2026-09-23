@@ -49,8 +49,10 @@ export default function Profile() {
   useEffect(load, []);
 
   const save = async () => {
-    await api("/profile", { method: "PUT", body: JSON.stringify(form) });
-    setMsg(t("saved"));
+    try {
+      await api("/profile", { method: "PUT", body: JSON.stringify(form) });
+      setMsg(t("saved"));
+    } catch (e) { setMsg(e instanceof Error ? e.message : t("failed")); }
   };
 
   const changePw = async () => {

@@ -31,19 +31,20 @@ export default function WalletPage() {
   const [whitelist, setWhitelist] = useState<string | null>(null);
   const [stars, setStars] = useState(4);
   const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState(false);
   const [confirmWd, setConfirmWd] = useState(false);
   const [wdBusy, setWdBusy] = useState(false);
   const [cfg, setCfg] = useState<Cfg>({ withdrawal_fee_pct: 0, withdrawal_fee_flat: 0 });
   const [feePct, setFeePct] = useState<number | null>(null);
 
   const load = () => {
-    api<Wallet>("/wallet").then(setWallet).catch(() => {});
+    api<Wallet>("/wallet").then((w) => { setWallet(w); setLoadErr(false); }).catch(() => setLoadErr(true));
     api<Method[]>("/payment-methods").then((m) => {
       setMethods(m);
       if (m[0]) setDep((d) => ({ ...d, method: d.method || m[0].name }));
-    }).catch(() => {});
-    api<Row[]>("/deposits").then(setDeposits).catch(() => {});
-    api<Row[]>("/withdrawals").then(setWithdrawals).catch(() => {});
+    }).catch(() => setLoadErr(true));
+    api<Row[]>("/deposits").then(setDeposits).catch(() => setLoadErr(true));
+    api<Row[]>("/withdrawals").then(setWithdrawals).catch(() => setLoadErr(true));
     api<Me>("/auth/me").then((u) => {
       setWhitelist(u.default_withdraw_address);
       setStars(u.stars ?? 4);
@@ -139,6 +140,12 @@ export default function WalletPage() {
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("wallet")} />
+        {loadErr && (
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-red-600/25 bg-red-600/5 px-4 py-2.5">
+            <p className="text-xs text-red-700">{t("load_failed")}</p>
+            <button onClick={() => { setLoadErr(false); load(); }} className="text-xs font-medium text-accent hover:underline">{t("retry")}</button>
+          </div>
+        )}
         <div className="grid gap-4 md:grid-cols-3">
           {(["available", "pending", "invested"] as const).map((k) => (
             <GlassCard key={k} className="glow-card">
