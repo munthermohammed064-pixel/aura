@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n";
 
 export default function Login() {
   const router = useRouter();
-  const { t } = useT();
+  const { t, terr } = useT();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -25,7 +25,7 @@ export default function Login() {
       setTokens(tk.access_token, tk.refresh_token);
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("login_failed"));
+      setError(err instanceof Error ? terr(err.message) : t("login_failed"));
       setBusy(false);
     }
   };

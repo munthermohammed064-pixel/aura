@@ -18,7 +18,7 @@ type Row = { id: string; amount: number; status: string; created_at: string };
 type Item = { id: string; kind: string; amount: number; at: string; dir: string; status: string | null };
 
 export default function ActivityPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState(false);
@@ -58,7 +58,7 @@ export default function ActivityPage() {
     const today = new Date(); const y = new Date(); y.setDate(y.getDate() - 1);
     if (d.toDateString() === today.toDateString()) return t("today");
     if (d.toDateString() === y.toDateString()) return t("yesterday");
-    return d.toLocaleDateString("en-US", { dateStyle: "medium" });
+    return d.toLocaleDateString(lang, { dateStyle: "medium" });
   };
   const paged = items.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
   const groups = new Map<string, Item[]>();
@@ -105,7 +105,7 @@ export default function ActivityPage() {
                           </p>
                         </div>
                         <p className="mt-0.5 text-[11px] text-muted tabular-nums">
-                          {new Date(x.at).toLocaleTimeString("en-US", { timeStyle: "short" })}
+                          {new Date(x.at).toLocaleTimeString(lang, { timeStyle: "short" })}
                         </p>
                       </li>
                     ))}

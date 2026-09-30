@@ -11,7 +11,7 @@ import { useT } from "@/lib/i18n";
 function RegisterForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const { t } = useT();
+  const { t, terr } = useT();
   const [form, setForm] = useState({
     email: "", password: "", full_name: "",
     referral_code: params.get("ref") ?? "",
@@ -29,7 +29,7 @@ function RegisterForm() {
       setTokens(tk.access_token, tk.refresh_token);
       router.push("/profile#verify-email");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("reg_failed"));
+      setError(err instanceof Error ? terr(err.message) : t("reg_failed"));
     }
   };
 
@@ -59,7 +59,7 @@ function RegisterForm() {
 }
 
 export default function Register() {
-  const { t } = useT();
+  const { t, terr } = useT();
   return (
     <AuthShell title={t("create_account")} sub={t("register_sub")}>
       <Suspense><RegisterForm /></Suspense>

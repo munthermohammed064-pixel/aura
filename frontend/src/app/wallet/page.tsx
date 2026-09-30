@@ -6,20 +6,20 @@ import { PageHeader } from "@/components/PageHeader";
 import { CountUp } from "@/components/CountUp";
 import { Disclaimer, GlassCard } from "@/components/Glass";
 import { api, API_URL } from "@/lib/api";
-import { useT } from "@/lib/i18n";
+import { useT, localized } from "@/lib/i18n";
 import { useToast } from "@/components/Toast";
 import { SkeletonRows } from "@/components/Skeleton";
 import { StatusPill } from "@/components/StatusPill";
 import { useNotifyStream } from "@/lib/useNotifyStream";
 
-type Method = { id: string; name: string; details: string; qr_image: string; min_amount: number; max_amount: number };
+type Method = { id: string; name: string; details: string; qr_image: string; min_amount: number; max_amount: number; i18n?: Record<string, Record<string, string | undefined>> | null };
 type Wallet = { available: number; pending: number; invested: number };
 type Row = { id: string; amount: number; status: string; created_at: string; method?: string; address?: string; fee?: number; star_penalty?: number };
 type Me = { default_withdraw_address: string | null; stars: number; withdraw_fee_pct: number | null };
 type Cfg = { withdrawal_fee_pct: number; withdrawal_fee_flat: number };
 
 export default function WalletPage() {
-  const { t } = useT();
+  const { t, terr, lang } = useT();
   const { toast } = useToast();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [methods, setMethods] = useState<Method[]>([]);
@@ -77,7 +77,7 @@ export default function WalletPage() {
       toast(t("dep_submitted"));
       setShot(null);
       load();
-    } catch (e) { toast(e instanceof Error ? e.message : t("failed"), "err"); }
+    } catch (e) { toast(e instanceof Error ? terr(e.message) : t("failed"), "err"); }
     setUploading(false);
   };
 
@@ -103,7 +103,7 @@ export default function WalletPage() {
       setConfirmWd(false);
       setWd({ ...wd, amount: "" });
       load();
-    } catch (e) { toast(e instanceof Error ? e.message : t("failed"), "err"); }
+    } catch (e) { toast(e instanceof Error ? terr(e.message) : t("failed"), "err"); }
     setWdBusy(false);
   };
 
@@ -130,7 +130,7 @@ export default function WalletPage() {
             )}
           </td>
           <td className="py-2"><StatusPill status={r.status} /></td>
-          <td className="py-2 text-muted tabular-nums">{new Date(r.created_at).toLocaleDateString("en-US")}</td>
+          <td className="py-2 text-muted tabular-nums">{new Date(r.created_at).toLocaleDateString(lang)}</td>
         </tr>
       ))}</tbody>
     </table>
@@ -176,11 +176,11 @@ export default function WalletPage() {
                         className="h-10 w-10 shrink-0 rounded-lg border border-border object-cover" />
                     ) : (
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-border font-display text-sm text-accent">
-                        {m.name.slice(0, 2).toUpperCase()}
+                        {localized(m.i18n, lang, "name", m.name).slice(0, 2).toUpperCase()}
                       </span>
                     )}
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium">{m.name}</span>
+                      <span className="block truncate text-sm font-medium">{localized(m.i18n, lang, "name", m.name)}</span>
                       <span className="block font-mono text-[10px] text-muted">
                         ${m.min_amount} – ${Number(m.max_amount).toLocaleString("en-US")}
                       </span>
@@ -195,17 +195,17 @@ export default function WalletPage() {
               return m ? (
                 <div className="mb-3">
                   {m.qr_image && (
-                    <img src={`${API_URL.replace("/api", "")}${m.qr_image}`} alt="Payment QR"
+                    <img src={`${API_URL.replace("/api", "")}${m.qr_image}`} alt={t("alt_qr")}
                       className="mx-auto mb-2 h-40 w-40 rounded-xl border border-border bg-white object-contain p-1" />
                   )}
-                  {m.details && <p className="whitespace-pre-wrap break-all rounded-xl bg-ink/[0.04] px-3 py-2 font-mono text-xs text-muted">{m.details}</p>}
+                  {localized(m.i18n, lang, "details", m.details) && <p className="whitespace-pre-wrap break-all rounded-xl bg-ink/[0.04] px-3 py-2 font-mono text-xs text-muted">{localized(m.i18n, lang, "details", m.details)}</p>}
                 </div>
               ) : null;
             })()}
             <Step n={2} label={t("step_proof")} done={!!shot} />
             {shot ? (
               <div className="mb-3 overflow-hidden rounded-xl border border-accent/30">
-                <img src={URL.createObjectURL(shot)} alt="Payment proof"
+                <img src={URL.createObjectURL(shot)} alt={t("alt_proof")}
                   className="max-h-44 w-full object-contain bg-black/40" />
                 <div className="flex items-center justify-between px-3 py-2">
                   <p className="truncate text-[10px] text-muted">{shot.name}</p>

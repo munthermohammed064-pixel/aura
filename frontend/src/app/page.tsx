@@ -9,25 +9,31 @@ import { Logo } from "@/components/Logo";
 import { USFlag } from "@/components/USFlag";
 import { Reveal } from "@/components/Reveal";
 import { Seal } from "@/components/Seal";
-import { useT } from "@/lib/i18n";
+import { useT, localized } from "@/lib/i18n";
 
 type Pkg = {
   id: string; name: string; description: string;
   min_deposit: number; max_deposit: number;
   return_min_amount: number | null; return_max_amount: number | null;
   duration_days: number;
+  i18n?: Record<string, { name?: string; description?: string }> | null;
 };
 
+type FaqBlob = { items?: { q: string; a: string }[] } & Record<string, { q: string; a: string }[] | undefined>;
+
 export default function Landing() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [packages, setPackages] = useState<Pkg[]>([]);
-  const [faq, setFaq] = useState<{ q: string; a: string }[]>([]);
+  const [faqData, setFaqData] = useState<FaqBlob>({});
   const [openQ, setOpenQ] = useState<number | null>(null);
 
   useEffect(() => {
     api<Pkg[]>("/packages", { auth: false }).then(setPackages).catch(() => {});
-    api<{ q: string; a: string }[]>("/faq", { auth: false }).then(setFaq).catch(() => {});
+    api<FaqBlob>("/faq", { auth: false }).then(setFaqData).catch(() => {});
   }, []);
+
+  // Per-language FAQ items; `items` is the default-language fallback.
+  const faq = faqData[`items_${lang}`] ?? faqData.items ?? [];
 
   const glance = [packages[2], packages[5], packages[8]].filter(Boolean);
 
@@ -37,7 +43,7 @@ export default function Landing() {
 
       {/* ── Hero — cinematic LA dusk, split layout ── */}
       <section className="on-dark relative flex min-h-[88vh] flex-col justify-center overflow-hidden md:min-h-[92vh]">
-        <Image src="/la-hero.jpg" alt="Los Angeles skyline at dusk" fill priority sizes="100vw"
+        <Image src="/la-hero.jpg" alt={t("alt_hero")} fill priority sizes="100vw"
           className="hero-photo kenburns" />
         <div className="hero-scrim" />
 
@@ -73,8 +79,8 @@ export default function Landing() {
                 {glance.map((p) => (
                   <div key={p.id} className="flex items-baseline justify-between border-b border-white/10 py-3.5 last:border-0">
                     <div>
-                      <p className="font-display text-lg">{p.name}</p>
-                      <p className="font-mono text-[10px] tracking-wider text-white/45">{p.duration_days}d · {t("incl_weekends")}</p>
+                      <p className="font-display text-lg">{localized(p.i18n, lang, "name", p.name)}</p>
+                      <p className="font-mono text-[10px] tracking-wider text-white/45">{t("days_incl_weekends", { d: p.duration_days })}</p>
                     </div>
                     <div className="text-end">
                       <p className="font-display text-xl text-accent">${Number(p.min_deposit).toLocaleString("en-US")}</p>
@@ -95,9 +101,9 @@ export default function Landing() {
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-2 px-4 py-3.5 text-[10px] uppercase tracking-[0.22em] text-white/50">
             <span>9 {t("packages")}</span>
             <span className="text-accent/70">·</span>
-            <span>365 {t("days")} · {t("incl_weekends")}</span>
+            <span>{t("days_incl_weekends", { d: 365 })}</span>
             <span className="text-accent/70">·</span>
-            <span>Los Angeles, CA</span>
+            <span>{t("la_location")}</span>
           </div>
         </div>
       </section>
@@ -105,7 +111,6 @@ export default function Landing() {
       {/* ── 01 · Packages — ivory, editorial table ── */}
       <section id="packages" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-20">
         <Reveal>
-          <p className="sec-num mb-3 text-center">01 — {t("packages")}</p>
           <h2 className="font-display text-center text-3xl tracking-tight md:text-4xl">{t("packages")}</h2>
           <div className="rule-gold mt-5" />
         </Reveal>
@@ -124,8 +129,8 @@ export default function Landing() {
                 {packages.map((p) => (
                   <tr key={p.id} className="border-b border-border/60 transition last:border-0 hover:bg-ink/[0.03]">
                     <td className="px-5 py-4">
-                      <span className="font-display text-base">{p.name}</span>
-                      {p.description && <span className="mt-0.5 block text-xs text-muted">{p.description}</span>}
+                      <span className="font-display text-base">{localized(p.i18n, lang, "name", p.name)}</span>
+                      {(() => { const d = localized(p.i18n, lang, "description", p.description); return d && <span className="mt-0.5 block text-xs text-muted">{d}</span>; })()}
                     </td>
                     <td className="px-5 py-4 font-display text-lg text-accent">
                       ${Number(p.min_deposit).toLocaleString("en-US")}
@@ -133,7 +138,7 @@ export default function Landing() {
                     <td className="px-5 py-4 text-ink/85">
                       {p.return_min_amount != null ? `> $${p.return_min_amount}` : "—"}
                     </td>
-                    <td className="px-5 py-4 text-muted">{p.duration_days} {t("days")} · {t("incl_weekends")}</td>
+                    <td className="px-5 py-4 text-muted">{t("days_incl_weekends", { d: p.duration_days })}</td>
                   </tr>
                 ))}
               </tbody>
@@ -148,7 +153,7 @@ export default function Landing() {
         <div className="mx-auto max-w-6xl">
           <Reveal>
             <div className="photo-band relative h-64 md:h-80">
-              <Image src="/la-skyline.jpg" alt="Los Angeles at night" fill sizes="(max-width:768px) 100vw, 1152px"
+              <Image src="/la-skyline.jpg" alt={t("alt_band")} fill sizes="(max-width:768px) 100vw, 1152px"
                 className="kenburns object-cover" />
               <div className="absolute bottom-5 left-6 z-10">
                 <p className="text-xs uppercase tracking-[0.3em] text-white/60">{PLATFORM_NAME}</p>
@@ -164,7 +169,6 @@ export default function Landing() {
       {faq.length > 0 && (
         <section className="mx-auto max-w-3xl px-4 py-20">
           <Reveal>
-            <p className="sec-num mb-3 text-center">02 — {t("faq_title")}</p>
             <h2 className="font-display text-center text-3xl tracking-tight">{t("faq_title")}</h2>
             <div className="rule-gold mt-5" />
           </Reveal>

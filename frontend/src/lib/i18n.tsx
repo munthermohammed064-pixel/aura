@@ -35,6 +35,7 @@ const dict: Record<string, D> = {
   fx_ecb: { en: "ECB reference rates · daily", ar: "أسعار مرجعية من المركزي الأوروبي · يوميًا", es: "Tipos de referencia del BCE · diario", fr: "Taux de référence BCE · quotidien", tr: "ECB referans kurları · günlük", ru: "Курсы ЕЦБ · ежедневно", de: "EZB-Referenzkurse · täglich" },
   fx_unavailable: { en: "Rates temporarily unavailable.", ar: "الأسعار غير متاحة مؤقتًا.", es: "Tipos no disponibles temporalmente.", fr: "Taux temporairement indisponibles.", tr: "Kurlar geçici olarak kullanılamıyor.", ru: "Курсы временно недоступны.", de: "Kurse vorübergehend nicht verfügbar." },
   incl_weekends: { en: "incl. weekends", ar: "يشمل عطلة الأسبوع", es: "incl. fines de semana", fr: "week-ends inclus", tr: "hafta sonu dahil", ru: "включая выходные", de: "inkl. Wochenenden" },
+  days_incl_weekends: { en: "{d} days · weekends included", ar: "{d} يومًا شاملةً عطلة نهاية الأسبوع", es: "{d} días · fines de semana incluidos", fr: "{d} jours · week-ends inclus", tr: "{d} gün · hafta sonları dahil", ru: "{d} дн · включая выходные", de: "{d} Tage · inkl. Wochenenden" },
   wd_weekend_closed: { en: "Withdrawals are not processed on weekends (Saturday–Sunday). Please submit on a weekday.", ar: "لا تُعالَج السحوبات في عطلة نهاية الأسبوع (السبت–الأحد). يُرجى الإرسال في يوم عمل.", es: "Los retiros no se procesan los fines de semana (sábado–domingo). Envíe en día laborable.", fr: "Les retraits ne sont pas traités le week-end (samedi–dimanche). Veuillez soumettre en semaine.", tr: "Hafta sonları (Cumartesi–Pazar) çekim işlemi yapılmaz. Lütfen hafta içi gönderin.", ru: "Выводы не обрабатываются в выходные (сб–вс). Отправьте запрос в будний день.", de: "Auszahlungen werden am Wochenende (Sa–So) nicht bearbeitet. Bitte an einem Werktag einreichen." },
   support: { en: "Support", ar: "الدعم", es: "Soporte", fr: "Support", tr: "Destek", ru: "Поддержка", de: "Support" },
   profile: { en: "Profile", ar: "الملف الشخصي", es: "Perfil", fr: "Profil", tr: "Profil", ru: "Профиль", de: "Profil" },
@@ -375,6 +376,7 @@ const dict: Record<string, D> = {
   method_details_ph: { en: "Wallet address / instructions", ar: "عنوان المحفظة / التعليمات", es: "Dirección / instrucciones", fr: "Adresse / instructions", tr: "Cüzdan adresi / talimatlar", ru: "Адрес кошелька / инструкции", de: "Wallet-Adresse / Anweisungen" },
   method_required: { en: "Enter a name and wallet address first.", ar: "أدخل الاسم وعنوان المحفظة أولًا.", es: "Ingresa nombre y dirección primero.", fr: "Saisissez d'abord le nom et l'adresse.", tr: "Önce ad ve cüzdan adresi gir.", ru: "Сначала введите название и адрес.", de: "Zuerst Name und Adresse eingeben." },
   confirm_delete: { en: "Delete this? This cannot be undone.", ar: "حذف هذا؟ لا يمكن التراجع.", es: "¿Eliminar? No se puede deshacer.", fr: "Supprimer ? Irréversible.", tr: "Silinsin mi? Geri alınamaz.", ru: "Удалить? Действие необратимо.", de: "Löschen? Nicht rückgängig machbar." },
+  confirm_delete_user: { en: "Delete {email} and ALL their data (deposits, withdrawals, investments, history)? This cannot be undone.", ar: "حذف {email} وكل بياناته (الإيداعات والسحوبات والاستثمارات والسجل)؟ لا يمكن التراجع.", es: "¿Eliminar a {email} y TODOS sus datos (depósitos, retiros, inversiones, historial)? No se puede deshacer.", fr: "Supprimer {email} et TOUTES ses données (dépôts, retraits, investissements, historique) ? Irréversible.", tr: "{email} ve TÜM verileri (yatırmalar, çekimler, yatırımlar, geçmiş) silinsin mi? Geri alınamaz.", ru: "Удалить {email} и ВСЕ данные (депозиты, выводы, инвестиции, историю)? Действие необратимо.", de: "{email} und ALLE Daten löschen (Einzahlungen, Auszahlungen, Anlagen, Verlauf)? Nicht rückgängig machbar." },
   limits: { en: "Limits", ar: "الحدود", es: "Límites", fr: "Limites", tr: "Limitler", ru: "Лимиты", de: "Limits" },
   qr_selected: { en: "QR selected:", ar: "QR محدد:", es: "QR seleccionado:", fr: "QR sélectionné :", tr: "QR seçildi:", ru: "QR выбран:", de: "QR ausgewählt:" },
   upload_qr: { en: "Upload QR / barcode image shown to users", ar: "ارفع صورة QR / باركود تُعرض للمستخدمين", es: "Sube la imagen QR/código mostrada a usuarios", fr: "Téléchargez l'image QR/code-barres montrée aux utilisateurs", tr: "Kullanıcılara gösterilecek QR/barkod görselini yükle", ru: "Загрузите QR/штрихкод для пользователей", de: "QR-/Barcode-Bild für Nutzer hochladen" },
@@ -589,10 +591,133 @@ const dict: Record<string, D> = {
   is_active: { en: "Active", ar: "مفعّل", es: "Activo", fr: "Actif", tr: "Aktif", ru: "Активен", de: "Aktiv" },
   txid: { en: "TxID", ar: "معرّف التحويل", es: "TxID", fr: "TxID", tr: "TxID", ru: "TxID", de: "TxID" },
   admin_only: { en: "Admin access required.", ar: "هذه الصفحة للأدمن فقط.", es: "Se requiere acceso de administrador.", fr: "Accès administrateur requis.", tr: "Yönetici erişimi gerekli.", ru: "Требуется доступ администратора.", de: "Administratorzugriff erforderlich." },
+  // ---------- accessibility / misc ----------
+  alt_hero: { en: "Los Angeles skyline at dusk", ar: "أفق لوس أنجلوس عند الغروب", es: "Skyline de Los Ángeles al atardecer", fr: "Skyline de Los Angeles au crépuscule", tr: "Gün batımında Los Angeles silüeti", ru: "Силуэт Лос-Анджелеса в сумерках", de: "Skyline von Los Angeles in der Dämmerung" },
+  alt_band: { en: "Los Angeles at night", ar: "لوس أنجلوس ليلًا", es: "Los Ángeles de noche", fr: "Los Angeles la nuit", tr: "Geceleri Los Angeles", ru: "Лос-Анджелес ночью", de: "Los Angeles bei Nacht" },
+  alt_barcode: { en: "Wallet barcode", ar: "باركود المحفظة", es: "Código de barras", fr: "Code-barres du portefeuille", tr: "Cüzdan barkodu", ru: "Штрихкод кошелька", de: "Wallet-Barcode" },
+  alt_qr: { en: "Payment QR", ar: "رمز QR للدفع", es: "QR de pago", fr: "QR de paiement", tr: "Ödeme QR kodu", ru: "QR для оплаты", de: "Zahlungs-QR" },
+  alt_proof: { en: "Payment proof", ar: "إثبات الدفع", es: "Comprobante de pago", fr: "Preuve de paiement", tr: "Ödeme kanıtı", ru: "Подтверждение оплаты", de: "Zahlungsnachweis" },
+  aria_language: { en: "Language", ar: "اللغة", es: "Idioma", fr: "Langue", tr: "Dil", ru: "Язык", de: "Sprache" },
+  aria_menu: { en: "Menu", ar: "القائمة", es: "Menú", fr: "Menu", tr: "Menü", ru: "Меню", de: "Menü" },
+  aria_usa: { en: "USA", ar: "الولايات المتحدة", es: "EE. UU.", fr: "États-Unis", tr: "ABD", ru: "США", de: "USA" },
+  la_location: { en: "Los Angeles, CA", ar: "لوس أنجلوس، كاليفورنيا", es: "Los Ángeles, CA", fr: "Los Angeles, CA", tr: "Los Angeles, CA", ru: "Лос-Анджелес, Калифорния", de: "Los Angeles, CA" },
+  content_lang: { en: "Content language", ar: "لغة المحتوى", es: "Idioma del contenido", fr: "Langue du contenu", tr: "İçerik dili", ru: "Язык контента", de: "Inhaltssprache" },
+  base_lang_tag: { en: "default", ar: "افتراضي", es: "predeterminado", fr: "défaut", tr: "varsayılan", ru: "по умолч.", de: "Standard" },
+  content_lang_hint: {
+    en: "The default language is the fallback shown when a translation is missing.",
+    ar: "اللغة الافتراضية هي البديل المعروض عند غياب ترجمة.",
+    es: "El idioma predeterminado se muestra cuando falta una traducción.",
+    fr: "La langue par défaut s'affiche quand une traduction manque.",
+    tr: "Varsayılan dil, çeviri eksikse gösterilen yedektir.",
+    ru: "Язык по умолчанию показывается, когда перевода нет.",
+    de: "Die Standardsprache wird angezeigt, wenn eine Übersetzung fehlt.",
+  },
+  // ---------- API error translation ----------
+  err_amount_range: { en: "Amount must be between {a} and {b}", ar: "المبلغ يجب أن يكون بين {a} و {b}", es: "El importe debe estar entre {a} y {b}", fr: "Le montant doit être entre {a} et {b}", tr: "Tutar {a} ile {b} arasında olmalı", ru: "Сумма должна быть от {a} до {b}", de: "Betrag muss zwischen {a} und {b} liegen" },
+  err_insufficient: { en: "Insufficient {a} balance", ar: "رصيد {a} غير كافٍ", es: "Saldo {a} insuficiente", fr: "Solde {a} insuffisant", tr: "{a} bakiyesi yetersiz", ru: "Недостаточно средств ({a})", de: "Unzureichendes {a}-Guthaben" },
+  err_already_status: { en: "Already {a}", ar: "الحالة بالفعل {a}", es: "Ya está {a}", fr: "Déjà {a}", tr: "Zaten {a}", ru: "Уже {a}", de: "Bereits {a}" },
+  err_unknown_pkg: { en: "Unknown package {a}", ar: "باقة غير معروفة {a}", es: "Paquete desconocido {a}", fr: "Offre inconnue {a}", tr: "Bilinmeyen paket {a}", ru: "Неизвестный пакет {a}", de: "Unbekanntes Paket {a}" },
+  err_pkg_range: { en: "{a}: amount must stay inside its range ({b})", ar: "{a}: المبلغ يجب أن يبقى ضمن نطاقها ({b})", es: "{a}: el importe debe estar dentro de su rango ({b})", fr: "{a} : le montant doit rester dans sa plage ({b})", tr: "{a}: tutar aralığında kalmalı ({b})", ru: "{a}: сумма должна быть в диапазоне ({b})", de: "{a}: Betrag muss im Bereich ({b}) bleiben" },
+  err_request_failed: { en: "Request failed ({a})", ar: "فشل الطلب ({a})", es: "Solicitud fallida ({a})", fr: "Requête échouée ({a})", tr: "İstek başarısız ({a})", ru: "Запрос не выполнен ({a})", de: "Anfrage fehlgeschlagen ({a})" },
 };
 
-const LangCtx = createContext<{ lang: Lang; setLang: (l: Lang) => void; t: (k: string, params?: Record<string, unknown>) => string }>({
-  lang: "en", setLang: () => {}, t: (k) => k,
+// Backend error strings → localized messages. The API answers in English;
+// `terr()` maps known messages so users never see raw server text.
+const errDict: Record<string, D> = {
+  "A change request is already pending review": { en: "A change request is already pending review", ar: "يوجد طلب تغيير قيد المراجعة مسبقًا", es: "Ya hay una solicitud de cambio pendiente", fr: "Une demande de changement est déjà en attente", tr: "Zaten incelenmekte olan bir değişiklik talebi var", ru: "Заявка на изменение уже на рассмотрении", de: "Es wartet bereits eine Änderungsanfrage auf Prüfung" },
+  "Account disabled": { en: "Account disabled", ar: "الحساب معطّل", es: "Cuenta desactivada", fr: "Compte désactivé", tr: "Hesap devre dışı", ru: "Аккаунт отключён", de: "Konto deaktiviert" },
+  "Already entered": { en: "Already entered", ar: "تم الدخول مسبقًا", es: "Ya participaste", fr: "Déjà participé", tr: "Zaten katıldın", ru: "Уже участвуете", de: "Bereits teilgenommen" },
+  "An admin session is already active — sign out of it first": { en: "An admin session is already active — sign out of it first", ar: "توجد جلسة أدمن نشطة — سجّل الخروج منها أولًا", es: "Ya hay una sesión de administrador activa — ciérrala primero", fr: "Une session admin est déjà active — déconnectez-la d'abord", tr: "Zaten aktif bir yönetici oturumu var — önce ondan çıkın", ru: "Сессия администратора уже активна — сначала выйдите из неё", de: "Eine Admin-Sitzung ist bereits aktiv — melden Sie sich zuerst dort ab" },
+  "Cannot deactivate your own account": { en: "Cannot deactivate your own account", ar: "لا يمكنك تعطيل حسابك الخاص", es: "No puedes desactivar tu propia cuenta", fr: "Impossible de désactiver votre propre compte", tr: "Kendi hesabını devre dışı bırakamazsın", ru: "Нельзя отключить собственный аккаунт", de: "Eigenes Konto kann nicht deaktiviert werden" },
+  "Code already exists": { en: "Code already exists", ar: "الكود موجود مسبقًا", es: "El código ya existe", fr: "Ce code existe déjà", tr: "Kod zaten mevcut", ru: "Код уже существует", de: "Code existiert bereits" },
+  "Code already redeemed": { en: "Code already redeemed", ar: "تم استرداد هذا الكود مسبقًا", es: "Este código ya fue canjeado", fr: "Ce code a déjà été utilisé", tr: "Bu kod zaten kullanıldı", ru: "Этот код уже погашен", de: "Dieser Code wurde bereits eingelöst" },
+  "Code already sent — wait a minute before resending": { en: "Code already sent — wait a minute before resending", ar: "الرمز أُرسل مسبقًا — انتظر دقيقة قبل إعادة الإرسال", es: "Código ya enviado — espera un minuto antes de reenviar", fr: "Code déjà envoyé — patientez une minute avant de renvoyer", tr: "Kod zaten gönderildi — tekrar göndermeden bir dakika bekle", ru: "Код уже отправлен — подождите минуту перед повторной отправкой", de: "Code bereits gesendet — bitte eine Minute warten" },
+  "Code must be 3–32 chars: A–Z, 0–9, dash": { en: "Code must be 3–32 chars: A–Z, 0–9, dash", ar: "الكود يجب أن يكون 3–32 حرفًا: A–Z، أرقام، شرطة", es: "El código debe tener 3–32 caracteres: A–Z, 0–9, guion", fr: "Le code doit faire 3–32 caractères : A–Z, 0–9, tiret", tr: "Kod 3–32 karakter olmalı: A–Z, 0–9, tire", ru: "Код: 3–32 символа, A–Z, 0–9, дефис", de: "Code: 3–32 Zeichen, A–Z, 0–9, Bindestrich" },
+  "Code not found": { en: "Code not found", ar: "الكود غير موجود", es: "Código no encontrado", fr: "Code introuvable", tr: "Kod bulunamadı", ru: "Код не найден", de: "Code nicht gefunden" },
+  "Could not allocate user serial": { en: "Could not allocate user serial", ar: "تعذّر تخصيص الرقم التسلسلي", es: "No se pudo asignar el serial", fr: "Impossible d'attribuer le numéro de série", tr: "Kullanıcı seri numarası atanamadı", ru: "Не удалось выделить серийный номер", de: "Benutzer-Serie konnte nicht vergeben werden" },
+  "Current password incorrect": { en: "Current password incorrect", ar: "كلمة المرور الحالية غير صحيحة", es: "La contraseña actual es incorrecta", fr: "Mot de passe actuel incorrect", tr: "Mevcut şifre yanlış", ru: "Текущий пароль неверен", de: "Aktuelles Passwort falsch" },
+  "Deposit not found": { en: "Deposit not found", ar: "الإيداع غير موجود", es: "Depósito no encontrado", fr: "Dépôt introuvable", tr: "Yatırma bulunamadı", ru: "Депозит не найден", de: "Einzahlung nicht gefunden" },
+  "Email already registered": { en: "Email already registered", ar: "البريد الإلكتروني مسجل مسبقًا", es: "Correo ya registrado", fr: "E-mail déjà enregistré", tr: "E-posta zaten kayıtlı", ru: "E-mail уже зарегистрирован", de: "E-Mail bereits registriert" },
+  "File content is not a valid image": { en: "File content is not a valid image", ar: "محتوى الملف ليس صورة صالحة", es: "El archivo no es una imagen válida", fr: "Le fichier n'est pas une image valide", tr: "Dosya geçerli bir görsel değil", ru: "Файл не является изображением", de: "Datei ist kein gültiges Bild" },
+  "File empty or larger than 5MB": { en: "File empty or larger than 5MB", ar: "الملف فارغ أو أكبر من 5 ميغابايت", es: "Archivo vacío o mayor de 5MB", fr: "Fichier vide ou supérieur à 5 Mo", tr: "Dosya boş veya 5MB'dan büyük", ru: "Файл пуст или больше 5 МБ", de: "Datei leer oder größer als 5 MB" },
+  "Invalid action": { en: "Invalid action", ar: "إجراء غير صالح", es: "Acción inválida", fr: "Action invalide", tr: "Geçersiz işlem", ru: "Недопустимое действие", de: "Ungültige Aktion" },
+  "Invalid credentials": { en: "Invalid credentials", ar: "بيانات الدخول غير صحيحة", es: "Credenciales inválidas", fr: "Identifiants invalides", tr: "Geçersiz kimlik bilgileri", ru: "Неверные данные для входа", de: "Ungültige Zugangsdaten" },
+  "Invalid or expired code": { en: "Invalid or expired code", ar: "كود غير صالح أو منتهي", es: "Código inválido o caducado", fr: "Code invalide ou expiré", tr: "Geçersiz veya süresi dolmuş kod", ru: "Неверный или истёкший код", de: "Ungültiger oder abgelaufener Code" },
+  "Invalid or expired reset token": { en: "Invalid or expired reset token", ar: "رمز إعادة التعيين غير صالح أو منتهي", es: "Token de restablecimiento inválido o caducado", fr: "Jeton de réinitialisation invalide ou expiré", tr: "Geçersiz veya süresi dolmuş sıfırlama jetonu", ru: "Неверный или истёкший токен сброса", de: "Ungültiger oder abgelaufener Reset-Token" },
+  "Invalid or expired stream ticket": { en: "Invalid or expired stream ticket", ar: "تذكرة البث غير صالحة أو منتهية", es: "Ticket de stream inválido o caducado", fr: "Ticket de flux invalide ou expiré", tr: "Geçersiz veya süresi dolmuş akış bileti", ru: "Неверный или истёкший тикет потока", de: "Ungültiges oder abgelaufenes Stream-Ticket" },
+  "Invalid payment method": { en: "Invalid payment method", ar: "طريقة دفع غير صالحة", es: "Método de pago inválido", fr: "Moyen de paiement invalide", tr: "Geçersiz ödeme yöntemi", ru: "Недопустимый способ оплаты", de: "Ungültige Zahlungsmethode" },
+  "Invalid refresh token": { en: "Invalid refresh token", ar: "رمز التحديث غير صالح", es: "Token de actualización inválido", fr: "Jeton d'actualisation invalide", tr: "Geçersiz yenileme jetonu", ru: "Неверный токен обновления", de: "Ungültiger Refresh-Token" },
+  "Invalid verification token": { en: "Invalid verification token", ar: "رمز التحقق غير صالح", es: "Token de verificación inválido", fr: "Jeton de vérification invalide", tr: "Geçersiz doğrulama jetonu", ru: "Неверный токен подтверждения", de: "Ungültiger Verifizierungs-Token" },
+  "Investment not found": { en: "Investment not found", ar: "الاستثمار غير موجود", es: "Inversión no encontrada", fr: "Investissement introuvable", tr: "Yatırım bulunamadı", ru: "Инвестиция не найдена", de: "Anlage nicht gefunden" },
+  "Login ID already in use": { en: "Login ID already in use", ar: "معرّف الدخول مستخدم مسبقًا", es: "ID de acceso ya en uso", fr: "Identifiant déjà utilisé", tr: "Giriş ID zaten kullanımda", ru: "ID входа уже занят", de: "Login-ID bereits vergeben" },
+  "Method not found": { en: "Method not found", ar: "الطريقة غير موجودة", es: "Método no encontrado", fr: "Méthode introuvable", tr: "Yöntem bulunamadı", ru: "Метод не найден", de: "Methode nicht gefunden" },
+  "New address must differ from the current one": { en: "New address must differ from the current one", ar: "العنوان الجديد يجب أن يختلف عن الحالي", es: "La nueva dirección debe ser distinta de la actual", fr: "La nouvelle adresse doit différer de l'actuelle", tr: "Yeni adres mevcut olandan farklı olmalı", ru: "Новый адрес должен отличаться от текущего", de: "Neue Adresse muss sich von der aktuellen unterscheiden" },
+  "No spins left today": { en: "No spins left today", ar: "لا محاولات متبقية اليوم", es: "Sin giros hoy", fr: "Plus de tours aujourd'hui", tr: "Bugün çevirme hakkın kalmadı", ru: "Сегодня попыток не осталось", de: "Heute keine Drehungen mehr" },
+  "Only PNG/JPEG/WebP images are allowed": { en: "Only PNG/JPEG/WebP images are allowed", ar: "يُسمح فقط بصور PNG/JPEG/WebP", es: "Solo imágenes PNG/JPEG/WebP", fr: "Seules les images PNG/JPEG/WebP sont acceptées", tr: "Yalnızca PNG/JPEG/WebP görseller kabul edilir", ru: "Разрешены только PNG/JPEG/WebP", de: "Nur PNG/JPEG/WebP-Bilder erlaubt" },
+  "Operator not found": { en: "Operator not found", ar: "المشغّل غير موجود", es: "Operador no encontrado", fr: "Opérateur introuvable", tr: "Operatör bulunamadı", ru: "Оператор не найден", de: "Operator nicht gefunden" },
+  "Owner accounts cannot be modified": { en: "Owner accounts cannot be modified", ar: "لا يمكن تعديل حسابات المالك", es: "Las cuentas de propietario no se pueden modificar", fr: "Les comptes propriétaires ne peuvent pas être modifiés", tr: "Sahip hesapları değiştirilemez", ru: "Аккаунты владельца нельзя изменять", de: "Owner-Konten können nicht geändert werden" },
+  "Package not found": { en: "Package not found", ar: "الباقة غير موجودة", es: "Paquete no encontrado", fr: "Offre introuvable", tr: "Paket bulunamadı", ru: "Пакет не найден", de: "Paket nicht gefunden" },
+  "Raffle not available": { en: "Raffle not available", ar: "السحب غير متاح", es: "Sorteo no disponible", fr: "Tirage indisponible", tr: "Çekiliş kullanılamıyor", ru: "Розыгрыш недоступен", de: "Verlosung nicht verfügbar" },
+  "Request not found": { en: "Request not found", ar: "الطلب غير موجود", es: "Solicitud no encontrada", fr: "Demande introuvable", tr: "Talep bulunamadı", ru: "Заявка не найдена", de: "Anfrage nicht gefunden" },
+  "Session revoked": { en: "Session revoked", ar: "تم إلغاء الجلسة", es: "Sesión revocada", fr: "Session révoquée", tr: "Oturum iptal edildi", ru: "Сессия отозвана", de: "Sitzung widerrufen" },
+  "Set an amount for at least one package": { en: "Set an amount for at least one package", ar: "حدّد مبلغًا لباقة واحدة على الأقل", es: "Define un monto para al menos un paquete", fr: "Définissez un montant pour au moins une offre", tr: "En az bir paket için tutar belirle", ru: "Укажите сумму хотя бы для одного пакета", de: "Für mindestens ein Paket einen Betrag festlegen" },
+  "Set your address first — the first setup is free": { en: "Set your address first — the first setup is free", ar: "حدّد عنوانك أولًا — الإعداد الأول مجاني", es: "Configura tu dirección primero — la primera es gratis", fr: "Définissez d'abord votre adresse — la première configuration est gratuite", tr: "Önce adresini belirle — ilk kurulum ücretsiz", ru: "Сначала задайте адрес — первая настройка бесплатна", de: "Legen Sie zuerst Ihre Adresse fest — die erste Einrichtung ist kostenlos" },
+  "Set your withdrawal wallet address in your profile first": { en: "Set your withdrawal wallet address in your profile first", ar: "حدّد عنوان محفظة السحب في ملفك أولًا", es: "Configura tu dirección de retiro en tu perfil primero", fr: "Définissez d'abord votre adresse de retrait dans votre profil", tr: "Önce profilinde çekim cüzdan adresini belirle", ru: "Сначала задайте адрес вывода в профиле", de: "Legen Sie zuerst Ihre Auszahlungsadresse im Profil fest" },
+  "Staff accounts cannot be frozen": { en: "Staff accounts cannot be frozen", ar: "لا يمكن تجميد حسابات الموظفين", es: "Las cuentas de staff no se pueden congelar", fr: "Les comptes du personnel ne peuvent pas être gelés", tr: "Personel hesapları dondurulamaz", ru: "Аккаунты сотрудников нельзя замораживать", de: "Mitarbeiterkonten können nicht eingefroren werden" },
+  "This code does not apply to your packages": { en: "This code does not apply to your packages", ar: "هذا الكود لا ينطبق على باقاتك", es: "Este código no aplica a tus paquetes", fr: "Ce code ne s'applique pas à vos offres", tr: "Bu kod paketlerin için geçerli değil", ru: "Этот код не применим к вашим пакетам", de: "Dieser Code gilt nicht für Ihre Pakete" },
+  "Ticket not found": { en: "Ticket not found", ar: "التذكرة غير موجودة", es: "Ticket no encontrado", fr: "Ticket introuvable", tr: "Talep bulunamadı", ru: "Заявка не найдена", de: "Ticket nicht gefunden" },
+  "Too many attempts — request a new code": { en: "Too many attempts — request a new code", ar: "محاولات كثيرة — اطلب رمزًا جديدًا", es: "Demasiados intentos — solicita un código nuevo", fr: "Trop de tentatives — demandez un nouveau code", tr: "Çok fazla deneme — yeni kod iste", ru: "Слишком много попыток — запросите новый код", de: "Zu viele Versuche — neuen Code anfordern" },
+  "Too many failed attempts — try again in 15 minutes": { en: "Too many failed attempts — try again in 15 minutes", ar: "محاولات فاشلة كثيرة — أعد المحاولة بعد 15 دقيقة", es: "Demasiados intentos fallidos — reintenta en 15 minutos", fr: "Trop d'échecs — réessayez dans 15 minutes", tr: "Çok fazla başarısız deneme — 15 dakika sonra tekrar dene", ru: "Слишком много неудачных попыток — повторите через 15 минут", de: "Zu viele Fehlversuche — in 15 Minuten erneut versuchen" },
+  "User not found": { en: "User not found", ar: "المستخدم غير موجود", es: "Usuario no encontrado", fr: "Utilisateur introuvable", tr: "Kullanıcı bulunamadı", ru: "Пользователь не найден", de: "Benutzer nicht gefunden" },
+  "Verification code expired — request a new one": { en: "Verification code expired — request a new one", ar: "انتهت صلاحية رمز التحقق — اطلب رمزًا جديدًا", es: "El código de verificación caducó — solicita uno nuevo", fr: "Le code de vérification a expiré — demandez-en un nouveau", tr: "Doğrulama kodunun süresi doldu — yeni kod iste", ru: "Код подтверждения истёк — запросите новый", de: "Bestätigungscode abgelaufen — neuen anfordern" },
+  "Verification email could not be sent. Try again shortly.": { en: "Verification email could not be sent. Try again shortly.", ar: "تعذّر إرسال بريد التحقق. أعد المحاولة بعد قليل.", es: "No se pudo enviar el correo de verificación. Reintenta en breve.", fr: "L'e-mail de vérification n'a pas pu être envoyé. Réessayez bientôt.", tr: "Doğrulama e-postası gönderilemedi. Kısa süre sonra tekrar dene.", ru: "Не удалось отправить письмо с кодом. Повторите позже.", de: "Bestätigungs-E-Mail konnte nicht gesendet werden. Bitte gleich erneut versuchen." },
+  "Wheel disabled": { en: "Wheel disabled", ar: "العجلة معطّلة", es: "Ruleta desactivada", fr: "Roue désactivée", tr: "Çark devre dışı", ru: "Колесо отключено", de: "Rad deaktiviert" },
+  "Withdrawal address is locked. Contact support to change it.": { en: "Withdrawal address is locked. Contact support to change it.", ar: "عنوان السحب مقفل. تواصل مع الدعم لتغييره.", es: "La dirección de retiro está bloqueada. Contacta soporte para cambiarla.", fr: "L'adresse de retrait est verrouillée. Contactez le support pour la changer.", tr: "Çekim adresi kilitli. Değiştirmek için desteğe yaz.", ru: "Адрес вывода заблокирован. Для смены обратитесь в поддержку.", de: "Auszahlungsadresse ist gesperrt. Zum Ändern den Support kontaktieren." },
+  "Withdrawal not found": { en: "Withdrawal not found", ar: "السحب غير موجود", es: "Retiro no encontrado", fr: "Retrait introuvable", tr: "Çekim bulunamadı", ru: "Вывод не найден", de: "Auszahlung nicht gefunden" },
+  "Withdrawals are not processed on weekends (Saturday–Sunday)": { en: "Withdrawals are not processed on weekends (Saturday–Sunday)", ar: "لا تُعالَج السحوبات في عطلة نهاية الأسبوع (السبت–الأحد)", es: "Los retiros no se procesan los fines de semana (sábado–domingo)", fr: "Les retraits ne sont pas traités le week-end (samedi–dimanche)", tr: "Hafta sonları (Cumartesi–Pazar) çekim işlemi yapılmaz", ru: "Выводы не обрабатываются в выходные (сб–вс)", de: "Auszahlungen werden am Wochenende (Sa–So) nicht bearbeitet" },
+  "Withdrawals are only allowed to your registered wallet address": { en: "Withdrawals are only allowed to your registered wallet address", ar: "السحوبات مسموحة فقط إلى عنوان محفظتك المسجّل", es: "Los retiros solo van a tu dirección registrada", fr: "Les retraits ne sont autorisés que vers votre adresse enregistrée", tr: "Çekimler yalnızca kayıtlı cüzdan adresine yapılır", ru: "Вывод разрешён только на зарегистрированный адрес", de: "Auszahlungen nur an Ihre registrierte Wallet-Adresse" },
+  "You must accept the terms to continue": { en: "You must accept the terms to continue", ar: "يجب قبول الشروط للمتابعة", es: "Debes aceptar los términos para continuar", fr: "Vous devez accepter les conditions pour continuer", tr: "Devam etmek için şartları kabul etmelisin", ru: "Чтобы продолжить, примите условия", de: "Sie müssen die Bedingungen akzeptieren" },
+  "You need an active package to redeem a code": { en: "You need an active package to redeem a code", ar: "تحتاج إلى باقة فعّالة لاسترداد الكود", es: "Necesitas un paquete activo para canjear el código", fr: "Une offre active est requise pour utiliser le code", tr: "Kodu kullanmak için aktif bir paket gerekli", ru: "Для погашения кода нужен активный пакет", de: "Zum Einlösen ist ein aktives Paket erforderlich" },
+  "Unauthorized": { en: "Session expired — please sign in again", ar: "انتهت الجلسة — سجّل الدخول مجددًا", es: "Sesión caducada — inicia sesión de nuevo", fr: "Session expirée — reconnectez-vous", tr: "Oturum süresi doldu — tekrar giriş yap", ru: "Сессия истекла — войдите снова", de: "Sitzung abgelaufen — bitte erneut anmelden" },
+  "Invalid image path": { en: "Invalid image path", ar: "مسار الصورة غير صالح", es: "Ruta de imagen inválida", fr: "Chemin d'image invalide", tr: "Geçersiz görsel yolu", ru: "Недопустимый путь к изображению", de: "Ungültiger Bildpfad" },
+  "Invalid bucket": { en: "Invalid bucket", ar: "حساب غير صالح", es: "Categoría inválida", fr: "Compartiment invalide", tr: "Geçersiz kalem", ru: "Недопустимый счёт", de: "Ungültiges Konto" },
+  "Invalid direction": { en: "Invalid direction", ar: "اتجاه غير صالح", es: "Dirección inválida", fr: "Direction invalide", tr: "Geçersiz yön", ru: "Недопустимое направление", de: "Ungültige Richtung" },
+  "Wallet not found": { en: "Wallet not found", ar: "المحفظة غير موجودة", es: "Billetera no encontrada", fr: "Portefeuille introuvable", tr: "Cüzdan bulunamadı", ru: "Кошелёк не найден", de: "Wallet nicht gefunden" },
+  "Amount must be positive": { en: "Amount must be positive", ar: "المبلغ يجب أن يكون موجبًا", es: "El importe debe ser positivo", fr: "Le montant doit être positif", tr: "Tutar pozitif olmalı", ru: "Сумма должна быть положительной", de: "Betrag muss positiv sein" },
+  "Account frozen": { en: "Account frozen — contact support", ar: "الحساب مجمّد — تواصل مع الدعم", es: "Cuenta congelada — contacta soporte", fr: "Compte gelé — contactez le support", tr: "Hesap donduruldu — desteğe yaz", ru: "Аккаунт заморожен — обратитесь в поддержку", de: "Konto eingefroren — Support kontaktieren" },
+  "Invalid or expired token": { en: "Session expired — please sign in again", ar: "انتهت الجلسة — سجّل الدخول مجددًا", es: "Sesión caducada — inicia sesión de nuevo", fr: "Session expirée — reconnectez-vous", tr: "Oturum süresi doldu — tekrar giriş yap", ru: "Сессия истекла — войдите снова", de: "Sitzung abgelaufen — bitte erneut anmelden" },
+  "User inactive or not found": { en: "Account unavailable — sign in again", ar: "الحساب غير متاح — سجّل الدخول مجددًا", es: "Cuenta no disponible — inicia sesión de nuevo", fr: "Compte indisponible — reconnectez-vous", tr: "Hesap kullanılamıyor — tekrar giriş yap", ru: "Аккаунт недоступен — войдите снова", de: "Konto nicht verfügbar — bitte erneut anmelden" },
+  "Admin access required": { en: "Admin access required", ar: "يتطلب صلاحية أدمن", es: "Se requiere acceso de administrador", fr: "Accès administrateur requis", tr: "Yönetici erişimi gerekli", ru: "Требуется доступ администратора", de: "Admin-Zugriff erforderlich" },
+  "Owner access required": { en: "Owner access required", ar: "يتطلب صلاحية المالك", es: "Se requiere acceso de propietario", fr: "Accès propriétaire requis", tr: "Sahip erişimi gerekli", ru: "Требуется доступ владельца", de: "Owner-Zugriff erforderlich" },
+  // pydantic / validation fallbacks seen by users
+  "Field required": { en: "Required field missing", ar: "حقل مطلوب ناقص", es: "Falta un campo obligatorio", fr: "Champ obligatoire manquant", tr: "Zorunlu alan eksik", ru: "Обязательное поле не заполнено", de: "Pflichtfeld fehlt" },
+  "value is not a valid email address": { en: "Not a valid email address", ar: "بريد إلكتروني غير صالح", es: "Correo no válido", fr: "Adresse e-mail invalide", tr: "Geçersiz e-posta adresi", ru: "Неверный адрес эл. почты", de: "Keine gültige E-Mail-Adresse" },
+};
+
+// Dynamic backend messages — captured params feed {a}/{b} slots.
+const ERR_RULES: [RegExp, string][] = [
+  [/^Amount must be between ([\d.,]+) and ([\d.,]+)/, "err_amount_range"],
+  [/^Insufficient (\w+) balance/, "err_insufficient"],
+  [/^(?:Deposit|Withdrawal) already (\w+)/, "err_already_status"],
+  [/^Unknown package (.+)/, "err_unknown_pkg"],
+  [/^(.+): amount must stay inside its range \((.+)\)/, "err_pkg_range"],
+  [/^Request failed \((\d+)\)/, "err_request_failed"],
+];
+
+// Pick a translated field from an admin-authored `i18n` column:
+// { "ar": { "name": "…" } } — falls back to the base column value.
+export function localized(
+  i18n: Record<string, Record<string, string | undefined>> | null | undefined,
+  lang: string,
+  field: string,
+  base: string,
+): string {
+  return i18n?.[lang]?.[field] || base;
+}
+
+
+const LangCtx = createContext<{ lang: Lang; setLang: (l: Lang) => void; t: (k: string, params?: Record<string, unknown>) => string; terr: (raw: string) => string }>({
+  lang: "en", setLang: () => {}, t: (k) => k, terr: (s) => s,
 });
 
 // Apply before paint — no EN flash. Layout NEVER flips: the platform stays LTR
@@ -638,7 +763,27 @@ export function LangProvider({ children }: { children: ReactNode }) {
     return s;
   };
 
-  return <LangCtx.Provider value={{ lang, setLang, t }}>{children}</LangCtx.Provider>;
+  // Server errors arrive in English — map the known ones, else pass through.
+  const terr1 = (raw: string): string => {
+    const hit = errDict[raw];
+    if (hit) return hit[lang] ?? hit.en;
+    for (const [re, key] of ERR_RULES) {
+      const m = raw.match(re);
+      if (!m) continue;
+      // Captured slots may themselves be dict keys (bucket names, statuses).
+      const a = dict[m[1]] ? t(m[1]) : m[1];
+      const b = m[2] ? (dict[m[2]] ? t(m[2]) : m[2]) : undefined;
+      return t(key, b === undefined ? { a } : { a, b });
+    }
+    return raw;
+  };
+  const terr = (raw: string): string => {
+    if (!raw) return t("failed");
+    // api.ts flattens 422 detail arrays with "; " — translate each part.
+    return raw.split("; ").map(terr1).join("; ");
+  };
+
+  return <LangCtx.Provider value={{ lang, setLang, t, terr }}>{children}</LangCtx.Provider>;
 }
 
 export const useT = () => useContext(LangCtx);

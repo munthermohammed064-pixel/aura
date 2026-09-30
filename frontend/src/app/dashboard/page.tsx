@@ -17,7 +17,7 @@ type Tx = { id: string; kind: string; direction: string; amount: number; created
 type Inv = { id: string; package_name: string; amount: number; status: string };
 
 export default function Dashboard() {
-  const { t } = useT();
+  const { t, terr, lang } = useT();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [txs, setTxs] = useState<Tx[]>([]);
   const [invs, setInvs] = useState<Inv[]>([]);
@@ -100,10 +100,7 @@ export default function Dashboard() {
       api<Tx[]>("/wallet/transactions").then(setTxs).catch(() => {});
     } catch (err) {
       const raw = err instanceof Error ? err.message : "";
-      const key = /invalid or expired/i.test(raw) ? "code_err_invalid"
-        : /active package/i.test(raw) || /does not apply/i.test(raw) ? "code_err_no_pkg"
-        : /already redeemed/i.test(raw) ? "code_err_used" : null;
-      setCodeMsg({ ok: false, text: key ? t(key) : raw || "Error" });
+      setCodeMsg({ ok: false, text: raw ? terr(raw) : t("failed") });
     } finally {
       setCodeBusy(false);
     }
@@ -261,7 +258,7 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <p className="mt-0.5 text-[11px] text-muted">
-                  {t(x.direction)} · {new Date(x.created_at).toLocaleDateString("en-US")}
+                  {t(x.direction)} · {new Date(x.created_at).toLocaleDateString(lang)}
                 </p>
               </li>
             ))}

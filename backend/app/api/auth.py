@@ -143,6 +143,21 @@ def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
         seclog.warning("staff_login_no_key user=%s ip=%s", user.id,
                        request.client.host if request.client else "?")
         raise HTTPException(401, "Invalid credentials")
+    if user.role in ("admin", "owner"):
+        # Single-session for staff: a second login while a live session exists
+        # is refused — no silent parallel admin access. Refresh rotation keeps
+        # the *same* session alive; only genuinely new logins are blocked.
+        now = datetime.now(timezone.utc)
+        live = db.query(UserSession).filter(
+            UserSession.user_id == user.id, UserSession.revoked.is_(False)).all()
+        for s in live:
+            exp = s.expires_at
+            if exp and exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            if not exp or exp > now:
+                seclog.warning("staff_second_login_blocked user=%s ip=%s", user.id,
+                               request.client.host if request.client else "?")
+                raise HTTPException(409, "An admin session is already active — sign out of it first")
     user.login_attempts = 0
     user.login_locked_until = None
     return _issue_tokens(db, user, request)

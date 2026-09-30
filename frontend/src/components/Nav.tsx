@@ -179,7 +179,7 @@ export function Nav() {
               </Link>
             )}
             {authed && (
-              <button onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu"
+              <button onClick={() => setMenuOpen(!menuOpen)} aria-label={t("aria_menu")}
                 className="grid h-10 w-10 place-items-center rounded-full border border-border bg-surface transition hover:border-ink/20 md:hidden">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                   {menuOpen

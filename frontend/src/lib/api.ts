@@ -29,6 +29,11 @@ function panelKey(): string | null {
 let loginRedirecting = false;
 
 function redirectToLogin() {
+  // The staff console has its own login gate — sending staff to /login
+  // strands them: clearTokens() already wiped nx_panel, so staff creds are
+  // refused there and every retry just fails. Stay put; AdminConsole shows
+  // its own login form when the session is gone.
+  if (window.location.pathname.startsWith("/nx/")) return;
   if (loginRedirecting) return;
   loginRedirecting = true;
   if (window.location.pathname !== "/login") {

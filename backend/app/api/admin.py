@@ -6,19 +6,23 @@ import re
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_admin, get_owner
+from app.core.deps import STAFF_ROLES, get_admin, get_owner
 from app.database import get_db
 from app.models.finance import (
     CodeRedemption, Deposit, Investment, LedgerEntry, Package, PaymentMethod,
     ReferralCommission, TradingCode, Withdrawal,
 )
-from app.models.platform import AuditLog, AddressRequest, Setting, Ticket
+from app.models.platform import (
+    AuditLog, AddressRequest, Notification, Raffle, RaffleEntry, Setting,
+    Ticket, TicketReply, WheelSpin,
+)
 from app.models.user import Session as UserSession
 from app.models.user import User, Wallet
 from app.schemas import (
@@ -258,7 +262,11 @@ def list_users(q: str | None = None, admin: User = Depends(get_admin), db: Sessi
     query = db.query(User).options(joinedload(User.wallet)).filter(User.role == "user")
     if q:
         like = f"%{q}%"
-        query = query.filter((User.email.ilike(like)) | (User.full_name.ilike(like)))
+        cond = (User.email.ilike(like)) | (User.full_name.ilike(like))
+        digits = re.sub(r"\D", "", q)  # "LA0012" / "12" → serial_no 12
+        if digits:
+            cond = cond | (User.serial_no == int(digits))
+        query = query.filter(cond)
     rows = query.order_by(User.serial_no).limit(300).all()
     return [
         {"id": str(u.id), "email": u.email, "serial": u.serial, "full_name": u.full_name,
@@ -337,6 +345,10 @@ def freeze_user(user_id: str, admin: User = Depends(get_admin), db: Session = De
     u = db.get(User, uuid.UUID(user_id))
     if not u:
         raise HTTPException(404, "User not found")
+    if u.role in STAFF_ROLES:
+        # Freezing staff kills their session mid-request — a misclick here
+        # locks the whole console. Staff are managed via /operators only.
+        raise HTTPException(403, "Staff accounts cannot be frozen")
     u.is_frozen = not u.is_frozen
     audit(db, admin, "user.freeze" if u.is_frozen else "user.unfreeze", "user", u.id, {"email": u.email})
     db.commit()
@@ -422,6 +434,55 @@ def admin_set_withdraw_address(user_id: str, data: AdminWithdrawAddressIn,
           {"old": old, "new": data.address, "email": u.email})
     notify_user(db, u.id, "address_updated")
     db.commit()
+    return {"ok": True}
+
+
+@router.delete("/users/{user_id}")
+def delete_user(user_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    """Permanently remove a user and every row they own. Financial history
+    goes with them — the audit log keeps the who/what. Staff and self are
+    refused; staff are managed through /operators."""
+    u = db.get(User, uuid.UUID(user_id))
+    if not u or u.role != "user":
+        raise HTTPException(404, "User not found")
+
+    # Uploaded files to unlink once the transaction commits — failure to
+    # delete a file must not abort the account deletion.
+    files = [d.screenshot for d in db.query(Deposit).filter(Deposit.user_id == u.id)]
+    files += [r.qr_image for r in db.query(AddressRequest).filter(AddressRequest.user_id == u.id)]
+    files.append(u.withdraw_qr_image)
+
+    ticket_ids = [t.id for t in db.query(Ticket.id).filter(Ticket.user_id == u.id)]
+    db.query(TicketReply).filter(TicketReply.author_id == u.id).delete(synchronize_session=False)
+    if ticket_ids:
+        db.query(TicketReply).filter(TicketReply.ticket_id.in_(ticket_ids)).delete(synchronize_session=False)
+    db.query(Ticket).filter(Ticket.user_id == u.id).delete(synchronize_session=False)
+    for model in (Notification, UserSession, LedgerEntry, Investment, Deposit,
+                  Withdrawal, AddressRequest, CodeRedemption, RaffleEntry, WheelSpin):
+        db.query(model).filter(model.user_id == u.id).delete(synchronize_session=False)
+    db.query(ReferralCommission).filter(
+        (ReferralCommission.referrer_id == u.id) | (ReferralCommission.referred_id == u.id)
+    ).delete(synchronize_session=False)
+    db.query(Wallet).filter(Wallet.user_id == u.id).delete(synchronize_session=False)
+    # Back-references that must outlive the user.
+    db.query(User).filter(User.referred_by_id == u.id).update(
+        {"referred_by_id": None}, synchronize_session=False)
+    db.query(TradingCode).filter(TradingCode.created_by == u.id).update(
+        {"created_by": None}, synchronize_session=False)
+    db.query(Raffle).filter(Raffle.winner_id == u.id).update(
+        {"winner_id": None}, synchronize_session=False)
+
+    audit(db, admin, "user.delete", "user", u.id,
+          {"email": u.email, "serial": u.serial})
+    db.delete(u)
+    db.commit()
+
+    for f in files:
+        if f and f.startswith("/uploads/"):
+            try:
+                (Path("uploads") / f.rsplit("/", 1)[-1]).unlink(missing_ok=True)
+            except OSError:
+                pass
     return {"ok": True}
 
 

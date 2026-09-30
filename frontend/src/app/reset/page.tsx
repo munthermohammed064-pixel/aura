@@ -10,7 +10,7 @@ import { useT } from "@/lib/i18n";
 function ResetForm() {
   const params = useSearchParams();
   const router = useRouter();
-  const { t } = useT();
+  const { t, terr } = useT();
   const [token, setToken] = useState(params.get("token") ?? "");
   const [pw, setPw] = useState("");
   const [msg, setMsg] = useState("");
@@ -26,7 +26,7 @@ function ResetForm() {
       setMsg(t("pw_updated"));
       setTimeout(() => router.push("/login"), 1500);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : t("failed"));
+      setErr(e instanceof Error ? terr(e.message) : t("failed"));
     }
   };
 
@@ -49,7 +49,7 @@ function ResetForm() {
 }
 
 export default function Reset() {
-  const { t } = useT();
+  const { t, terr } = useT();
   return (
     <AuthShell title={t("new_pw_title")} sub={t("new_pw_sub")}>
       <Suspense fallback={<p className="text-sm text-muted">{t("loading")}</p>}>

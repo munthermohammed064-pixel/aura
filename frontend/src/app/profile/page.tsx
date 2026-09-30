@@ -16,7 +16,7 @@ type Me = {
 type Sess = { id: string; user_agent: string; ip: string; created_at: string };
 
 export default function Profile() {
-  const { t } = useT();
+  const { t, terr, lang } = useT();
   const [me, setMe] = useState<Me | null>(null);
   const [form, setForm] = useState({ full_name: "" });
   const [addr, setAddr] = useState("");
@@ -52,21 +52,21 @@ export default function Profile() {
     try {
       await api("/profile", { method: "PUT", body: JSON.stringify(form) });
       setMsg(t("saved"));
-    } catch (e) { setMsg(e instanceof Error ? e.message : t("failed")); }
+    } catch (e) { setMsg(e instanceof Error ? terr(e.message) : t("failed")); }
   };
 
   const changePw = async () => {
     try {
       await api("/profile/password", { method: "POST", body: JSON.stringify(pw) });
       setMsg(t("pw_changed"));
-    } catch (e) { setMsg(e instanceof Error ? e.message : t("failed")); }
+    } catch (e) { setMsg(e instanceof Error ? terr(e.message) : t("failed")); }
   };
 
   const sendVerify = async () => {
     try {
       await api("/auth/send-verification", { method: "POST" });
       setMsg(t("verify_sent"));
-    } catch (e) { setMsg(e instanceof Error ? e.message : t("failed")); }
+    } catch (e) { setMsg(e instanceof Error ? terr(e.message) : t("failed")); }
   };
 
   const doVerify = async () => {
@@ -74,7 +74,7 @@ export default function Profile() {
       await api("/auth/verify-email", { method: "POST", body: JSON.stringify({ token: verifyToken }) });
       setMsg(t("email_verified_msg"));
       load();
-    } catch (e) { setMsg(e instanceof Error ? e.message : t("invalid_token")); }
+    } catch (e) { setMsg(e instanceof Error ? terr(e.message) : t("invalid_token")); }
   };
 
   const saveAddr = async () => {
@@ -93,7 +93,7 @@ export default function Profile() {
       setMsg(t("addr_locked"));
       setAddr(""); setAddrQr(null);
       load();
-    } catch (e) { setMsg(e instanceof Error ? e.message : t("failed")); }
+    } catch (e) { setMsg(e instanceof Error ? terr(e.message) : t("failed")); }
     setAddrBusy(false);
   };
 
@@ -113,7 +113,7 @@ export default function Profile() {
       setMsg(t("request_sent"));
       setAddr(""); setAddrQr(null); setChangeOpen(false);
       load();
-    } catch (e) { setMsg(e instanceof Error ? e.message : t("failed")); }
+    } catch (e) { setMsg(e instanceof Error ? terr(e.message) : t("failed")); }
     setAddrBusy(false);
   };
 
@@ -170,7 +170,7 @@ export default function Profile() {
               <p className="text-[10px] uppercase tracking-widest text-muted">{t("approved_address")}</p>
               <p className="mt-1 break-all rounded-xl bg-ink/[0.04] px-3 py-2 font-mono text-xs">{me.default_withdraw_address}</p>
               {me.withdraw_qr_image && (
-                <img src={`${API_URL.replace("/api", "")}${me.withdraw_qr_image}`} alt="Wallet barcode"
+                <img src={`${API_URL.replace("/api", "")}${me.withdraw_qr_image}`} alt={t("alt_barcode")}
                   className="mt-2 h-28 w-28 rounded-xl border border-border object-contain" />
               )}
               <p className="mt-2 flex items-center gap-1.5 text-[10px] text-muted">
@@ -262,7 +262,7 @@ export default function Profile() {
                       {parseUA(s.user_agent) || t("unknown_device")}
                       {current && <span className="ms-2 rounded-full bg-accent/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-accent">{t("this_session")}</span>}
                     </p>
-                    <p className="text-[10px] text-muted">{s.ip} · {new Date(s.created_at).toLocaleDateString("en-US")}</p>
+                    <p className="text-[10px] text-muted">{s.ip} · {new Date(s.created_at).toLocaleDateString(lang)}</p>
                   </div>
                   {!current && (
                     <button className="btn-ghost shrink-0 px-3 py-1 text-[10px]" onClick={() => revoke(s.id)}>

@@ -80,6 +80,8 @@ class PackageIn(BaseModel):
     duration_days: int = Field(gt=0)
     is_active: bool = True
     sort_order: int = 0
+    # {"lang": {"name": "…", "description": "…"}} — optional per-language copy
+    i18n: dict[str, dict[str, str]] | None = None
 
 
 class PackageOut(PackageIn):
@@ -193,3 +195,5 @@ class PaymentMethodIn(BaseModel):
     min_amount: float = 0
     max_amount: float = 0
     is_active: bool = True
+    # {"lang": {"name": "…", "details": "…"}} — optional per-language copy
+    i18n: dict[str, dict[str, str]] | None = None

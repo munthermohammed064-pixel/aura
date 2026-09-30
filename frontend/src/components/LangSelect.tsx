@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { LANGS, useT } from "@/lib/i18n";
 
 export function LangSelect() {
-  const { lang, setLang } = useT();
+  const { lang, setLang, t } = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = LANGS.find((l) => l.code === lang) ?? LANGS[0];
@@ -19,7 +19,7 @@ export function LangSelect() {
 
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen(!open)} aria-label="Language"
+      <button onClick={() => setOpen(!open)} aria-label={t("aria_language")}
         className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-xs transition hover:border-ink/20">
         <span>{current.flag}</span>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

@@ -1,4 +1,9 @@
+"use client";
+
+import { useT } from "@/lib/i18n";
+
 export function USFlag({ size = 20, className = "" }: { size?: number; className?: string }) {
+  const { t } = useT();
   // Canvas: 40×24.8 units. 13 stripes, canton 40% wide × 7 stripes, 9 star rows (6/5 alternating).
   const h = size * 0.62;
   const stripe = 24.8 / 13;
@@ -14,7 +19,7 @@ export function USFlag({ size = 20, className = "" }: { size?: number; className
     }
   }
   return (
-    <svg width={size} height={h} viewBox="0 0 40 24.8" aria-label="USA"
+    <svg width={size} height={h} viewBox="0 0 40 24.8" aria-label={t("aria_usa")}
       className={`inline-block shrink-0 overflow-hidden rounded-[3px] ring-1 ring-white/10 ${className}`}>
       <rect width="40" height="24.8" fill="#fff" />
       {Array.from({ length: 7 }).map((_, i) => (

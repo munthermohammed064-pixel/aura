@@ -18,7 +18,7 @@ type Data = {
 };
 
 export default function Referrals() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [data, setData] = useState<Data | null>(null);
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
@@ -78,7 +78,7 @@ export default function Referrals() {
             <tbody>{data?.referred.map((u) => (
               <tr key={u.id} className="border-t border-border">
                 <td className="break-all py-2">{u.email}</td>
-                <td className="py-2 text-right text-muted">{new Date(u.joined).toLocaleDateString("en-US")}</td>
+                <td className="py-2 text-right text-muted">{new Date(u.joined).toLocaleDateString(lang)}</td>
               </tr>
             ))}</tbody>
           </table>
@@ -96,7 +96,7 @@ export default function Referrals() {
                 <td className="py-2">L{c.level}</td>
                 <td className="py-2">{c.pct}%</td>
                 <td className="py-2">${Number(c.amount).toLocaleString("en-US")}</td>
-                <td className="py-2 text-muted">{new Date(c.created_at).toLocaleDateString("en-US")}</td>
+                <td className="py-2 text-muted">{new Date(c.created_at).toLocaleDateString(lang)}</td>
               </tr>
             ))}</tbody>
           </table>

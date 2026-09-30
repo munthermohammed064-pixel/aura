@@ -7,14 +7,17 @@ import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 
 export default function LegalPage({ params }: { params: Promise<{ page: string }> }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { page } = use(params);
-  const [content, setContent] = useState("");
+  const [doc, setDoc] = useState<{ content: string; versions?: Record<string, string> }>({ content: "" });
 
   useEffect(() => {
-    api<{ content: string }>(`/legal/${page}`, { auth: false })
-      .then((r) => setContent(r.content)).catch(() => setContent(""));
+    api<{ content: string; versions?: Record<string, string> }>(`/legal/${page}`, { auth: false })
+      .then(setDoc).catch(() => setDoc({ content: "" }));
   }, [page]);
+
+  // `<page>_<lang>` is an admin-authored translation; `content` is the default.
+  const content = doc.versions?.[`${page}_${lang}`] || doc.content;
 
   return (
     <main className="pb-20 md:pb-0">

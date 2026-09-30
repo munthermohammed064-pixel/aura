@@ -82,7 +82,8 @@ def payment_methods(db: Session = Depends(get_db)):
         # detach plain dicts so no ORM objects are held in cache
         return [
             {"id": str(m.id), "name": m.name, "details": m.details, "qr_image": m.qr_image,
-             "min_amount": float(m.min_amount), "max_amount": float(m.max_amount), "is_active": m.is_active}
+             "min_amount": float(m.min_amount), "max_amount": float(m.max_amount), "is_active": m.is_active,
+             "i18n": m.i18n or {}}
             for m in rows
         ]
     return get_or_set("payment-methods:public", 30, produce)

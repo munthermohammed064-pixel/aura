@@ -249,14 +249,22 @@ def public_config(db: Session = Depends(get_db)):
 
 @router.get("/faq")
 def faq(db: Session = Depends(get_db)):
-    return get_or_set("faq:public", 30, lambda: get_setting(db, "faq").get("items", []))
+    # Whole blob — clients pick `items_<lang>` (admin-authored translations)
+    # and fall back to `items` when a language is missing.
+    return get_or_set("faq:public", 30, lambda: get_setting(db, "faq"))
 
 
 @router.get("/legal/{page}")
 def legal_page(page: str, db: Session = Depends(get_db)):
     if page not in ("terms", "privacy"):
         raise HTTPException(404)
-    return get_or_set(f"legal:{page}", 30, lambda: {"page": page, "content": get_setting(db, "legal").get(page, "")})
+    # `versions` carries the full legal blob incl. `terms_<lang>`/`privacy_<lang>`;
+    # `content` stays the default-language text for older clients.
+    return get_or_set(f"legal:{page}", 30, lambda: {
+        "page": page,
+        "content": get_setting(db, "legal").get(page, ""),
+        "versions": get_setting(db, "legal"),
+    })
 
 
 # ---------- Wheel & Raffles ----------

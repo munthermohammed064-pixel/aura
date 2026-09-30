@@ -5,7 +5,7 @@ import { Nav } from "@/components/Nav";
 import { PageHeader } from "@/components/PageHeader";
 import { GlassCard } from "@/components/Glass";
 import { api } from "@/lib/api";
-import { useT } from "@/lib/i18n";
+import { useT, localized } from "@/lib/i18n";
 import { useToast } from "@/components/Toast";
 
 type Pkg = {
@@ -13,6 +13,7 @@ type Pkg = {
   min_deposit: number; max_deposit: number;
   return_min_amount: number | null; return_max_amount: number | null;
   duration_days: number;
+  i18n?: Record<string, Record<string, string | undefined>> | null;
 };
 
 // 0–2 entry: light cards · 3–5 core: warm black · 6–8 prestige: champagne edge
@@ -20,7 +21,7 @@ const tierClass = (i: number) =>
   i <= 2 ? "surface" : i <= 5 ? "on-dark surface" : "on-dark surface gold-edge";
 
 export default function Packages() {
-  const { t } = useT();
+  const { t, terr, lang } = useT();
   const { toast } = useToast();
   const [packages, setPackages] = useState<Pkg[]>([]);
   const [selected, setSelected] = useState<Pkg | null>(null);
@@ -49,14 +50,14 @@ export default function Packages() {
       setAck(false);
       setSelected(null);
     } catch (e) {
-      toast(e instanceof Error ? e.message : t("failed"), "err");
+      toast(e instanceof Error ? terr(e.message) : t("failed"), "err");
     }
   };
 
   const Summary = ({ sheet = false }: { sheet?: boolean }) => selected && (
     <div className={sheet ? "" : "glass microprint p-6"}>
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg font-semibold">{selected.name}</h2>
+        <h2 className="font-display text-lg font-semibold">{localized(selected.i18n, lang, "name", selected.name)}</h2>
         <span className="font-mono text-[10px] uppercase tracking-widest text-muted">
           {t("level")} {packages.indexOf(selected) + 1}/9
         </span>
@@ -64,7 +65,7 @@ export default function Packages() {
       <dl className="mt-4 space-y-2 text-sm">
         <div className="flex justify-between"><dt className="text-muted">{t("price")}</dt><dd className="font-display text-lg text-accent">${Number(selected.min_deposit).toLocaleString("en-US")}</dd></div>
         <div className="flex justify-between"><dt className="text-muted">{t("daily")}</dt><dd>{selected.return_min_amount != null ? `> $${selected.return_min_amount}` : "—"}</dd></div>
-        <div className="flex justify-between"><dt className="text-muted">{t("duration")}</dt><dd>{selected.duration_days} {t("days")} · {t("incl_weekends")}</dd></div>
+        <div className="flex justify-between"><dt className="text-muted">{t("duration")}</dt><dd>{t("days_incl_weekends", { d: selected.duration_days })}</dd></div>
       </dl>
       <label className="mt-4 flex items-start gap-2 text-xs text-muted">
         <input type="checkbox" className="mt-0.5 accent-[#9A742C]" checked={ack}
@@ -92,7 +93,7 @@ export default function Packages() {
                 <button key={p.id} onClick={() => { setSelected(p); setAck(false); }}
                   className={`${tierClass(i)} glow-card flex flex-col p-5 text-start ${active ? "gold-edge" : ""}`}>
                   <div className="flex items-center justify-between">
-                    <p className="font-display text-xl">{p.name}</p>
+                    <p className="font-display text-xl">{localized(p.i18n, lang, "name", p.name)}</p>
                     <span dir="ltr" className="flex items-end gap-[3px]" title={`${t("level")} ${i + 1}`}>
                       {Array.from({ length: 9 }).map((_, b) => (
                         <span key={b} style={{ height: `${4 + b}px` }}
@@ -108,7 +109,7 @@ export default function Packages() {
                         {p.return_min_amount != null ? `> $${p.return_min_amount}` : "—"}
                       </p>
                     </div>
-                    <p className="mt-1 text-[11px] text-muted">{p.duration_days} {t("days")} · {t("incl_weekends")}</p>
+                    <p className="mt-1 text-[11px] text-muted">{t("days_incl_weekends", { d: p.duration_days })}</p>
                   </div>
                 </button>
               );

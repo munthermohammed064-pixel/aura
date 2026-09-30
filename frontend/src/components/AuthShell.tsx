@@ -16,7 +16,7 @@ export function AuthShell({ children, title, sub }: {
     <main className="on-dark flex min-h-svh">
       {/* Left — cinematic LA panel */}
       <div className="relative hidden w-[45%] overflow-hidden lg:block">
-        <Image src="/la-hero.jpg" alt="Los Angeles at night" fill priority sizes="45vw"
+        <Image src="/la-hero.jpg" alt={t("alt_band")} fill priority sizes="45vw"
           className="hero-photo kenburns" />
         <div className="hero-scrim" />
         <div className="absolute inset-0 flex flex-col justify-between p-10">

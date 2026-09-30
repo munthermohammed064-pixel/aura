@@ -25,7 +25,7 @@ function progress(i: Inv): number {
 }
 
 export default function MyPackages() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [invs, setInvs] = useState<Inv[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,8 +57,8 @@ export default function MyPackages() {
             <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${pct}%` }} />
           </div>
           <div className="mt-2 flex justify-between text-xs text-muted">
-            <span>{new Date(i.started_at).toLocaleDateString("en-US")}</span>
-            <span>{new Date(i.ends_at).toLocaleDateString("en-US")}</span>
+            <span>{new Date(i.started_at).toLocaleDateString(lang)}</span>
+            <span>{new Date(i.ends_at).toLocaleDateString(lang)}</span>
           </div>
         </div>
         <div className="mt-4 flex justify-between border-t border-border pt-3 text-sm">

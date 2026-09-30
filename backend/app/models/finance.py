@@ -43,6 +43,8 @@ class Package(Base):
     duration_days: Mapped[int] = mapped_column()
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(default=0)
+    # Admin-authored translations: {"ar": {"name": …, "description": …}, …}
+    i18n: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -111,6 +113,8 @@ class PaymentMethod(Base):
     name: Mapped[str] = mapped_column(String(120))
     details: Mapped[str] = mapped_column(Text, default="")  # address / instructions shown to user
     qr_image: Mapped[str] = mapped_column(String(500), default="")  # QR/barcode image path shown to users
+    # Admin-authored translations: {"ar": {"name": …, "details": …}, …}
+    i18n: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     min_amount: Mapped[float] = mapped_column(Numeric(20, 8), default=0)
     max_amount: Mapped[float] = mapped_column(Numeric(20, 8), default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 
 export default function Forgot() {
-  const { t } = useT();
+  const { t, terr } = useT();
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
   const [err, setErr] = useState("");
@@ -21,7 +21,7 @@ export default function Forgot() {
       });
       setDone(true);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : t("failed"));
+      setErr(e instanceof Error ? terr(e.message) : t("failed"));
     }
   };
 

@@ -6,17 +6,19 @@ import { Nav } from "@/components/Nav";
 import { PageHeader } from "@/components/PageHeader";
 import { CountUp } from "@/components/CountUp";
 import { GlassCard } from "@/components/Glass";
-import { api, API_URL, setTokens, clearTokens } from "@/lib/api";
-import { useT } from "@/lib/i18n";
+import { api, API_URL, setTokens, clearTokens, PLATFORM_NAME } from "@/lib/api";
+import { useT, LANGS, Lang } from "@/lib/i18n";
 import { useToast } from "@/components/Toast";
 import { Stars } from "@/components/Stars";
 import { Pager, PAGE_SIZE } from "@/components/Pager";
 
 type Stats = Record<string, number>;
+type I18nMap = Record<string, Record<string, string | undefined>>;
 type Pkg = {
   id: string; name: string; description: string; min_deposit: number; max_deposit: number;
   yield_min_pct: number; yield_max_pct: number; return_min_amount: number | null;
   return_max_amount: number | null; duration_days: number; is_active: boolean; sort_order: number;
+  i18n?: I18nMap | null;
 };
 type Row = {
   id: string; amount: number; status: string; created_at: string; method?: string; proof?: string;
@@ -24,7 +26,7 @@ type Row = {
   star_penalty?: number; net_payout?: number;
   user_email?: string; user_serial?: string;
 };
-type Method = { id: string; name: string; details: string; qr_image: string; min_amount: number; max_amount: number; is_active: boolean };
+type Method = { id: string; name: string; details: string; qr_image: string; min_amount: number; max_amount: number; is_active: boolean; i18n?: I18nMap | null };
 type Inv = { id: string; amount: number; status: string; realized_return: number; started_at: string; ends_at: string; user_email?: string; user_serial?: string; package_name?: string };
 type OpRow = { id: string; login_id: string; full_name: string; role: string; is_active: boolean; created_at: string | null };
 type AddrReq = { id: string; new_address: string; current_address: string; qr_image: string;
@@ -72,15 +74,15 @@ const WD_STATUS: Record<string, string> = {
   completed: "border-sky-400/30 bg-sky-400/10 text-sky-300",
   cancelled: "border-red-400/30 bg-red-400/10 text-red-300",
 };
-const EMPTY_PKG = { name: "", description: "", min_deposit: 0, max_deposit: 0, yield_min_pct: 0, yield_max_pct: 0, return_min_amount: 0, return_max_amount: 0, duration_days: 365, is_active: true, sort_order: 0 };
-const EMPTY_METHOD = { name: "", details: "", qr_image: "", min_amount: 0, max_amount: 0, is_active: true };
+const EMPTY_PKG = { name: "", description: "", min_deposit: 0, max_deposit: 0, yield_min_pct: 0, yield_max_pct: 0, return_min_amount: 0, return_max_amount: 0, duration_days: 365, is_active: true, sort_order: 0, i18n: {} as I18nMap };
+const EMPTY_METHOD = { name: "", details: "", qr_image: "", min_amount: 0, max_amount: 0, is_active: true, i18n: {} as I18nMap };
 const MONEY_STATS = new Set(["deposits_approved_total", "commissions_total"]);
 const apiBase = API_URL.replace("/api", "");
 // The secret path is checked by the server wrapper (page.tsx) — this bundle
 // contains no secret at all. The URL segment itself is the panel key: it is
 // echoed back to the API as X-Panel-Key on every staff call.
 export default function AdminConsole() {
-  const { t } = useT();
+  const { t, terr, lang } = useT();
   const { toast } = useToast();
   const params = useParams();
   const [gate, setGate] = useState<"checking" | "login" | "ok">("checking");
@@ -116,6 +118,32 @@ export default function AdminConsole() {
   const [codes, setCodes] = useState<TCode[]>([]);
   const [codeForm, setCodeForm] = useState<{ code: string; ttl: number; amounts: Record<string, string> }>({ code: "", ttl: 60, amounts: {} });
   const [published, setPublished] = useState<TCode | null>(null);
+  // Which language the admin is writing content in (packages/methods/FAQ/legal).
+  const [contentLang, setContentLang] = useState<Lang>("en");
+  // The platform default language edits the base fields; other languages write
+  // into per-language buckets (`i18n` column / `items_<lang>` / `terms_<lang>`).
+  const defLang = String(settings.platform?.default_lang ?? "en");
+
+  const LangPills = () => (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-[10px] text-muted">{t("content_lang")}:</span>
+      {LANGS.map((l) => (
+        <button key={l.code} type="button" onClick={() => setContentLang(l.code)}
+          className={`rounded-full border px-2.5 py-0.5 text-[10px] transition ${contentLang === l.code ? "border-accent bg-accent/15 text-accent" : "border-border text-muted hover:text-ink"}`}>
+          {l.code.toUpperCase()}{l.code === defLang ? ` · ${t("base_lang_tag")}` : ""}
+        </button>
+      ))}
+      {contentLang !== defLang && <span className="text-[10px] text-muted">{t("content_lang_hint")}</span>}
+    </div>
+  );
+
+  // i18n field get/set for entity forms (packages, payment methods).
+  const trGet = (i18n: I18nMap | undefined, field: string, base: string) =>
+    contentLang === defLang ? base : (i18n?.[contentLang]?.[field] ?? "");
+  const trSet = <F extends { i18n?: I18nMap }>(form: F, field: string, v: string): F =>
+    contentLang === defLang
+      ? { ...form, [field]: v }
+      : { ...form, i18n: { ...(form.i18n ?? {}), [contentLang]: { ...(form.i18n?.[contentLang] ?? {}), [field]: v } } };
 
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -132,7 +160,11 @@ export default function AdminConsole() {
     if (gate !== "ok") return;
     api<Stats>("/admin/stats").then((s) => { setStats(s); setDenied(false); }).catch((e) => {
       const msg = String(e?.message ?? "");
-      if (msg.includes("403") || msg.toLowerCase().includes("admin")) { setDenied(true); setGate("login"); }
+      // Any auth failure on the stats probe means the staff session is dead —
+      // surface the console's own login form instead of silently dead buttons.
+      if (msg.includes("403") || msg.includes("401") || /unauthorized|revoked|admin/i.test(msg)) {
+        setDenied(true); setGate("login");
+      }
     });
     api<Pkg[]>("/admin/packages").then(setPackages).catch(() => {});
     // Fetch all (history included) — filter client-side so "approved"
@@ -200,7 +232,7 @@ export default function AdminConsole() {
       setRole(me.role);
       setGate("ok");
     } catch (err) {
-      setLoginErr(err instanceof Error ? err.message : t("login_failed"));
+      setLoginErr(err instanceof Error ? terr(err.message) : t("login_failed"));
     } finally {
       setLoginBusy(false);
     }
@@ -209,7 +241,7 @@ export default function AdminConsole() {
   const act = (path: string, body: object = {}) =>
     api(path, { method: "POST", body: JSON.stringify(body) })
       .then(load)
-      .catch((e) => toast(e instanceof Error ? e.message : t("failed"), "err"));
+      .catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"));
 
   const publishCode = () => {
     const amounts = Object.fromEntries(Object.entries(codeForm.amounts)
@@ -217,10 +249,11 @@ export default function AdminConsole() {
     api<TCode>("/admin/codes", { method: "POST",
         body: JSON.stringify({ code: codeForm.code, ttl_minutes: codeForm.ttl, amounts }) })
       .then((c) => { setPublished(c); setCodeForm({ code: "", ttl: 60, amounts: {} }); load(); })
-      .catch((e) => toast(e instanceof Error ? e.message : t("failed"), "err"));
+      .catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"));
   };
 
   const [editingPkg, setEditingPkg] = useState<string | null>(null);
+  const [pkgFormOpen, setPkgFormOpen] = useState(false);
 
   const pendingDeps = stats.deposits_pending ?? 0;
   const pendingWds = stats.withdrawals_actionable ?? stats.withdrawals_pending ?? 0;
@@ -240,17 +273,20 @@ export default function AdminConsole() {
       }
       setEditingPkg(null);
       setPkgForm(EMPTY_PKG);
+      setPkgFormOpen(false);
       load();
-    } catch (e) { toast(e instanceof Error ? e.message : t("failed"), "err"); }
+    } catch (e) { toast(e instanceof Error ? terr(e.message) : t("failed"), "err"); }
   };
 
   const editPkg = (p: Pkg) => {
     setEditingPkg(p.id);
+    setPkgFormOpen(true);
     setPkgForm({
       name: p.name, description: p.description ?? "", min_deposit: p.min_deposit, max_deposit: p.max_deposit,
       yield_min_pct: p.yield_min_pct, yield_max_pct: p.yield_max_pct,
       return_min_amount: p.return_min_amount ?? 0, return_max_amount: p.return_max_amount ?? 0,
       duration_days: p.duration_days, is_active: p.is_active, sort_order: p.sort_order ?? 0,
+      i18n: p.i18n ?? {},
     });
     setTimeout(() => document.getElementById("pkg-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   };
@@ -283,7 +319,7 @@ export default function AdminConsole() {
       setEditingMethod(null);
       toast(t("saved"));
       load();
-    } catch (e) { toast(e instanceof Error ? e.message : t("failed"), "err"); }
+    } catch (e) { toast(e instanceof Error ? terr(e.message) : t("failed"), "err"); }
   };
 
   const delMethod = async (m: Method) => {
@@ -292,12 +328,12 @@ export default function AdminConsole() {
       await api(`/admin/payment-methods/${m.id}`, { method: "DELETE" });
       toast(t("saved"));
       load();
-    } catch (e) { toast(e instanceof Error ? e.message : t("failed"), "err"); }
+    } catch (e) { toast(e instanceof Error ? terr(e.message) : t("failed"), "err"); }
   };
 
   const editMethod = (m: Method) => {
     setEditingMethod(m.id);
-    setMForm({ name: m.name, details: m.details ?? "", qr_image: m.qr_image ?? "", min_amount: m.min_amount, max_amount: m.max_amount, is_active: m.is_active });
+    setMForm({ name: m.name, details: m.details ?? "", qr_image: m.qr_image ?? "", min_amount: m.min_amount, max_amount: m.max_amount, is_active: m.is_active, i18n: m.i18n ?? {} });
   };
 
   const settleInv = (inv: Inv) => {
@@ -320,7 +356,7 @@ export default function AdminConsole() {
     }
     api(`/admin/settings/${key}`, { method: "PUT", body: JSON.stringify({ value }) })
       .then(() => { setSettingsDirty(false); toast(t("saved")); load(); })
-      .catch((e) => toast(e instanceof Error ? e.message : t("failed"), "err"));
+      .catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"));
   };
 
   const processWithdrawal = (w: Row, action: string) => {
@@ -343,7 +379,7 @@ export default function AdminConsole() {
     setDetailLoading(true);
     api<UserDetail>(`/admin/users/${id}/detail`)
       .then(setDetail)
-      .catch((e) => toast(e instanceof Error ? e.message : t("failed"), "err"))
+      .catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"))
       .finally(() => setDetailLoading(false));
   };
 
@@ -449,15 +485,21 @@ export default function AdminConsole() {
 
         {tab === "packages" && (
           <div className="space-y-4">
-            {editingPkg && <GlassCard id="pkg-form">
+            {!pkgFormOpen && (
+              <button className="btn-gold px-5 py-2 text-sm" onClick={() => {
+                setEditingPkg(null); setPkgForm(EMPTY_PKG); setPkgFormOpen(true);
+              }}>+ {t("new_package")}</button>
+            )}
+            {pkgFormOpen && <GlassCard id="pkg-form">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-medium">{t("edit_package")}</h2>
+                <h2 className="font-medium">{editingPkg ? t("edit_package") : t("new_package")}</h2>
                 <button className="btn-ghost px-3 py-1 text-xs" onClick={() => {
-                  setEditingPkg(null); setPkgForm(EMPTY_PKG);
+                  setEditingPkg(null); setPkgForm(EMPTY_PKG); setPkgFormOpen(false);
                 }}>{t("cancel")}</button>
               </div>
+              <div className="mb-3"><LangPills /></div>
               <div className="grid gap-2 md:grid-cols-3">
-                <input className="input" placeholder={t("name")} value={pkgForm.name} onChange={(e) => setPkgForm({ ...pkgForm, name: e.target.value })} />
+                <input className="input" placeholder={t("name")} value={trGet(pkgForm.i18n, "name", pkgForm.name)} onChange={(e) => setPkgForm(trSet(pkgForm, "name", e.target.value))} />
                 <input className="input" type="number" placeholder={t("min_deposit")} value={pkgForm.min_deposit || ""} onChange={(e) => setPkgForm({ ...pkgForm, min_deposit: +e.target.value })} />
                 <input className="input" type="number" placeholder={t("max_deposit")} value={pkgForm.max_deposit || ""} onChange={(e) => setPkgForm({ ...pkgForm, max_deposit: +e.target.value })} />
                 <input className="input" type="number" placeholder={t("yield_min")} value={pkgForm.yield_min_pct || ""} onChange={(e) => setPkgForm({ ...pkgForm, yield_min_pct: +e.target.value })} />
@@ -467,14 +509,14 @@ export default function AdminConsole() {
                 <input className="input" type="number" placeholder={t("duration_days_ph")} value={pkgForm.duration_days || ""} onChange={(e) => setPkgForm({ ...pkgForm, duration_days: +e.target.value })} />
                 <input className="input" type="number" placeholder={t("sort_order")} value={pkgForm.sort_order || ""} onChange={(e) => setPkgForm({ ...pkgForm, sort_order: +e.target.value })} />
               </div>
-              <input className="input mt-2" placeholder={t("description")} value={pkgForm.description}
-                onChange={(e) => setPkgForm({ ...pkgForm, description: e.target.value })} />
+              <input className="input mt-2" placeholder={t("description")} value={trGet(pkgForm.i18n, "description", pkgForm.description)}
+                onChange={(e) => setPkgForm(trSet(pkgForm, "description", e.target.value))} />
               <label className="mt-3 flex items-center gap-2 text-xs text-muted">
                 <input type="checkbox" checked={pkgForm.is_active}
                   onChange={(e) => setPkgForm({ ...pkgForm, is_active: e.target.checked })} />
                 {t("is_active")}
               </label>
-              <button className="btn mt-4" onClick={savePkg}>{t("save_changes")}</button>
+              <button className="btn mt-4" onClick={savePkg}>{editingPkg ? t("save_changes") : t("create")}</button>
             </GlassCard>}
             <GlassCard>
               <table className="w-full text-sm">
@@ -491,7 +533,7 @@ export default function AdminConsole() {
                     <td className="flex gap-2 py-2">
                       <button className="btn-ghost px-3 py-1 text-xs" onClick={() => editPkg(p)}>{t("edit")}</button>
                       <button className="btn-ghost px-3 py-1 text-xs"
-                        onClick={() => { if (confirm(t("delete") + "?")) api(`/admin/packages/${p.id}`, { method: "DELETE" }).then(load).catch((e) => toast(e instanceof Error ? e.message : t("failed"), "err")); }}>
+                        onClick={() => { if (confirm(t("delete") + "?")) api(`/admin/packages/${p.id}`, { method: "DELETE" }).then(load).catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err")); }}>
                         {t("delete")}
                       </button>
                     </td>
@@ -519,7 +561,7 @@ export default function AdminConsole() {
                   <td className="py-2">{i.package_name}</td>
                   <td className="py-2">${Number(i.amount).toLocaleString("en-US")}</td>
                   <td className="py-2">${Number(i.realized_return).toLocaleString("en-US")}</td>
-                  <td className="py-2 text-xs text-muted">{new Date(i.ends_at).toLocaleDateString("en-US")}</td>
+                  <td className="py-2 text-xs text-muted">{new Date(i.ends_at).toLocaleDateString(lang)}</td>
                   <td className="py-2">
                     <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-medium capitalize ${WD_STATUS[i.status] ?? "border-white/10 bg-white/5 text-muted"}`}>
                       {t(i.status)}
@@ -574,15 +616,15 @@ export default function AdminConsole() {
               {published && (
                 <div className="mt-4 rounded-xl border border-accent/30 bg-accent/5 p-3">
                   <p className="mb-1 text-xs text-ok">{t("codes_published")}</p>
-                  <pre className="whitespace-pre-wrap font-mono text-xs">{`NEXORA — trading code
+                  <pre className="whitespace-pre-wrap font-mono text-xs">{`${PLATFORM_NAME} — ${t("code_title")}
 
 ${published.code}
-${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at).toLocaleString("en-US") : "—"}`}</pre>
+${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at).toLocaleString(lang) : "—"}`}</pre>
                   <button className="btn-ghost mt-2 px-3 py-1 text-xs"
-                    onClick={() => navigator.clipboard.writeText(`NEXORA — trading code
+                    onClick={() => navigator.clipboard.writeText(`${PLATFORM_NAME} — ${t("code_title")}
 
 ${published.code}
-${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at).toLocaleString("en-US") : ""}`).then(() => toast(t("copied"), "ok"))}>
+${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at).toLocaleString(lang) : ""}`).then(() => toast(t("copied"), "ok"))}>
                     {t("copy")}
                   </button>
                 </div>
@@ -591,7 +633,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
             <GlassCard>
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs text-muted">
-                  <th className="pb-2">Code</th><th className="pb-2">{t("codes_valid_until")}</th>
+                  <th className="pb-2">{t("nav_code")}</th><th className="pb-2">{t("codes_valid_until")}</th>
                   <th className="pb-2">{t("status")}</th><th className="pb-2">{t("codes_uses")}</th>
                   <th className="pb-2">$</th><th className="pb-2"></th>
                 </tr></thead>
@@ -600,7 +642,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                   return (
                     <tr key={c.id} className="border-t border-border">
                       <td className="py-2 font-mono text-xs font-semibold">{c.code}</td>
-                      <td className="py-2 text-xs text-muted">{c.expires_at ? new Date(c.expires_at).toLocaleString("en-US") : "—"}</td>
+                      <td className="py-2 text-xs text-muted">{c.expires_at ? new Date(c.expires_at).toLocaleString(lang) : "—"}</td>
                       <td className="py-2 text-xs">{c.is_active && !expired
                         ? <span className="text-ok">{t("codes_active")}</span>
                         : <span className="text-muted">{t("codes_expired")}</span>}</td>
@@ -856,7 +898,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                     </button>
                     <button className="btn-ghost px-3 py-1 text-xs" onClick={() => {
                       const amt = prompt(t("adjust_prompt").replace("{email}", u.email));
-                      if (!amt || isNaN(+amt)) return;
+                      if (!amt || isNaN(+amt) || +amt === 0) return;
                       const note = prompt(t("adjust_reason")) ?? "";
                       act(`/admin/users/${u.id}/adjust`, { amount: +amt, bucket: "available", note });
                     }}>{t("adjust")}</button>
@@ -871,6 +913,12 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                       if (!v || v.length < 8) return;
                       act(`/admin/users/${u.id}/withdraw-address`, { address: v });
                     }}>{t("address")}</button>
+                    <button className="rounded-full border border-red-400/25 px-3 py-1 text-xs text-red-300 transition hover:bg-red-400/10"
+                      onClick={() => {
+                        if (!confirm(t("confirm_delete_user").replace("{email}", u.email))) return;
+                        api(`/admin/users/${u.id}`, { method: "DELETE" }).then(load)
+                          .catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"));
+                      }}>{t("delete")}</button>
                   </td>
                 </tr>
               ))}</tbody>
@@ -950,11 +998,12 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                   <button className="btn-ghost px-3 py-1 text-xs" onClick={() => { setEditingMethod(null); setMForm(EMPTY_METHOD); setMQr(null); }}>{t("cancel")}</button>
                 )}
               </div>
+              <div className="mb-3"><LangPills /></div>
               <div className="grid gap-2 md:grid-cols-2">
-                <input className="input" placeholder={t("method_name_ph")} value={mForm.name}
-                  onChange={(e) => setMForm({ ...mForm, name: e.target.value })} />
-                <input className="input" placeholder={t("method_details_ph")} value={mForm.details}
-                  onChange={(e) => setMForm({ ...mForm, details: e.target.value })} />
+                <input className="input" placeholder={t("method_name_ph")} value={trGet(mForm.i18n, "name", mForm.name)}
+                  onChange={(e) => setMForm(trSet(mForm, "name", e.target.value))} />
+                <input className="input" placeholder={t("method_details_ph")} value={trGet(mForm.i18n, "details", mForm.details)}
+                  onChange={(e) => setMForm(trSet(mForm, "details", e.target.value))} />
                 <input className="input" type="number" placeholder={t("min_deposit")} value={mForm.min_amount || ""}
                   onChange={(e) => setMForm({ ...mForm, min_amount: +e.target.value })} />
                 <input className="input" type="number" placeholder={t("max_deposit")} value={mForm.max_amount || ""}
@@ -1101,40 +1150,59 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
             </GlassCard>
 
             <GlassCard>
-              <p className="mb-3 text-sm font-medium">{t("faq_items")}</p>
-              <div className="space-y-3">
-                {((settings.faq?.items as { q: string; a: string }[] | undefined) ?? []).map((item, i) => (
-                  <div key={i} className="rounded-lg border border-border p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="text-xs text-muted">{t("question")} {i + 1}</label>
-                      <button className="text-xs text-red-400 hover:underline"
-                        onClick={() => updSetting("faq", { items: (settings.faq?.items as { q: string; a: string }[]).filter((_, j) => j !== i) })}>
-                        {t("remove")}
-                      </button>
-                    </div>
-                    <input className="input mt-1" value={item.q}
-                      onChange={(e) => updSetting("faq", { items: (settings.faq?.items as { q: string; a: string }[]).map((x, j) => j === i ? { ...x, q: e.target.value } : x) })} />
-                    <label className="mt-2 block text-xs text-muted">{t("answer")}</label>
-                    <textarea className="input mt-1 min-h-16" value={item.a}
-                      onChange={(e) => updSetting("faq", { items: (settings.faq?.items as { q: string; a: string }[]).map((x, j) => j === i ? { ...x, a: e.target.value } : x) })} />
+              <p className="mb-1 text-sm font-medium">{t("faq_items")}</p>
+              <LangPills />
+              {(() => {
+                // `items` = default-language list; `items_<lang>` = translation.
+                // Non-default pills prefill from the base list for in-place translation.
+                const fk = contentLang === defLang ? "items" : `items_${contentLang}`;
+                const base = (settings.faq?.items as { q: string; a: string }[] | undefined) ?? [];
+                const items = ((settings.faq?.[fk] as { q: string; a: string }[] | undefined) ?? base);
+                const setItems = (list: { q: string; a: string }[]) => updSetting("faq", { [fk]: list });
+                return (
+                  <div className="mt-3 space-y-3">
+                    {items.map((item, i) => (
+                      <div key={i} className="rounded-lg border border-border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="text-xs text-muted">{t("question")} {i + 1}</label>
+                          <button className="text-xs text-red-400 hover:underline"
+                            onClick={() => setItems(items.filter((_, j) => j !== i))}>
+                            {t("remove")}
+                          </button>
+                        </div>
+                        <input className="input mt-1" value={item.q}
+                          onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, q: e.target.value } : x))} />
+                        <label className="mt-2 block text-xs text-muted">{t("answer")}</label>
+                        <textarea className="input mt-1 min-h-16" value={item.a}
+                          onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, a: e.target.value } : x))} />
+                      </div>
+                    ))}
+                    <button className="btn-ghost text-xs"
+                      onClick={() => setItems([...items, { q: "", a: "" }])}>
+                      {t("add_item")}
+                    </button>
                   </div>
-                ))}
-                <button className="btn-ghost text-xs"
-                  onClick={() => updSetting("faq", { items: [...((settings.faq?.items as { q: string; a: string }[] | undefined) ?? []), { q: "", a: "" }] })}>
-                  {t("add_item")}
-                </button>
-              </div>
+                );
+              })()}
               <button className="btn-ghost mt-3 text-xs" onClick={() => saveSetting("faq")}>{t("save")}</button>
             </GlassCard>
 
             <GlassCard>
-              <p className="mb-3 text-sm font-medium">{t("legal_texts")}</p>
-              <label className="mb-1 block text-xs text-muted">{t("terms_text")}</label>
-              <textarea className="input min-h-28" value={String(settings.legal?.terms ?? "")}
-                onChange={(e) => updSetting("legal", { terms: e.target.value })} />
-              <label className="mb-1 mt-3 block text-xs text-muted">{t("privacy_text")}</label>
-              <textarea className="input min-h-36" value={String(settings.legal?.privacy ?? "")}
-                onChange={(e) => updSetting("legal", { privacy: e.target.value })} />
+              <p className="mb-1 text-sm font-medium">{t("legal_texts")}</p>
+              <LangPills />
+              {(() => {
+                // `terms`/`privacy` = default language; `terms_<lang>`/`privacy_<lang>` = translations.
+                const lk = (f: string) => contentLang === defLang ? f : `${f}_${contentLang}`;
+                const val = (f: string) => String(settings.legal?.[lk(f)] ?? (contentLang === defLang ? "" : settings.legal?.[f] ?? ""));
+                return (<>
+                  <label className="mb-1 mt-2 block text-xs text-muted">{t("terms_text")}</label>
+                  <textarea className="input min-h-28" value={val("terms")}
+                    onChange={(e) => updSetting("legal", { [lk("terms")]: e.target.value })} />
+                  <label className="mb-1 mt-3 block text-xs text-muted">{t("privacy_text")}</label>
+                  <textarea className="input min-h-36" value={val("privacy")}
+                    onChange={(e) => updSetting("legal", { [lk("privacy")]: e.target.value })} />
+                </>);
+              })()}
               <button className="btn-ghost mt-3 text-xs" onClick={() => saveSetting("legal")}>{t("save")}</button>
             </GlassCard>
 
@@ -1163,7 +1231,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                     )}
                   </td>
                   <td className="py-2 text-muted">{a.target_type} {a.target_id?.slice(0, 8)}</td>
-                  <td className="py-2 text-muted">{new Date(a.created_at).toLocaleString("en-US")}</td>
+                  <td className="py-2 text-muted">{new Date(a.created_at).toLocaleString(lang)}</td>
                 </tr>
               ))}</tbody>
             </table>
@@ -1254,7 +1322,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                       </div>
                       <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted">
                         {detail.user.full_name && <span>{detail.user.full_name}</span>}
-                        <span>{t("joined")}: {detail.user.created_at ? new Date(detail.user.created_at).toLocaleDateString("en-US") : "—"}</span>
+                        <span>{t("joined")}: {detail.user.created_at ? new Date(detail.user.created_at).toLocaleDateString(lang) : "—"}</span>
                         <span>{t("verified")}: {detail.user.email_verified ? t("yes") : t("no")}</span>
                         <span>{t("custom_fee")}: {detail.user.withdraw_fee_pct != null ? `${detail.user.withdraw_fee_pct}%` : "—"}</span>
                       </div>
@@ -1340,7 +1408,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                               </span>
                               {" "}{e.kind} · {e.bucket}
                             </span>
-                            <span className="shrink-0 text-muted">{e.created_at ? new Date(e.created_at).toLocaleDateString("en-US") : ""}</span>
+                            <span className="shrink-0 text-muted">{e.created_at ? new Date(e.created_at).toLocaleDateString(lang) : ""}</span>
                           </div>
                         ))}
                         {detail.ledger.length === 0 && <p className="text-xs text-muted">—</p>}
