@@ -913,6 +913,12 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                       if (!v || v.length < 8) return;
                       act(`/admin/users/${u.id}/withdraw-address`, { address: v });
                     }}>{t("address")}</button>
+                    <button className="rounded-full border border-amber-400/30 px-3 py-1 text-xs text-amber-300 transition hover:bg-amber-400/10"
+                      onClick={() => {
+                        if (!confirm(t("confirm_zero_user").replace("{email}", u.email))) return;
+                        api(`/admin/users/${u.id}/zero`, { method: "POST", body: "{}" }).then(load)
+                          .catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"));
+                      }}>{t("zero")}</button>
                     <button className="rounded-full border border-red-400/25 px-3 py-1 text-xs text-red-300 transition hover:bg-red-400/10"
                       onClick={() => {
                         if (!confirm(t("confirm_delete_user").replace("{email}", u.email))) return;

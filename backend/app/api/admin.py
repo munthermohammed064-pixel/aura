@@ -377,6 +377,44 @@ def adjust_balance(user_id: str, data: BalanceAdjustIn,
     return {"ok": True}
 
 
+@router.post("/users/{user_id}/zero")
+def zero_user(user_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    """Reset an account to zero — for test/junk accounts. Every wallet bucket
+    is debited to 0 through the ledger (auditable), open investments are
+    cancelled, and pending deposits/withdrawals are rejected so nothing can
+    credit the account back after the reset."""
+    u = db.get(User, uuid.UUID(user_id))
+    if not u or u.role != "user":
+        raise HTTPException(404, "User not found")
+    w = u.wallet
+    if not w:
+        raise HTTPException(404, "Wallet not found")
+    try:
+        for bucket in ("available", "pending", "invested"):
+            bal = float(getattr(w, bucket))
+            if bal > 0:
+                ledger.post(db, user_id=u.id, kind="adjustment", direction="debit",
+                            bucket=bucket, amount=bal, reference_type="admin",
+                            reference_id=admin.id, note="Admin account reset (zero)")
+    except ledger.LedgerError as e:
+        raise HTTPException(400, str(e))
+    n_inv = db.query(Investment).filter(
+        Investment.user_id == u.id, Investment.status == "active"
+    ).update({"status": "cancelled"}, synchronize_session=False)
+    n_dep = db.query(Deposit).filter(
+        Deposit.user_id == u.id, Deposit.status == "pending"
+    ).update({"status": "rejected"}, synchronize_session=False)
+    n_wd = db.query(Withdrawal).filter(
+        Withdrawal.user_id == u.id, Withdrawal.status == "pending"
+    ).update({"status": "rejected"}, synchronize_session=False)
+    audit(db, admin, "user.zero", "user", u.id,
+          {"email": u.email, "cancelled_investments": n_inv,
+           "rejected_deposits": n_dep, "rejected_withdrawals": n_wd})
+    notify_user(db, u.id, "account_zeroed")
+    db.commit()
+    return {"ok": True}
+
+
 class FeeIn(BaseModel):
     fee_pct: float | None = Field(None, ge=0, le=100)  # null → global setting
 
