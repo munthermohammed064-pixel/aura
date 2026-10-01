@@ -441,7 +441,7 @@ export default function AdminConsole() {
       <main className="on-dark grid min-h-[80vh] place-items-center px-4">
         <GlassCard className="w-full max-w-sm">
           <form onSubmit={adminLogin} className="space-y-3">
-            <input className="input font-mono" placeholder="ID" required autoComplete="off"
+            <input className="input font-mono" type="email" inputMode="email" placeholder={t("email")} required autoComplete="username"
               value={loginForm.id} onChange={(e) => setLoginForm({ ...loginForm, id: e.target.value })} />
             <input className="input" type="password" placeholder={t("password")} required autoComplete="current-password"
               value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />

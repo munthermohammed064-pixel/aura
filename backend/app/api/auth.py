@@ -107,11 +107,9 @@ def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
 def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
     ident = data.identifier.strip()
     if "@" in ident:
+        # Staff may authenticate by email too — the panel-key check below still
+        # refuses them without it, so the response stays an identical 401.
         user = db.query(User).filter(func.lower(User.email) == ident.lower()).first()
-        # Admin accounts never authenticate by email — only via their login_id
-        # on the hidden console route. Email-guessing an admin gets a plain 401.
-        if user and user.role in ("admin", "owner"):
-            user = None
     else:
         user = db.query(User).filter(User.login_id == ident).first() if ident else None
     if user:
