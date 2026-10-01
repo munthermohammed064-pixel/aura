@@ -97,8 +97,11 @@ def update_package(pkg_id: str, data: PackageIn, admin: User = Depends(get_admin
     p = db.get(Package, uuid.UUID(pkg_id))
     if not p:
         raise HTTPException(404, "Package not found")
-    for k, v in data.model_dump().items():
+    for k, v in data.model_dump(exclude={"i18n"}).items():
         setattr(p, k, v)
+    # i18n is merged, not replaced — a PUT without it must not wipe translations
+    if data.i18n is not None:
+        p.i18n = {**(p.i18n or {}), **data.i18n}
     audit(db, admin, "package.update", "package", p.id, {"name": p.name})
     db.commit()
     db.refresh(p)
@@ -608,8 +611,11 @@ def update_method(m_id: str, data: PaymentMethodIn, owner: User = Depends(get_ow
     m = db.get(PaymentMethod, uuid.UUID(m_id))
     if not m:
         raise HTTPException(404, "Method not found")
-    for k, v in data.model_dump().items():
+    for k, v in data.model_dump(exclude={"i18n"}).items():
         setattr(m, k, v)
+    # merge — a PUT without i18n must not wipe stored translations
+    if data.i18n is not None:
+        m.i18n = {**(m.i18n or {}), **data.i18n}
     audit(db, owner, "method.update", "payment_method", m.id, {"name": m.name})
     db.commit()
     bust("payment-methods")

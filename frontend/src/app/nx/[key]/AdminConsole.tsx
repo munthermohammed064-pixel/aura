@@ -59,8 +59,12 @@ type UserDetail = {
 type TCode = { id: string; code: string; amounts: Record<string, number>;
   expires_at: string | null; is_active: boolean; created_at: string | null;
   redemptions: number; total_paid: number };
+type TicketRow = { id: string; subject: string; status: string;
+  created_at: string | null; user_email?: string; user_serial?: string };
+type TicketDetail = { ticket: { id: string; subject: string; status: string; created_at: string | null };
+  replies: { id: string; body: string; is_admin: boolean; created_at: string | null }[] };
 
-const TABS = ["stats", "packages", "investments", "codes", "deposits", "withdrawals", "users", "address_requests", "methods", "settings", "audit", "operators"] as const;
+const TABS = ["stats", "packages", "investments", "codes", "deposits", "withdrawals", "users", "address_requests", "tickets", "methods", "settings", "audit", "operators"] as const;
 // Owner-only surfaces — hidden for operators AND enforced server-side.
 const OWNER_TABS: string[] = ["methods", "settings", "audit", "operators"];
 const STAFF = ["admin", "owner"];
@@ -73,6 +77,9 @@ const WD_STATUS: Record<string, string> = {
   active: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
   completed: "border-sky-400/30 bg-sky-400/10 text-sky-300",
   cancelled: "border-red-400/30 bg-red-400/10 text-red-300",
+  open: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+  answered: "border-sky-400/30 bg-sky-400/10 text-sky-300",
+  closed: "border-white/15 bg-white/5 text-muted",
 };
 const EMPTY_PKG = { name: "", description: "", min_deposit: 0, max_deposit: 0, yield_min_pct: 0, yield_max_pct: 0, return_min_amount: 0, return_max_amount: 0, duration_days: 365, is_active: true, sort_order: 0, i18n: {} as I18nMap };
 const EMPTY_METHOD = { name: "", details: "", qr_image: "", min_amount: 0, max_amount: 0, is_active: true, i18n: {} as I18nMap };
@@ -115,6 +122,10 @@ export default function AdminConsole() {
   const [payingId, setPayingId] = useState<string | null>(null);
   const [txidInput, setTxidInput] = useState("");
   const [addrReqs, setAddrReqs] = useState<AddrReq[]>([]);
+  const [tickets, setTickets] = useState<TicketRow[]>([]);
+  const [selTicket, setSelTicket] = useState<TicketDetail | null>(null);
+  const [replyBody, setReplyBody] = useState("");
+  const [replyBusy, setReplyBusy] = useState(false);
   const [codes, setCodes] = useState<TCode[]>([]);
   const [codeForm, setCodeForm] = useState<{ code: string; ttl: number; amounts: Record<string, string> }>({ code: "", ttl: 60, amounts: {} });
   const [published, setPublished] = useState<TCode | null>(null);
@@ -190,6 +201,7 @@ export default function AdminConsole() {
     api<Inv[]>("/admin/investments").then(setInvestments).catch(() => {});
     api<AddrReq[]>("/admin/address-requests").then(setAddrReqs).catch(() => {});
     api<TCode[]>("/admin/codes").then(setCodes).catch(() => {});
+    api<TicketRow[]>("/admin/tickets").then(setTickets).catch(() => {});
   };
 
   // The URL segment doubles as the API panel key — store it so api() can
@@ -361,6 +373,19 @@ export default function AdminConsole() {
 
   const processWithdrawal = (w: Row, action: string) => {
     act(`/admin/withdrawals/${w.id}/process`, { action, txid: "", note: "" });
+  };
+
+  const openTicket = (id: string) => {
+    api<TicketDetail>(`/tickets/${id}`).then(setSelTicket)
+      .catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"));
+  };
+  const sendReply = (id: string) => {
+    if (!replyBody.trim()) return;
+    setReplyBusy(true);
+    api(`/tickets/${id}/reply`, { method: "POST", body: JSON.stringify({ body: replyBody.trim() }) })
+      .then(() => { setReplyBody(""); openTicket(id); load(); })
+      .catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"))
+      .finally(() => setReplyBusy(false));
   };
 
   const confirmPay = (w: Row) => {
@@ -990,6 +1015,85 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                 </tr>
               ))}</tbody>
             </table>
+            </div>
+            )}
+          </GlassCard>
+        )}
+
+        {tab === "tickets" && (
+          <GlassCard>
+            {tickets.length === 0 ? (
+              <p className="py-10 text-center text-xs text-muted">{t("no_tickets")}</p>
+            ) : (
+            <div className="grid gap-4 lg:grid-cols-[1fr_360px] lg:items-start">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-start text-[10px] uppercase tracking-wider text-muted">
+                  <th className="pb-2 pe-4">{t("subject")}</th>
+                  <th className="pb-2 pe-4">{t("user")}</th>
+                  <th className="pb-2 pe-4">{t("status")}</th>
+                  <th className="pb-2 pe-4">{t("date")}</th>
+                  <th className="pb-2">{t("actions")}</th>
+                </tr></thead>
+                <tbody>{tickets.map((tk) => (
+                  <tr key={tk.id} className={`border-t border-border ${selTicket?.ticket.id === tk.id ? "bg-accent/5" : ""}`}>
+                    <td className="max-w-56 py-3 pe-4">
+                      <button className="text-start text-xs hover:text-accent" onClick={() => openTicket(tk.id)}>
+                        {tk.subject}
+                      </button>
+                    </td>
+                    <td className="py-3 pe-4">
+                      <p className="text-xs">{tk.user_email}</p>
+                      <p className="font-mono text-[10px] text-accent">{tk.user_serial}</p>
+                    </td>
+                    <td className="py-3 pe-4">
+                      <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-medium capitalize ${WD_STATUS[tk.status] ?? "border-white/10 bg-white/5 text-muted"}`}>
+                        {t(tk.status)}
+                      </span>
+                    </td>
+                    <td className="py-3 pe-4 text-xs text-muted">
+                      {tk.created_at ? new Date(tk.created_at).toLocaleDateString(lang) : "—"}
+                    </td>
+                    <td className="py-3">
+                      {tk.status !== "closed" && (
+                        <button className="btn-ghost px-3 py-1 text-xs"
+                          onClick={() => act(`/admin/tickets/${tk.id}/close`).then(() => { if (selTicket?.ticket.id === tk.id) setSelTicket(null); })}>
+                          {t("close_ticket")}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}</tbody>
+              </table>
+              </div>
+              {selTicket && (
+                <div className="surface p-4">
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium">{selTicket.ticket.subject}</p>
+                    <button className="text-muted hover:text-ink" onClick={() => setSelTicket(null)} aria-label={t("close")}>✕</button>
+                  </div>
+                  <div className="max-h-72 space-y-2 overflow-y-auto">
+                    {selTicket.replies.map((r) => (
+                      <div key={r.id} className={`rounded-xl px-3 py-2 text-xs ${r.is_admin ? "bg-accent/10 ms-4" : "bg-ink/[0.05] me-4"}`}>
+                        <p className="whitespace-pre-wrap break-words">{r.body}</p>
+                        <p className="mt-1 text-[9px] text-muted">
+                          {r.is_admin ? t("support") : t("user")} · {r.created_at ? new Date(r.created_at).toLocaleString(lang) : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {selTicket.ticket.status !== "closed" && (
+                    <div className="mt-3 flex gap-2">
+                      <input className="input flex-1 !py-1.5 text-xs" value={replyBody}
+                        onChange={(e) => setReplyBody(e.target.value)}
+                        placeholder={t("write_reply")}
+                        onKeyDown={(e) => { if (e.key === "Enter") sendReply(selTicket.ticket.id); }} />
+                      <button className="btn px-4 !py-1.5 text-xs" disabled={replyBusy || !replyBody.trim()}
+                        onClick={() => sendReply(selTicket.ticket.id)}>{t("send")}</button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             )}
           </GlassCard>
