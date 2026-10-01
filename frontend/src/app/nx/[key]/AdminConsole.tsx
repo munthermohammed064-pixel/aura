@@ -218,6 +218,15 @@ export default function AdminConsole() {
       .catch(() => setGate("login"));
   }, []);
 
+  // Any 401 anywhere (superseded login, expired staff session, revoked token)
+  // must drop back to the login gate — otherwise the panel keeps rendering
+  // stale data while every button errors.
+  useEffect(() => {
+    const h = () => { setGate("login"); toast(terr("Unauthorized"), "err"); };
+    window.addEventListener("nx:unauth", h);
+    return () => window.removeEventListener("nx:unauth", h);
+  }, [t, toast]);
+
   useEffect(load, [depFilter, wdFilter, userQ, gate, role]);
   useEffect(() => {
     if (gate !== "ok") return;

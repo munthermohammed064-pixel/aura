@@ -61,6 +61,9 @@ export async function api<T = unknown>(
     const refreshed = await tryRefresh();
     if (refreshed) return api(path, { ...opts, _retried: true });
     clearTokens();
+    // The admin console keeps its own gate — tell it the session died so it
+    // returns to the login form instead of leaving dead buttons on screen.
+    window.dispatchEvent(new Event("nx:unauth"));
     redirectToLogin();
     throw new Error("Unauthorized");
   }
