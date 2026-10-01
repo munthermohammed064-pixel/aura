@@ -6,6 +6,10 @@ from datetime import datetime, timedelta, timezone
 # Security event log — events only, never passwords/tokens/codes.
 seclog = logging.getLogger("nexora.security")
 
+# Valid bcrypt string that matches nothing — used to time-equalize unknown
+# logins and to dead-end refresh tokens on superseded staff sessions.
+_DUMMY_HASH = "$2b$12$LJ3m4ys1Rz6SGQOzkzWsJe8tQrY8qYz8qYz8qYz8qYz8qYz8qYz8q"
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from slowapi import Limiter
@@ -120,7 +124,6 @@ def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
             raise HTTPException(429, "Too many failed attempts — try again in 15 minutes")
     # Always run bcrypt — without it, a valid email/login_id returns measurably
     # slower than an invalid one, which lets attackers enumerate accounts.
-    _DUMMY_HASH = "$2b$12$LJ3m4ys1Rz6SGQOzkzWsJe8tQrY8qYz8qYz8qYz8qYz8qYz8qYz8q"
     if not user or not verify_password(data.password, user.password_hash if user else _DUMMY_HASH):
         if user:
             # Progressive lockout: 5 bad passwords locks the account 15 min.
@@ -142,20 +145,28 @@ def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
                        request.client.host if request.client else "?")
         raise HTTPException(401, "Invalid credentials")
     if user.role in ("admin", "owner"):
-        # Single-session for staff: a second login while a live session exists
-        # is refused — no silent parallel admin access. Refresh rotation keeps
-        # the *same* session alive; only genuinely new logins are blocked.
+        # Single live session for staff — but the newest login wins. Signing in
+        # from another device revokes the old session so the admin is never
+        # locked out, while parallel admin access stays impossible.
         now = datetime.now(timezone.utc)
         live = db.query(UserSession).filter(
             UserSession.user_id == user.id, UserSession.revoked.is_(False)).all()
+        superseded = 0
         for s in live:
             exp = s.expires_at
             if exp and exp.tzinfo is None:
                 exp = exp.replace(tzinfo=timezone.utc)
             if not exp or exp > now:
-                seclog.warning("staff_second_login_blocked user=%s ip=%s", user.id,
-                               request.client.host if request.client else "?")
-                raise HTTPException(409, "An admin session is already active — sign out of it first")
+                s.revoked = True
+                # Break the old refresh token too — otherwise the kicked
+                # device's next refresh would trip the replay detector and
+                # take the *new* session down with it (family revoke).
+                s.refresh_token_hash = _DUMMY_HASH
+                superseded += 1
+        if superseded:
+            db.commit()
+            seclog.warning("staff_session_superseded user=%s n=%s ip=%s", user.id, superseded,
+                           request.client.host if request.client else "?")
     user.login_attempts = 0
     user.login_locked_until = None
     return _issue_tokens(db, user, request)
@@ -196,9 +207,9 @@ def refresh(data: RefreshIn, request: Request, db: Session = Depends(get_db)):
     if not verify_password(data.refresh_token, session.refresh_token_hash):
         raise HTTPException(401, "Invalid refresh token")
     # Session-theft guard: a stolen refresh token is useless from a different
-    # browser fingerprint. Admin sessions additionally bind to the login IP.
-    if (session.user_agent and ua and session.user_agent != ua) or \
-       (user.role in ("admin", "owner") and session.ip and ip and session.ip != ip):
+    # browser fingerprint. IPs are not bound — the admin moves between
+    # networks/devices and the single-live-session rule covers the rest.
+    if session.user_agent and ua and session.user_agent != ua:
         session.revoked = True
         db.commit()
         seclog.warning("session_theft_suspect user=%s sid=%s ip=%s", user.id, session.id, ip)
