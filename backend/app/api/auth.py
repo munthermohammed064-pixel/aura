@@ -59,6 +59,9 @@ def _issue_tokens(db: Session, user: User, request: Request) -> TokenOut:
 @limiter.limit("10/minute")
 def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
     email = data.email.lower()
+    full_name = " ".join(data.full_name.split())
+    if len(full_name.split()) < 3:
+        raise HTTPException(400, "Please enter your full three-part name")
     if db.query(User).filter(func.lower(User.email) == email).first():
         raise HTTPException(409, "Email already registered")
     referrer = None
@@ -75,7 +78,7 @@ def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
             serial_no=next_serial,
             email=email,
             password_hash=hash_password(data.password),
-            full_name=data.full_name,
+            full_name=full_name,
             referral_code=secrets.token_hex(4).upper(),
             referred_by_id=referrer.id if referrer else None,
         )

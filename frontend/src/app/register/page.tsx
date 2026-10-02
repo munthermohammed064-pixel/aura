@@ -21,6 +21,8 @@ function RegisterForm() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.full_name.trim().split(/\s+/).filter(Boolean).length < 3)
+      return setError(t("err_name_three"));
     if (!ack) return setError(t("ack_disclosure"));
     setError("");
     try {
@@ -36,11 +38,11 @@ function RegisterForm() {
   return (
     <>
       <form onSubmit={submit} className="space-y-3">
-        <input className="input" placeholder={t("full_name")} autoComplete="name"
-          onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
+        <input className="input" placeholder={t("full_name_triple")} required autoComplete="name"
+          minLength={5} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
         <input className="input" type="email" placeholder={t("email")} required autoComplete="email" inputMode="email"
           onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <input className="input" type="password" placeholder={t("password_ph")} required minLength={8} autoComplete="new-password"
+        <input className="input" type="password" placeholder={t("password_ph")} required minLength={12} autoComplete="new-password"
           onChange={(e) => setForm({ ...form, password: e.target.value })} />
         <input className="input" placeholder={t("ref_code_ph")} value={form.referral_code} autoComplete="off"
           onChange={(e) => setForm({ ...form, referral_code: e.target.value })} />

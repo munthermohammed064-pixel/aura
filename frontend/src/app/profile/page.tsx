@@ -49,6 +49,8 @@ export default function Profile() {
   useEffect(load, []);
 
   const save = async () => {
+    if (form.full_name.trim().split(/\s+/).filter(Boolean).length < 3)
+      return setMsg(t("err_name_three"));
     try {
       await api("/profile", { method: "PUT", body: JSON.stringify(form) });
       setMsg(t("saved"));
@@ -126,15 +128,26 @@ export default function Profile() {
     <main className="page-pad">
       <Nav />
       <div className="mx-auto max-w-2xl px-4 py-10 space-y-4">
-        <div className="flex items-end justify-between">
-          <h1 className="text-2xl font-semibold">{t("profile")}</h1>
-          <span className="flex items-center gap-3">
-            {me && <Stars value={me.stars ?? 4} />}
-            {me?.serial && (
-              <span className="surface px-3 py-1 font-mono text-xs text-accent">{me.serial}</span>
-            )}
-          </span>
-        </div>
+        <h1 className="text-2xl font-semibold">{t("profile")}</h1>
+        {me && (
+          <GlassCard className="gold-edge">
+            <div className="flex items-center gap-4">
+              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full border border-accent/40 bg-accent/10 font-display text-xl font-semibold tracking-wide text-accent">
+                {(me.full_name || me.email).trim().split(/\s+/).slice(0, 2)
+                  .map((w) => w[0]).join("").toUpperCase() || "·"}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate font-display text-2xl tracking-tight md:text-3xl">
+                  {me.full_name || me.email}
+                </p>
+                <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
+                  <span className="font-mono tracking-wider">{t("private_member")} · {me.serial}</span>
+                  <Stars value={me.stars ?? 4} size={11} />
+                </p>
+              </div>
+            </div>
+          </GlassCard>
+        )}
         {msg && <p className="text-xs text-accent">{msg}</p>}
 
         {me && me.stars < 4 && (

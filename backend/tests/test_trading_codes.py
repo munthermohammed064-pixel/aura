@@ -34,6 +34,13 @@ def env():
     def _override():
         yield session
     app.dependency_overrides[get_db] = _override
+    # each router module owns its Limiter instance — clear the auth one's store
+    # so per-test windows don't carry over (register/login caps are 10/min).
+    from app.api import auth as auth_api
+    try:
+        auth_api.limiter._storage.reset()
+    except Exception:
+        auth_api.limiter._storage.storage.clear()
     yield TestClient(app), session, admin, pkg
     app.dependency_overrides.clear()
     session.close()
@@ -52,7 +59,7 @@ def _admin(client):
 
 def _invested_user(client, session, pkg, admin_h, email):
     r = client.post("/api/auth/register",
-                    json={"email": email, "password": "UserPassw0rd!!", "name": "U"})
+                    json={"email": email, "password": "UserPassw0rd!!", "full_name": "Test User One"})
     assert r.status_code == 201, r.text
     h = {"Authorization": f"Bearer {r.json()['access_token']}"}
     uid = client.get("/api/auth/me", headers=h).json()["id"]
@@ -128,7 +135,7 @@ def test_expired_closed_bounds_and_no_investment(env):
                        headers=ah).status_code == 422
 
     r = client.post("/api/auth/register",
-                    json={"email": "u4@t.io", "password": "UserPassw0rd!!", "name": "U4"})
+                    json={"email": "u4@t.io", "password": "UserPassw0rd!!", "full_name": "Test User Four"})
     h4 = {"Authorization": f"Bearer {r.json()['access_token']}"}
     client.post("/api/admin/codes",
                 json={"ttl_hours": 1, "code": "NOINV1",
@@ -212,7 +219,7 @@ def test_package_lifecycle_guards(env):
             "duration_days": 365, "is_active": False}
     r = client.put(f"/api/admin/packages/{pkg.id}", json=body, headers=ah)
     assert r.status_code == 200 and r.json()["is_active"] is False
-    uh2 = {"Authorization": f"Bearer {client.post('/api/auth/register', json={'email': 'u8@t.io', 'password': 'UserPassw0rd!!', 'name': 'U8'}).json()['access_token']}"}
+    uh2 = {"Authorization": f"Bearer {client.post('/api/auth/register', json={'email': 'u8@t.io', 'password': 'UserPassw0rd!!', 'full_name': 'Test User Eight'}).json()['access_token']}"}
     r = client.post("/api/invest", json={"package_id": str(pkg.id), "amount": 15,
                                          "acknowledge_risk": True}, headers=uh2)
     assert r.status_code == 404  # deactivated package can't be invested into
@@ -223,3 +230,26 @@ def test_package_lifecycle_guards(env):
     assert client.post("/api/admin/packages", json=bad, headers=ah).status_code == 400
     bad2 = {**body, "return_min_amount": 9, "return_max_amount": 1}
     assert client.put(f"/api/admin/packages/{pkg.id}", json=bad2, headers=ah).status_code == 400
+
+
+def test_three_part_name_required(env):
+    client, session, *_ = env
+    # too short / empty / whitespace-only names refused
+    for bad in ["", "  ", "Ahmad", "Ahmad Ali"]:
+        r = client.post("/api/auth/register",
+                        json={"email": f"n{len(bad)}@t.io", "password": "UserPassw0rd!!",
+                              "full_name": bad})
+        assert r.status_code == 400 and "three-part" in r.text, (bad, r.text)
+    # three words pass — and messy whitespace gets normalized on save
+    r = client.post("/api/auth/register",
+                    json={"email": "good@t.io", "password": "UserPassw0rd!!",
+                          "full_name": "  Ahmad   Ali  Husseini "})
+    assert r.status_code == 201, r.text
+    h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    me = client.get("/api/auth/me", headers=h).json()
+    assert me["full_name"] == "Ahmad Ali Husseini"
+    # profile update enforces the same rule
+    assert client.put("/api/profile", json={"full_name": "Just Two"},
+                      headers=h).status_code == 400
+    assert client.put("/api/profile", json={"full_name": "A B C"},
+                      headers=h).status_code == 200

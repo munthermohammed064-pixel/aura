@@ -45,7 +45,10 @@ class WithdrawAddressIn(BaseModel):
 @router.put("")
 def update_profile(data: ProfileUpdate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if data.full_name is not None:
-        user.full_name = data.full_name
+        full_name = " ".join(data.full_name.split())
+        if len(full_name.split()) < 3:
+            raise HTTPException(400, "Please enter your full three-part name")
+        user.full_name = full_name
     db.commit()
     return {"ok": True}
 
