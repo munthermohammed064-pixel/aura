@@ -164,3 +164,62 @@ def test_utc_offset_everywhere(env):
     deps = client.get("/api/deposits", headers=uh).json()
     for d in deps:
         assert d["created_at"].endswith("+00:00")
+
+
+def test_ttl_boundary(env):
+    """A code must work right up to its expiry — and fail the moment after."""
+    client, session, admin, pkg = env
+    ah = _admin(client)
+    uh = _invested_user(client, session, pkg, ah, "u6@t.io")
+    client.post("/api/admin/codes",
+                json={"ttl_hours": 1, "code": "EDGE1",
+                      "amounts": {str(pkg.id): float(pkg.return_min_amount)}}, headers=ah)
+    tc = session.query(TradingCode).filter_by(code="EDGE1").one()
+    tc.expires_at = datetime.now(timezone.utc) + timedelta(seconds=30)
+    session.commit()
+    r = client.post("/api/wallet/redeem-code", json={"code": "edge1"}, headers=uh)
+    assert r.status_code == 200, r.text  # 30s before expiry → still valid
+
+
+def test_package_lifecycle_guards(env):
+    """Deleting a package with investments, or an inverted range, must be
+    refused — both silently broke the platform before."""
+    client, session, admin, pkg = env
+    ah = _admin(client)
+    _invested_user(client, session, pkg, ah, "u7@t.io")  # active investment on pkg
+
+    r = client.delete(f"/api/admin/packages/{pkg.id}", headers=ah)
+    assert r.status_code == 409 and "investment" in r.text.lower(), r.text
+
+    # live code referencing a package (no investments) also blocks deletion
+    p2 = Package(name="N9", min_deposit=10, max_deposit=10,
+                 return_min_amount=0.1, return_max_amount=1.0,
+                 duration_days=30, is_active=True, sort_order=9)
+    session.add(p2); session.commit()
+    r = client.post("/api/admin/codes",
+                    json={"ttl_hours": 1, "amounts": {str(p2.id): 0.4}}, headers=ah)
+    assert r.status_code == 201
+    code_id = r.json()["id"]
+    r = client.delete(f"/api/admin/packages/{p2.id}", headers=ah)
+    assert r.status_code == 409 and "code" in r.text.lower(), r.text
+    # once the code is closed the package deletes cleanly
+    client.post(f"/api/admin/codes/{code_id}/close", headers=ah)
+    assert client.delete(f"/api/admin/packages/{p2.id}", headers=ah).status_code == 200
+
+    # deactivate → invest blocked
+    body = {"name": pkg.name, "min_deposit": 15, "max_deposit": 15,
+            "return_min_amount": 0.3, "return_max_amount": 0.5,
+            "duration_days": 365, "is_active": False}
+    r = client.put(f"/api/admin/packages/{pkg.id}", json=body, headers=ah)
+    assert r.status_code == 200 and r.json()["is_active"] is False
+    uh2 = {"Authorization": f"Bearer {client.post('/api/auth/register', json={'email': 'u8@t.io', 'password': 'UserPassw0rd!!', 'name': 'U8'}).json()['access_token']}"}
+    r = client.post("/api/invest", json={"package_id": str(pkg.id), "amount": 15,
+                                         "acknowledge_risk": True}, headers=uh2)
+    assert r.status_code == 404  # deactivated package can't be invested into
+
+    # inverted ranges refused on update and create
+    bad = {**body, "min_deposit": 100, "max_deposit": 50}
+    assert client.put(f"/api/admin/packages/{pkg.id}", json=bad, headers=ah).status_code == 400
+    assert client.post("/api/admin/packages", json=bad, headers=ah).status_code == 400
+    bad2 = {**body, "return_min_amount": 9, "return_max_amount": 1}
+    assert client.put(f"/api/admin/packages/{pkg.id}", json=bad2, headers=ah).status_code == 400

@@ -80,8 +80,19 @@ def list_packages(admin: User = Depends(get_admin), db: Session = Depends(get_db
     return [ser_model(p) for p in db.query(Package).order_by(Package.sort_order, Package.min_deposit).all()]
 
 
+def _check_package_ranges(data: PackageIn):
+    # An inverted range bricks the package silently: no invest can pass
+    # min<=amount<=max and no code can pass the return bounds.
+    if data.min_deposit > data.max_deposit:
+        raise HTTPException(400, "Minimum deposit cannot exceed maximum deposit")
+    if (data.return_min_amount is not None and data.return_max_amount is not None
+            and data.return_min_amount > data.return_max_amount):
+        raise HTTPException(400, "Minimum return cannot exceed maximum return")
+
+
 @router.post("/packages", status_code=201)
 def create_package(data: PackageIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    _check_package_ranges(data)
     p = Package(**data.model_dump())
     db.add(p)
     db.flush()
@@ -97,6 +108,7 @@ def update_package(pkg_id: str, data: PackageIn, admin: User = Depends(get_admin
     p = db.get(Package, uuid.UUID(pkg_id))
     if not p:
         raise HTTPException(404, "Package not found")
+    _check_package_ranges(data)
     for k, v in data.model_dump(exclude={"i18n"}).items():
         setattr(p, k, v)
     # i18n is merged, not replaced — a PUT without it must not wipe translations
@@ -114,6 +126,19 @@ def delete_package(pkg_id: str, admin: User = Depends(get_admin), db: Session = 
     p = db.get(Package, uuid.UUID(pkg_id))
     if not p:
         raise HTTPException(404, "Package not found")
+    # Deleting a package users invested in orphans those rows (names and
+    # ranges disappear from every list). Deactivation exists for that.
+    if db.query(Investment.id).filter(Investment.package_id == p.id).first():
+        raise HTTPException(409, "Package has investments — deactivate it instead of deleting")
+    # …and a live code carrying this package would redeem to "doesn't apply"
+    # for every holder — close it first instead of surprising users.
+    now = datetime.now(timezone.utc)
+    for tc in db.query(TradingCode).filter(TradingCode.is_active.is_(True)).all():
+        exp = tc.expires_at
+        if exp and exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        if str(p.id) in (tc.amounts or {}) and exp and exp > now:
+            raise HTTPException(409, "A live trading code uses this package — close the code or deactivate the package")
     audit(db, admin, "package.delete", "package", p.id, {"name": p.name})
     db.delete(p)
     db.commit()
@@ -644,6 +669,11 @@ def all_settings(owner: User = Depends(get_owner), db: Session = Depends(get_db)
 
 @router.put("/settings/{key}")
 def update_setting(key: str, data: SettingIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+    v = data.value or {}
+    # A min>max limits pair would block every deposit/withdrawal — refuse.
+    if isinstance(v.get("min"), (int, float)) and isinstance(v.get("max"), (int, float)):
+        if v["min"] > v["max"] or v["min"] < 0:
+            raise HTTPException(400, "Invalid limits: min must be 0 or more and cannot exceed max")
     set_setting(db, key, data.value)
     audit(db, owner, "settings.update", "setting", key, data.value)
     db.commit()
