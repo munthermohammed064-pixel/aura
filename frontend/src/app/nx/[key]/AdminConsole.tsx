@@ -553,6 +553,7 @@ export default function AdminConsole() {
               <button className="btn mt-4" onClick={savePkg}>{editingPkg ? t("save_changes") : t("create")}</button>
             </GlassCard>}
             <GlassCard>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs text-muted">
                   <th className="pb-2">{t("name")}</th><th className="pb-2">{t("price")}</th><th className="pb-2">{t("daily")}</th><th className="pb-2">{t("days")}</th><th className="pb-2">{t("active")}</th><th className="pb-2"></th>
@@ -574,12 +575,14 @@ export default function AdminConsole() {
                   </tr>
                 ))}</tbody>
               </table>
+              </div>
             </GlassCard>
           </div>
         )}
 
         {tab === "investments" && (
           <GlassCard>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-xs text-muted">
                 <th className="pb-2">{t("user")}</th><th className="pb-2">{t("package")}</th>
@@ -611,6 +614,7 @@ export default function AdminConsole() {
                 </tr>
               ))}</tbody>
             </table>
+            </div>
             <Pager total={investments.length} page={invPage} setPage={setInvPage} />
           </GlassCard>
         )}
@@ -670,6 +674,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
               )}
             </GlassCard>
             <GlassCard>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs text-muted">
                   <th className="pb-2">{t("nav_code")}</th><th className="pb-2">{t("codes_valid_until")}</th>
@@ -697,6 +702,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                   );
                 })}</tbody>
               </table>
+              </div>
               {codes.length === 0 && <p className="text-xs text-muted">{t("codes_none")}</p>}
             </GlassCard>
           </div>
@@ -721,6 +727,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                 </div>
               )}
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-xs text-muted">
                 <th className="w-8 pb-2">
@@ -775,6 +782,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                 </tr>
               ))}</tbody>
             </table>
+            </div>
             <Pager total={deposits.length} page={depPage} setPage={setDepPage} />
           </GlassCard>
         )}
@@ -883,6 +891,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
           <GlassCard>
             <input className="input mb-4 max-w-xs" placeholder={t("search_users")}
               value={userQ} onChange={(e) => { setUserQ(e.target.value); setUserPage(0); }} />
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-xs text-muted">
                 <th className="pb-2">{t("serial_col")}</th><th className="pb-2">{t("email_col")}</th><th className="pb-2">{t("stars")}</th><th className="pb-2">{t("wallet")}</th>
@@ -968,6 +977,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                 </tr>
               ))}</tbody>
             </table>
+            </div>
             <Pager total={users.length} page={userPage} setPage={setUserPage} />
           </GlassCard>
         )}
@@ -1149,6 +1159,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
               {methods.length === 0 ? (
                 <p className="py-6 text-center text-xs text-muted">—</p>
               ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="text-start text-[10px] uppercase tracking-wider text-muted">
                   <th className="pb-2 pe-4">{t("name")}</th><th className="pb-2 pe-4">{t("limits")}</th><th className="pb-2 pe-4">QR</th><th className="pb-2 pe-4">{t("status")}</th><th className="pb-2"></th>
@@ -1182,6 +1193,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                   </tr>
                 ))}</tbody>
               </table>
+              </div>
               )}
             </GlassCard>
           </div>
@@ -1343,6 +1355,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
 
         {tab === "audit" && (
           <GlassCard>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-xs text-muted">
                 <th className="pb-2">{t("actions")}</th><th className="pb-2">{t("type")}</th><th className="pb-2">{t("date")}</th>
@@ -1359,6 +1372,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                 </tr>
               ))}</tbody>
             </table>
+            </div>
             <Pager total={audit.length} page={auditPage} setPage={setAuditPage} />
           </GlassCard>
         )}
@@ -1367,6 +1381,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
           <div className="space-y-4">
             <GlassCard>
               <p className="mb-3 font-display text-sm">{t("operators")}</p>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs text-muted">
                   <th className="pb-2">{t("login_id")}</th><th className="pb-2">{t("full_name")}</th>
@@ -1389,6 +1404,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                   </tr>
                 ))}</tbody>
               </table>
+              </div>
             </GlassCard>
             <GlassCard>
               <p className="mb-3 font-display text-sm">{t("add_operator")}</p>

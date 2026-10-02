@@ -68,6 +68,15 @@ table { font-variant-numeric: tabular-nums; }
     -webkit-overflow-scrolling: touch;
   }
   .admin-shell table { min-width: 700px; }
+  /* last column (the action buttons) stays pinned while scrolling —
+     old webviews without :has() support get the explicit JSX wrappers,
+     and this makes the actions reachable mid-scroll everywhere */
+  .admin-shell table td:last-child,
+  .admin-shell table th:last-child {
+    position: sticky;
+    inset-inline-end: 0;
+    background: rgb(var(--surface));
+  }
 }
 
 /* thin theme-matched scrollbar */
