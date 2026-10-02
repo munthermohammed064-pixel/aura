@@ -19,7 +19,7 @@ from app.models.finance import ReferralCommission
 from app.models.platform import Notification, Raffle, RaffleEntry, Ticket, TicketReply, WheelSpin
 from app.models.user import Session as UserSession
 from app.models.user import User
-from app.schemas import ReplyIn, TicketIn, ser_dt
+from app.schemas import ReplyIn, TicketIn, ser_dt, ser_model
 from app.services.cache import get_or_set
 from app.services.settings import get_setting
 
@@ -43,8 +43,8 @@ def referrals(user: User = Depends(get_current_user), db: Session = Depends(get_
         "link": f"{settings.FRONTEND_URL}/register?ref={serial}",
         "levels": cfg.get("levels", 1),
         "pcts": {f"l{i}": cfg.get(f"l{i}_pct", 0) for i in range(1, int(cfg.get("levels", 1)) + 1)},
-        "referred": [{"id": str(u.id), "email": u.email, "joined": u.created_at} for u in referred],
-        "commissions": commissions,
+        "referred": [{"id": str(u.id), "email": u.email, "joined": ser_dt(u.created_at)} for u in referred],
+        "commissions": [ser_model(c) for c in commissions],
         "total_earned": sum(float(c.amount) for c in commissions),
         "note": "Rewards are paid on actual activity, not a promised profit.",
     }
@@ -53,13 +53,12 @@ def referrals(user: User = Depends(get_current_user), db: Session = Depends(get_
 # ---------- Notifications ----------
 @router.get("/notifications")
 def notifications(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return (
+    return [ser_model(n) for n in (
         db.query(Notification)
         .filter(Notification.user_id == user.id)
         .order_by(Notification.created_at.desc())
         .limit(50)
-        .all()
-    )
+        .all())]
 
 
 @router.post("/notifications/{notif_id}/read")
@@ -157,7 +156,8 @@ def create_ticket(data: TicketIn, user: User = Depends(get_current_user), db: Se
 
 @router.get("/tickets")
 def my_tickets(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return db.query(Ticket).filter(Ticket.user_id == user.id).order_by(Ticket.created_at.desc()).all()
+    return [ser_model(t) for t in
+            db.query(Ticket).filter(Ticket.user_id == user.id).order_by(Ticket.created_at.desc()).all()]
 
 
 @router.get("/tickets/{ticket_id}")
@@ -169,7 +169,7 @@ def ticket_detail(ticket_id: str, user: User = Depends(get_current_user), db: Se
     if not t or (t.user_id != user.id and user.role not in ("admin", "owner")):
         raise HTTPException(404, "Ticket not found")
     replies = db.query(TicketReply).filter(TicketReply.ticket_id == t.id).order_by(TicketReply.created_at).all()
-    return {"ticket": t, "replies": replies}
+    return {"ticket": ser_model(t), "replies": [ser_model(r) for r in replies]}
 
 
 @router.post("/tickets/{ticket_id}/reply")
@@ -286,7 +286,7 @@ def wheel_spin(user: User = Depends(get_current_user), db: Session = Depends(get
 
 @router.get("/raffles")
 def raffles(db: Session = Depends(get_db)):
-    return db.query(Raffle).filter(Raffle.is_active.is_(True)).all()
+    return [ser_model(r) for r in db.query(Raffle).filter(Raffle.is_active.is_(True)).all()]
 
 
 @router.post("/raffles/{raffle_id}/enter")

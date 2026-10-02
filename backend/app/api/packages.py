@@ -11,7 +11,7 @@ from app.core.deps import get_current_user
 from app.database import get_db
 from app.models.finance import Investment, Package
 from app.models.user import User
-from app.schemas import InvestIn, InvestmentOut, PackageOut
+from app.schemas import InvestIn, InvestmentOut, PackageOut, ser_dt, ser_model
 from app.services import ledger
 from app.services.cache import get_or_set
 from app.services.referral import award_commission
@@ -83,7 +83,7 @@ def my_investments(user: User = Depends(get_current_user), db: Session = Depends
             "id": str(i.id), "package_id": str(i.package_id), "package_name": p.name,
             "amount": float(i.amount), "status": i.status,
             "realized_return": float(i.realized_return),
-            "started_at": i.started_at, "ends_at": i.ends_at,
+            "started_at": ser_dt(i.started_at), "ends_at": ser_dt(i.ends_at),
             "return_min_amount": float(p.return_min_amount) if p.return_min_amount is not None else None,
             "return_max_amount": float(p.return_max_amount) if p.return_max_amount is not None else None,
         }

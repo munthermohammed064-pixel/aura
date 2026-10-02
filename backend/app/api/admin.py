@@ -27,7 +27,7 @@ from app.models.user import Session as UserSession
 from app.models.user import User, Wallet
 from app.schemas import (
     BalanceAdjustIn, PackageIn, PaymentMethodIn, SettleIn, SettingIn,
-    WithdrawalProcessIn, ser_dt,
+    WithdrawalProcessIn, ser_dt, ser_model,
 )
 from app.services import ledger, mailer
 from app.services.cache import bust
@@ -77,7 +77,7 @@ def stats(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
 # ---------- Packages ----------
 @router.get("/packages")
 def list_packages(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
-    return db.query(Package).order_by(Package.sort_order, Package.min_deposit).all()
+    return [ser_model(p) for p in db.query(Package).order_by(Package.sort_order, Package.min_deposit).all()]
 
 
 @router.post("/packages", status_code=201)

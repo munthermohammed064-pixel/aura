@@ -16,6 +16,20 @@ def ser_dt(d: datetime | None) -> str | None:
     return d.isoformat()
 
 
+def ser_model(o) -> dict:
+    """ORM row → JSON-safe dict: datetimes get the UTC suffix, UUIDs become
+    str. For endpoints that return rows directly instead of a schema."""
+    out = {}
+    for c in o.__table__.columns:
+        v = getattr(o, c.name)
+        if isinstance(v, datetime):
+            v = ser_dt(v)
+        elif isinstance(v, uuid.UUID):
+            v = str(v)
+        out[c.name] = v
+    return out
+
+
 class NxBase(BaseModel):
     """Every response schema inherits this — naive datetimes coming out of
     SQLite get their UTC marker so client-side Date parsing is exact."""

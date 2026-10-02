@@ -135,3 +135,32 @@ def test_expired_closed_bounds_and_no_investment(env):
                       "amounts": {str(pkg.id): 0.4}}, headers=ah)
     r = client.post("/api/wallet/redeem-code", json={"code": "NOINV1"}, headers=h4)
     assert r.status_code == 400 and "package" in r.text.lower()
+
+
+def test_utc_offset_everywhere(env):
+    """Every datetime the API emits must carry +00:00 — naive ISO makes
+    browsers parse it as local time and shifts every timestamp by the
+    viewer's offset (the code-expiry bug's root cause)."""
+    client, session, admin, pkg = env
+    ah = _admin(client)
+    uh = _invested_user(client, session, pkg, ah, "u5@t.io")
+
+    client.post("/api/tickets", json={"subject": "hi", "body": "b"}, headers=uh)
+    tk = client.get("/api/tickets", headers=uh).json()[0]
+    assert tk["created_at"].endswith("+00:00"), tk["created_at"]
+
+    s = client.get("/api/profile/sessions", headers=uh).json()
+    assert s and s[0]["created_at"].endswith("+00:00")
+    assert "refresh_token_hash" not in s[0]  # never leak token hashes
+
+    inv = client.get("/api/investments", headers=uh).json()[0]
+    assert inv["started_at"].endswith("+00:00") and inv["ends_at"].endswith("+00:00")
+
+    refs = client.get("/api/referrals", headers=uh).json()
+    # commissions list may be empty; referred/joined covered when present
+    for c in refs["commissions"]:
+        assert c["created_at"].endswith("+00:00")
+
+    deps = client.get("/api/deposits", headers=uh).json()
+    for d in deps:
+        assert d["created_at"].endswith("+00:00")

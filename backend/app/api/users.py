@@ -11,7 +11,7 @@ from app.database import get_db
 from app.models.platform import AddressRequest
 from app.models.user import Session as UserSession
 from app.models.user import User
-from app.schemas import ser_dt
+from app.schemas import ser_dt, ser_model
 from app.services.notify import notify_admins
 
 from slowapi import Limiter
@@ -123,9 +123,13 @@ def change_password(request: Request, data: PasswordChange, creds: HTTPAuthoriza
 
 @router.get("/sessions")
 def sessions(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return db.query(UserSession).filter(
+    rows = db.query(UserSession).filter(
         UserSession.user_id == user.id, UserSession.revoked.is_(False)
     ).order_by(UserSession.created_at.desc()).all()
+    # explicit fields — never leak refresh_token_hash to the client
+    return [{"id": str(s.id), "user_agent": s.user_agent, "ip": s.ip,
+             "revoked": s.revoked, "created_at": ser_dt(s.created_at),
+             "expires_at": ser_dt(s.expires_at)} for s in rows]
 
 
 @router.delete("/sessions/{session_id}")
