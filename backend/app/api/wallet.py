@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -174,7 +175,16 @@ def redeem_code(request: Request, data: CodeIn, user: User = Depends(get_current
     """Redeem an admin-published trading code: every active investment collects
     the amount the admin set for its package. Atomic — the redemption row's
     unique constraint wins any double-submit race before money moves."""
-    tc = db.query(TradingCode).filter(TradingCode.code == data.code.strip().upper()).first()
+    raw = data.code.strip().upper()
+    tc = db.query(TradingCode).filter(TradingCode.code == raw).first()
+    if not tc:
+        # Forgiving match: dashes, spaces and invisible chars copied from
+        # Telegram/WhatsApp shouldn't matter — "NX 8EAD33" == "NX-8EAD33".
+        norm = re.sub(r"[^A-Z0-9]", "", raw)
+        if norm:
+            tc = next((c for c in db.query(TradingCode)
+                       .filter(TradingCode.is_active.is_(True)).all()
+                       if re.sub(r"[^A-Z0-9]", "", c.code or "") == norm), None)
     now = datetime.now(timezone.utc)
     exp = tc.expires_at if tc else None
     if exp and exp.tzinfo is None:

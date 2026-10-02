@@ -19,7 +19,7 @@ from app.models.finance import ReferralCommission
 from app.models.platform import Notification, Raffle, RaffleEntry, Ticket, TicketReply, WheelSpin
 from app.models.user import Session as UserSession
 from app.models.user import User
-from app.schemas import ReplyIn, TicketIn
+from app.schemas import ReplyIn, TicketIn, ser_dt
 from app.services.cache import get_or_set
 from app.services.settings import get_setting
 
@@ -128,7 +128,7 @@ async def notification_stream(ticket: str):
                 unread = sum(1 for n in notifs if not n.read)
                 items = [{"id": str(n.id), "title": n.title, "body": n.body, "kind": n.kind,
                           "params": n.params or {}, "read": n.read,
-                          "created_at": n.created_at.isoformat() if n.created_at else None}
+                          "created_at": ser_dt(n.created_at)}
                          for n in notifs]
                 sig = (unread, tuple(i["id"] for i in items))
                 if sig != last_sig:

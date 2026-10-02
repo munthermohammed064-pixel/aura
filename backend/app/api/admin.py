@@ -27,7 +27,7 @@ from app.models.user import Session as UserSession
 from app.models.user import User, Wallet
 from app.schemas import (
     BalanceAdjustIn, PackageIn, PaymentMethodIn, SettleIn, SettingIn,
-    WithdrawalProcessIn,
+    WithdrawalProcessIn, ser_dt,
 )
 from app.services import ledger, mailer
 from app.services.cache import bust
@@ -131,7 +131,7 @@ def list_deposits(status: str | None = None, admin: User = Depends(get_admin), d
     return [
         {"id": str(d.id), "amount": float(d.amount), "method": d.method, "proof": d.proof,
          "screenshot": d.screenshot, "status": d.status, "admin_note": d.admin_note,
-         "created_at": d.created_at.isoformat() if d.created_at else None,
+         "created_at": ser_dt(d.created_at),
          **_tag(u)}
         for d, u in rows
     ]
@@ -192,7 +192,7 @@ def list_withdrawals(status: str | None = None, admin: User = Depends(get_admin)
          "net_payout": float(w.amount) - float(w.star_penalty or 0),
          "address": w.address,
          "status": w.status, "txid": w.txid, "admin_note": w.admin_note,
-         "created_at": w.created_at.isoformat() if w.created_at else None,
+         "created_at": ser_dt(w.created_at),
          **_tag(u)}
         for w, u in rows
     ]
@@ -312,7 +312,7 @@ def user_detail(user_id: str, admin: User = Depends(get_admin), db: Session = De
             "default_withdraw_address": u.default_withdraw_address,
             "withdraw_qr_image": u.withdraw_qr_image,
             "withdraw_fee_pct": float(u.withdraw_fee_pct) if u.withdraw_fee_pct is not None else None,
-            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "created_at": ser_dt(u.created_at),
         },
         "inviter": _tag(inviter),
         "referred_count": referred_count,
@@ -321,24 +321,24 @@ def user_detail(user_id: str, admin: User = Depends(get_admin), db: Session = De
         "deposits": [
             {"id": str(d.id), "amount": float(d.amount), "method": d.method, "proof": d.proof,
              "screenshot": d.screenshot, "status": d.status,
-             "created_at": d.created_at.isoformat() if d.created_at else None}
+             "created_at": ser_dt(d.created_at)}
             for d in deps],
         "withdrawals": [
             {"id": str(w.id), "amount": float(w.amount), "fee": float(w.fee),
              "star_penalty": float(w.star_penalty or 0),
              "net_payout": float(w.amount) - float(w.star_penalty or 0),
              "address": w.address, "status": w.status, "txid": w.txid,
-             "created_at": w.created_at.isoformat() if w.created_at else None}
+             "created_at": ser_dt(w.created_at)}
             for w in wds],
         "investments": [
             {"id": str(i.id), "amount": float(i.amount), "status": i.status,
              "realized_return": float(i.realized_return), "package_name": pname,
-             "ends_at": i.ends_at.isoformat() if i.ends_at else None}
+             "ends_at": ser_dt(i.ends_at)}
             for i, pname in invs],
         "ledger": [
             {"id": str(e.id), "kind": e.kind, "direction": e.direction, "bucket": e.bucket,
              "amount": float(e.amount), "note": e.note,
-             "created_at": e.created_at.isoformat() if e.created_at else None}
+             "created_at": ser_dt(e.created_at)}
             for e in ledger_rows],
     }
 
@@ -537,7 +537,7 @@ def list_address_requests(admin: User = Depends(get_admin), db: Session = Depend
     return [{
         "id": str(r.id), "new_address": r.new_address, "qr_image": r.qr_image,
         "status": r.status, "fee": float(r.fee),
-        "created_at": r.created_at.isoformat() if r.created_at else None,
+        "created_at": ser_dt(r.created_at),
         "user_email": users[r.user_id].email if r.user_id in users else "",
         "user_serial": users[r.user_id].serial if r.user_id in users else "",
         "current_address": users[r.user_id].default_withdraw_address if r.user_id in users else "",
@@ -663,8 +663,8 @@ def list_investments(status: str | None = None, admin: User = Depends(get_admin)
     return [
         {"id": str(i.id), "amount": float(i.amount), "status": i.status,
          "realized_return": float(i.realized_return),
-         "started_at": i.started_at.isoformat() if i.started_at else None,
-         "ends_at": i.ends_at.isoformat() if i.ends_at else None,
+         "started_at": ser_dt(i.started_at),
+         "ends_at": ser_dt(i.ends_at),
          "package_name": p.name if p else "",
          **_tag(u)}
         for i, u, p in rows
@@ -705,7 +705,7 @@ def list_tickets(admin: User = Depends(get_admin), db: Session = Depends(get_db)
             .order_by(Ticket.created_at.desc()).limit(200).all())
     return [
         {"id": str(t.id), "subject": t.subject, "status": t.status,
-         "created_at": t.created_at.isoformat() if t.created_at else None,
+         "created_at": ser_dt(t.created_at),
          **_tag(u)}
         for t, u in rows
     ]
@@ -729,7 +729,7 @@ def audit_log(owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     rows = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(300).all()
     return [{"id": str(a.id), "action": a.action, "target_type": a.target_type,
              "target_id": a.target_id, "details": a.details,
-             "created_at": a.created_at.isoformat() if a.created_at else None} for a in rows]
+             "created_at": ser_dt(a.created_at)} for a in rows]
 
 
 # ---------- Operators (owner-only staff management) ----------
@@ -742,7 +742,7 @@ class OperatorIn(BaseModel):
 def _op_out(u: User) -> dict:
     return {"id": str(u.id), "login_id": u.login_id, "full_name": u.full_name,
             "role": u.role, "is_active": u.is_active,
-            "created_at": u.created_at.isoformat() if u.created_at else None}
+            "created_at": ser_dt(u.created_at)}
 
 
 @router.get("/operators")
@@ -793,7 +793,7 @@ _CODE_RE = re.compile(r"^[A-Z0-9-]{3,32}$")
 
 class CodeCreateIn(BaseModel):
     code: str = Field("", max_length=32)          # blank → auto-generate NX-XXXXXX
-    ttl_minutes: int = Field(60, ge=5, le=4320)   # free TTL: 5 min → 3 days
+    ttl_hours: int = Field(24, ge=1, le=72)       # validity in HOURS: 1h → 3 days (admins think in hours)
     amounts: dict[str, float] = {}                # {package_id: amount} — each inside the package's closed range
 
 
@@ -820,10 +820,10 @@ def create_code(data: CodeCreateIn, admin: User = Depends(get_admin), db: Sessio
         raise HTTPException(400, "Code already exists")
 
     tc = TradingCode(code=code, amounts=amounts,
-                     expires_at=datetime.now(timezone.utc) + timedelta(minutes=data.ttl_minutes),
+                     expires_at=datetime.now(timezone.utc) + timedelta(hours=data.ttl_hours),
                      created_by=admin.id)
     db.add(tc)
-    audit(db, admin, "code.create", "trading_code", code, {"amounts": amounts, "ttl": data.ttl_minutes})
+    audit(db, admin, "code.create", "trading_code", code, {"amounts": amounts, "ttl_hours": data.ttl_hours})
     db.commit()
     return _code_out(db, tc)
 
@@ -833,8 +833,8 @@ def _code_out(db: Session, tc: TradingCode) -> dict:
                           func.coalesce(func.sum(CodeRedemption.amount), 0)).filter(
                           CodeRedemption.code_id == tc.id).first()
     return {"id": str(tc.id), "code": tc.code, "amounts": tc.amounts,
-            "expires_at": tc.expires_at.isoformat() if tc.expires_at else None,
-            "is_active": tc.is_active, "created_at": tc.created_at.isoformat() if tc.created_at else None,
+            "expires_at": ser_dt(tc.expires_at),
+            "is_active": tc.is_active, "created_at": ser_dt(tc.created_at),
             "redemptions": int(used), "total_paid": float(paid)}
 
 

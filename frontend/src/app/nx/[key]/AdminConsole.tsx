@@ -127,7 +127,7 @@ export default function AdminConsole() {
   const [replyBody, setReplyBody] = useState("");
   const [replyBusy, setReplyBusy] = useState(false);
   const [codes, setCodes] = useState<TCode[]>([]);
-  const [codeForm, setCodeForm] = useState<{ code: string; ttl: number; amounts: Record<string, string> }>({ code: "", ttl: 60, amounts: {} });
+  const [codeForm, setCodeForm] = useState<{ code: string; ttl: number; amounts: Record<string, string> }>({ code: "", ttl: 24, amounts: {} });
   const [published, setPublished] = useState<TCode | null>(null);
   // Which language the admin is writing content in (packages/methods/FAQ/legal).
   const [contentLang, setContentLang] = useState<Lang>("en");
@@ -268,8 +268,8 @@ export default function AdminConsole() {
     const amounts = Object.fromEntries(Object.entries(codeForm.amounts)
       .filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)]));
     api<TCode>("/admin/codes", { method: "POST",
-        body: JSON.stringify({ code: codeForm.code, ttl_minutes: codeForm.ttl, amounts }) })
-      .then((c) => { setPublished(c); setCodeForm({ code: "", ttl: 60, amounts: {} }); load(); })
+        body: JSON.stringify({ code: codeForm.code, ttl_hours: codeForm.ttl, amounts }) })
+      .then((c) => { setPublished(c); setCodeForm({ code: "", ttl: 24, amounts: {} }); load(); })
       .catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"));
   };
 
@@ -623,10 +623,15 @@ export default function AdminConsole() {
                 <input className="input font-mono uppercase" placeholder={t("codes_code")}
                   value={codeForm.code} maxLength={32}
                   onChange={(e) => setCodeForm({ ...codeForm, code: e.target.value.toUpperCase() })} />
-                <input className="input" type="number" min={5} max={4320} placeholder={t("codes_ttl")}
+                <input className="input" type="number" min={1} max={72} placeholder={t("codes_ttl")}
                   value={codeForm.ttl}
                   onChange={(e) => setCodeForm({ ...codeForm, ttl: Number(e.target.value) })} />
               </div>
+              {codeForm.ttl > 0 && (
+                <p className="mb-3 -mt-1 text-xs text-muted">
+                  {t("codes_expires_hint")}: {new Date(Date.now() + codeForm.ttl * 3600000).toLocaleString(lang)}
+                </p>
+              )}
               <p className="mb-2 text-xs text-muted">{t("codes_per_pkg")}</p>
               <div className="grid gap-2 md:grid-cols-3">
                 {packages.filter((p) => p.is_active).map((p) => (

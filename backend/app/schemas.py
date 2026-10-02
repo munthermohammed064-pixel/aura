@@ -1,48 +1,78 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_serializer
+
+
+def ser_dt(d: datetime | None) -> str | None:
+    """Serialize a DB datetime as explicit-UTC ISO. Without the offset suffix,
+    browsers parse the string as *local* time and every timestamp the API
+    returns lands shifted by the viewer's timezone (codes looked like they
+    died hours early in Baghdad while the console claimed otherwise)."""
+    if d is None:
+        return None
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=timezone.utc)
+    return d.isoformat()
+
+
+class NxBase(BaseModel):
+    """Every response schema inherits this — naive datetimes coming out of
+    SQLite get their UTC marker so client-side Date parsing is exact."""
+
+    @model_serializer(mode="wrap")
+    def _serialize(self, nxt):
+        def fix(v):
+            if isinstance(v, datetime):
+                return ser_dt(v)
+            if isinstance(v, dict):
+                return {k: fix(x) for k, x in v.items()}
+            if isinstance(v, list):
+                return [fix(x) for x in v]
+            return v
+        d = nxt(self)
+        return {k: fix(v) for k, v in d.items()} if isinstance(d, dict) else d
 
 
 # ---- Auth ----
-class RegisterIn(BaseModel):
+class RegisterIn(NxBase):
     email: EmailStr
     password: str = Field(min_length=12, max_length=72)  # bcrypt truncates at 72 bytes
     full_name: str = ""
     referral_code: str | None = None
 
 
-class LoginIn(BaseModel):
+class LoginIn(NxBase):
     identifier: str = Field(min_length=1)  # user email OR admin login_id
     password: str
 
 
-class TokenOut(BaseModel):
+class TokenOut(NxBase):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
     verification_sent: bool = False
 
 
-class RefreshIn(BaseModel):
+class RefreshIn(NxBase):
     refresh_token: str
 
 
-class ForgotIn(BaseModel):
+class ForgotIn(NxBase):
     email: EmailStr
 
 
-class ResetIn(BaseModel):
+class ResetIn(NxBase):
     token: str
     new_password: str = Field(min_length=12, max_length=72)
 
 
-class VerifyIn(BaseModel):
+class VerifyIn(NxBase):
     token: str
 
 
 # ---- Users ----
-class UserOut(BaseModel):
+class UserOut(NxBase):
     id: uuid.UUID
     email: str
     serial: str
@@ -59,7 +89,7 @@ class UserOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class WalletOut(BaseModel):
+class WalletOut(NxBase):
     available: float
     pending: float
     invested: float
@@ -68,7 +98,7 @@ class WalletOut(BaseModel):
 
 
 # ---- Packages / Investments ----
-class PackageIn(BaseModel):
+class PackageIn(NxBase):
     name: str
     description: str = ""
     min_deposit: float = Field(gt=0)
@@ -89,13 +119,13 @@ class PackageOut(PackageIn):
     model_config = {"from_attributes": True}
 
 
-class InvestIn(BaseModel):
+class InvestIn(NxBase):
     package_id: uuid.UUID
     amount: float = Field(gt=0)
     acknowledge_risk: bool  # must be True — "I understand returns are not guaranteed"
 
 
-class InvestmentOut(BaseModel):
+class InvestmentOut(NxBase):
     id: uuid.UUID
     package_id: uuid.UUID
     amount: float
@@ -115,7 +145,7 @@ def _upload_path(v: str | None) -> str | None:
     return v
 
 
-class DepositIn(BaseModel):
+class DepositIn(NxBase):
     amount: float = Field(gt=0)
     method: str
     proof: str = ""
@@ -124,7 +154,7 @@ class DepositIn(BaseModel):
     _v_shot = field_validator("screenshot")(_upload_path)
 
 
-class DepositOut(BaseModel):
+class DepositOut(NxBase):
     id: uuid.UUID
     amount: float
     method: str
@@ -134,12 +164,12 @@ class DepositOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class WithdrawIn(BaseModel):
+class WithdrawIn(NxBase):
     amount: float = Field(gt=0)
     address: str = Field(min_length=4)
 
 
-class WithdrawalOut(BaseModel):
+class WithdrawalOut(NxBase):
     id: uuid.UUID
     amount: float
     fee: float
@@ -152,41 +182,41 @@ class WithdrawalOut(BaseModel):
 
 
 # ---- Support / Notifications ----
-class TicketIn(BaseModel):
+class TicketIn(NxBase):
     subject: str
     body: str
 
 
-class ReplyIn(BaseModel):
+class ReplyIn(NxBase):
     body: str
 
 
 # ---- Admin ----
-class SettingIn(BaseModel):
+class SettingIn(NxBase):
     value: dict
 
 
-class AdminActionIn(BaseModel):
+class AdminActionIn(NxBase):
     note: str = ""
 
 
-class WithdrawalProcessIn(BaseModel):
+class WithdrawalProcessIn(NxBase):
     action: str  # approve | reject | paid
     txid: str = ""
     note: str = ""
 
 
-class SettleIn(BaseModel):
+class SettleIn(NxBase):
     return_amount: float = Field(ge=0)  # realized return credited to the user (may be 0)
 
 
-class BalanceAdjustIn(BaseModel):
+class BalanceAdjustIn(NxBase):
     amount: float
     bucket: str = "available"
     note: str
 
 
-class PaymentMethodIn(BaseModel):
+class PaymentMethodIn(NxBase):
     name: str
     details: str = ""
     qr_image: str = ""

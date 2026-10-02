@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models.platform import AddressRequest
 from app.models.user import Session as UserSession
 from app.models.user import User
+from app.schemas import ser_dt
 from app.services.notify import notify_admins
 
 from slowapi import Limiter
@@ -97,7 +98,7 @@ def my_address_request(user: User = Depends(get_current_user), db: Session = Dep
     if not req:
         return None
     return {"id": str(req.id), "new_address": req.new_address,
-            "fee": float(req.fee), "created_at": req.created_at.isoformat() if req.created_at else None}
+            "fee": float(req.fee), "created_at": ser_dt(req.created_at)}
 
 
 @router.post("/password")
