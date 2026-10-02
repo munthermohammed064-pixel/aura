@@ -109,7 +109,7 @@ async def notification_stream(ticket: str):
     entry = _STREAM_TICKETS.pop(ticket, None)
     if not entry or entry[2] < datetime.now(timezone.utc):
         raise HTTPException(401, "Invalid or expired stream ticket")
-    user_id, sid = entry
+    user_id, sid, _ = entry
 
     async def gen():
         last_sig = None
