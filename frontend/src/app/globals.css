@@ -56,11 +56,13 @@ html, body {
 /* bank-statement digits — every table's numbers align vertically */
 table { font-variant-numeric: tabular-nums; }
 
-/* narrow screens: admin tables keep real table layout at a natural width and
-   their direct parent becomes the horizontal scroller — columns never crush
-   and pan-x stays inside the frame instead of dragging the page sideways */
+/* narrow screens: tables keep real table layout and their direct parent
+   becomes the horizontal scroller — columns never crush and pan-x stays
+   inside the frame instead of dragging the page sideways. Admin tables get
+   a floor width since they're genuinely wide; user tables scroll only when
+   their content actually overflows. */
 @media (max-width: 768px) {
-  .admin-shell *:has(> table) {
+  *:has(> table) {
     overflow-x: auto;
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
