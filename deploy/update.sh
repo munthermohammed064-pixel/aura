@@ -8,7 +8,10 @@ cd "$APP_ROOT"
 # e2e_check.py is re-uploaded by prod_e2e.py after each deploy — discard that
 # generated copy so the pull never conflicts with the repo version.
 git checkout -- backend/e2e_check.py 2>/dev/null || true
-git pull --ff-only
+# One branch only. A bare `git pull --ff-only` dies on this server
+# ("Cannot fast-forward to multiple branches") after the first pull.
+git fetch origin main
+git merge --ff-only origin/main
 
 # Backend dependencies only when requirements changed.
 if git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -q "backend/requirements"; then

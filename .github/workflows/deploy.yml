@@ -19,7 +19,8 @@ jobs:
           ssh -i ~/.ssh/nx_deploy -o ConnectTimeout=20 root@187.124.9.200 '
             set -e
             cd /opt/nexora
-            git pull --ff-only
+            git fetch origin main
+            git merge --ff-only origin/main
             bash deploy/update.sh
             systemctl is-active nexora-backend nexora-frontend caddy
             curl -s -o /dev/null -w "site:%{http_code}\n" https://neexora.space/
