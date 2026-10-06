@@ -6,7 +6,7 @@ import { Nav } from "@/components/Nav";
 import { CountUp } from "@/components/CountUp";
 import { GlassCard } from "@/components/Glass";
 import { api } from "@/lib/api";
-import { useT } from "@/lib/i18n";
+import { useT, formatDate } from "@/lib/i18n";
 import { Stars } from "@/components/Stars";
 import { ArrowDownToLine, ArrowUpFromLine, Activity } from "lucide-react";
 import { SkeletonRows } from "@/components/Skeleton";
@@ -258,7 +258,7 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <p className="mt-0.5 text-[11px] text-muted">
-                  {t(x.direction)} · {new Date(x.created_at).toLocaleDateString(lang)}
+                  {t(x.direction)} · {formatDate(x.created_at, lang)}
                 </p>
               </li>
             ))}

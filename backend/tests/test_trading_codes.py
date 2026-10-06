@@ -13,7 +13,7 @@ from app.config import settings
 from app.core.security import hash_password
 from app.database import Base, get_db
 from app.main import app
-from app.models.finance import Package, TradingCode
+from app.models.finance import LedgerEntry, Package, TradingCode, Withdrawal
 from app.models.user import User
 
 
@@ -34,13 +34,14 @@ def env():
     def _override():
         yield session
     app.dependency_overrides[get_db] = _override
-    # each router module owns its Limiter instance — clear the auth one's store
-    # so per-test windows don't carry over (register/login caps are 10/min).
-    from app.api import auth as auth_api
-    try:
-        auth_api.limiter._storage.reset()
-    except Exception:
-        auth_api.limiter._storage.storage.clear()
+    # each router module owns its Limiter instance — clear the auth and admin
+    # stores so per-test windows don't carry over (register/login caps are 10/min).
+    from app.api import auth as auth_api, admin as admin_api, wallet as wallet_api
+    for mod in (auth_api, admin_api, wallet_api):
+        try:
+            mod.limiter._storage.reset()
+        except Exception:
+            mod.limiter._storage.storage.clear()
     yield TestClient(app), session, admin, pkg
     app.dependency_overrides.clear()
     session.close()
@@ -257,6 +258,7 @@ def test_three_part_name_required(env):
 
 def test_withdrawal_fee_auto_counted(env, monkeypatch):
     client, session, *_ = env
+    monkeypatch.setattr("app.services.mailer.send", lambda *a, **k: True)
     ah = _admin(client)
     # pin "now" to a Tuesday so the weekend rule never flakes the test
     import app.api.wallet as wapi
@@ -275,10 +277,82 @@ def test_withdrawal_fee_auto_counted(env, monkeypatch):
     assert client.post(f"/api/admin/users/{uid}/adjust",
                        json={"amount": 100, "note": "seed"}, headers=ah).status_code == 200
 
-    # $100 balance, 20% fee → max withdrawable = 83.33; asking for 100 must
-    # fail with a message that names the real maximum.
+    # Admin max (default 50000) is the only ceiling. The 20% fee is removed
+    # from the wallet as a normal fee. It is not credited to the admin.
     r = client.post("/api/withdrawals", json={"amount": 100, "address": "0xTESTADDR"}, headers=uh)
-    assert r.status_code == 400 and "maximum withdrawable is 83.33" in r.text, r.text
-    # the exact maximum goes through — hold = 83.33 + 16.67 fee = 100.00
-    r = client.post("/api/withdrawals", json={"amount": 83.33, "address": "0xTESTADDR"}, headers=uh)
     assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    assert float(r.json()["fee"]) == 20
+    from app.models.user import Wallet
+    import uuid as _uuid
+    wallet = session.query(Wallet).filter(Wallet.user_id == _uuid.UUID(uid)).one()
+    assert float(wallet.available) == 0
+    assert float(wallet.pending) == 80
+    fee_row = session.query(LedgerEntry).filter(LedgerEntry.kind == "fee", LedgerEntry.user_id == wallet.user_id).one()
+    assert fee_row.direction == "debit" and float(fee_row.amount) == 20
+    assert session.query(LedgerEntry).filter(LedgerEntry.kind == "fee", LedgerEntry.direction == "credit").count() == 0
+    txs = client.get("/api/wallet/transactions", headers=uh)
+    assert txs.status_code == 200, txs.text
+    assert all(row["bucket"] == "available" for row in txs.json())
+    assert any(row["kind"] == "fee" and row["direction"] == "debit" for row in txs.json())
+    # paying sends the net and does not put the fee anywhere
+    paid = client.post(f"/api/admin/withdrawals/{wid}/process",
+                       json={"action": "paid", "txid": "TX1"}, headers=ah)
+    assert paid.status_code == 200, paid.text
+    session.expire_all()
+    wallet = session.query(Wallet).filter(Wallet.user_id == _uuid.UUID(uid)).one()
+    assert float(wallet.available) == 0
+    assert float(wallet.pending) == 0
+    assert session.query(LedgerEntry).filter(
+        LedgerEntry.kind == "fee", LedgerEntry.direction == "credit").count() == 0
+    # a rejected request gives the fee and the payout back
+    assert client.post(f"/api/admin/users/{uid}/adjust",
+                       json={"amount": 50, "note": "more"}, headers=ah).status_code == 200
+    r = client.post("/api/withdrawals", json={"amount": 40, "address": "0xTESTADDR"}, headers=uh)
+    assert r.status_code == 201, r.text
+    rej = client.post(f"/api/admin/withdrawals/{r.json()['id']}/process",
+                      json={"action": "reject", "note": "no"}, headers=ah)
+    assert rej.status_code == 200, rej.text
+    session.expire_all()
+    wallet = session.query(Wallet).filter(Wallet.user_id == _uuid.UUID(uid)).one()
+    assert float(wallet.available) == 50
+    assert float(wallet.pending) == 0
+    # above the admin maximum is refused by that limit, not by a fee formula
+    r = client.post("/api/withdrawals", json={"amount": 60000, "address": "0xTESTADDR"}, headers=uh)
+    assert r.status_code == 400 and "between" in r.text.lower(), r.text
+
+
+def test_legacy_stacked_fee_is_returned_once(env, monkeypatch):
+    """Older requests locked amount+fee. Paying them must not take the fee twice."""
+    client, session, *_ = env
+    monkeypatch.setattr("app.services.mailer.send", lambda *a, **k: True)
+    ah = _admin(client)
+    r = client.post("/api/auth/register",
+                    json={"email": "old@t.io", "password": "UserPassw0rd!!",
+                          "full_name": "Legacy Fee User"})
+    assert r.status_code == 201, r.text
+    uh = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    uid = client.get("/api/auth/me", headers=uh).json()["id"]
+    assert client.post(f"/api/admin/users/{uid}/adjust",
+                       json={"amount": 100, "note": "seed"}, headers=ah).status_code == 200
+    import uuid as _uuid
+    from app.models.user import Wallet
+    from app.services import ledger
+    user_id = _uuid.UUID(uid)
+    w = Withdrawal(user_id=user_id, amount=20, fee=4, address="TOLD", status="pending")
+    session.add(w)
+    session.flush()
+    ledger.post(session, user_id=user_id, kind="withdrawal", direction="debit",
+                bucket="available", amount=24, reference_type="withdrawal", reference_id=w.id,
+                note="Withdrawal request hold")
+    ledger.post(session, user_id=user_id, kind="withdrawal", direction="credit",
+                bucket="pending", amount=24, reference_type="withdrawal", reference_id=w.id,
+                note="Withdrawal request hold")
+    session.commit()
+    paid = client.post(f"/api/admin/withdrawals/{w.id}/process",
+                       json={"action": "paid", "txid": "OLD1"}, headers=ah)
+    assert paid.status_code == 200, paid.text
+    session.expire_all()
+    wallet = session.query(Wallet).filter(Wallet.user_id == user_id).one()
+    assert float(wallet.pending) == 0
+    assert float(wallet.available) == 80

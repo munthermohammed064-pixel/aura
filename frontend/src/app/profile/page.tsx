@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Nav } from "@/components/Nav";
 import { GlassCard } from "@/components/Glass";
 import { api, API_URL, getToken } from "@/lib/api";
-import { useT } from "@/lib/i18n";
+import { useT, formatDate } from "@/lib/i18n";
 import { Stars } from "@/components/Stars";
 
 type Me = {
@@ -275,7 +275,7 @@ export default function Profile() {
                       {parseUA(s.user_agent) || t("unknown_device")}
                       {current && <span className="ms-2 rounded-full bg-accent/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-accent">{t("this_session")}</span>}
                     </p>
-                    <p className="text-[10px] text-muted">{s.ip} · {new Date(s.created_at).toLocaleDateString(lang)}</p>
+                    <p className="text-[10px] text-muted">{s.ip} · {formatDate(s.created_at, lang)}</p>
                   </div>
                   {!current && (
                     <button className="btn-ghost shrink-0 px-3 py-1 text-[10px]" onClick={() => revoke(s.id)}>

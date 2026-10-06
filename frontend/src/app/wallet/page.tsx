@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { CountUp } from "@/components/CountUp";
 import { Disclaimer, GlassCard } from "@/components/Glass";
 import { api, API_URL } from "@/lib/api";
-import { useT, localized } from "@/lib/i18n";
+import { useT, localized, formatDate } from "@/lib/i18n";
 import { useToast } from "@/components/Toast";
 import { SkeletonRows } from "@/components/Skeleton";
 import { StatusPill } from "@/components/StatusPill";
@@ -16,7 +16,10 @@ type Method = { id: string; name: string; details: string; qr_image: string; min
 type Wallet = { available: number; pending: number; invested: number };
 type Row = { id: string; amount: number; status: string; created_at: string; method?: string; address?: string; fee?: number; star_penalty?: number };
 type Me = { default_withdraw_address: string | null; stars: number; withdraw_fee_pct: number | null };
-type Cfg = { withdrawal_fee_pct: number; withdrawal_fee_flat: number };
+type Cfg = {
+  withdrawal_fee_pct: number; withdrawal_fee_flat: number;
+  withdrawal_min: number; withdrawal_max: number;
+};
 
 export default function WalletPage() {
   const { t, terr, lang } = useT();
@@ -35,7 +38,10 @@ export default function WalletPage() {
   const [loadErr, setLoadErr] = useState(false);
   const [confirmWd, setConfirmWd] = useState(false);
   const [wdBusy, setWdBusy] = useState(false);
-  const [cfg, setCfg] = useState<Cfg>({ withdrawal_fee_pct: 0, withdrawal_fee_flat: 0 });
+  const [cfg, setCfg] = useState<Cfg>({
+    withdrawal_fee_pct: 0, withdrawal_fee_flat: 0, withdrawal_min: 0, withdrawal_max: 0,
+  });
+  const [cfgReady, setCfgReady] = useState(false);
   const [feePct, setFeePct] = useState<number | null>(null);
 
   const load = () => {
@@ -52,7 +58,7 @@ export default function WalletPage() {
       setFeePct(u.withdraw_fee_pct);
       if (u.default_withdraw_address) setWd((w) => ({ ...w, address: u.default_withdraw_address! }));
     }).catch(() => {}).finally(() => setLoading(false));
-    api<Cfg>("/config").then(setCfg).catch(() => {});
+    api<Cfg>("/config").then((c) => { setCfg(c); setCfgReady(true); }).catch(() => setLoadErr(true));
   };
   useEffect(load, []);
   useEffect(() => {
@@ -87,15 +93,20 @@ export default function WalletPage() {
   const wdAmt = Number(wd.amount) || 0;
   const wdFee = Math.round((wdAmt * effPct / 100 + cfg.withdrawal_fee_flat) * 100) / 100;
   const wdPenalty = Math.round(wdAmt * Math.max(0, 4 - stars) * 0.25 * 100) / 100;
-  const wdNet = Math.round((wdAmt - wdPenalty) * 100) / 100;
+  // Fee and star cuts come out of the amount. The wallet only loses what was asked for.
+  const wdNet = Math.max(0, Math.round((wdAmt - wdFee - wdPenalty) * 100) / 100);
   const wdAvail = wallet?.available ?? 0;
-  // Largest request whose amount+fee still fits the available balance.
-  const maxWd = Math.max(0, Math.floor(((wdAvail - cfg.withdrawal_fee_flat) / (1 + effPct / 100)) * 100) / 100);
-  const wdOver = wdAmt > 0 && wdAmt + wdFee > wdAvail + 0.001;
+  // Ceiling is the admin's saved maximum, and you cannot ask for more than you hold.
+  const adminMax = cfg.withdrawal_max > 0 ? cfg.withdrawal_max : wdAvail;
+  const requestCap = Math.max(0, Math.floor(Math.min(wdAvail, adminMax) * 100) / 100);
+  const overBalance = wdAmt > wdAvail + 0.001;
+  const outsideLimit = wdAmt > 0 && cfg.withdrawal_max > 0
+    && (wdAmt < cfg.withdrawal_min || wdAmt > cfg.withdrawal_max);
 
   const openConfirm = () => {
+    if (!cfgReady) return;
     if (!wdAmt || wdAmt <= 0) return toast(t("enter_amount"), "err");
-    if (wdOver) return toast(t("err_max_withdraw", { a: `$${maxWd.toLocaleString("en-US", { maximumFractionDigits: 2 })}` }), "err");
+    if (overBalance || outsideLimit) return;
     setConfirmWd(true);
   };
 
@@ -130,12 +141,15 @@ export default function WalletPage() {
         <tr key={r.id} className="border-t border-border">
           <td className="py-2 tabular-nums">
             ${Number(r.amount).toLocaleString("en-US")}
+            {(r.fee ?? 0) > 0 && (
+              <p className="text-[10px] text-muted">−${Number(r.fee).toLocaleString("en-US")} {t("fee_removed")}</p>
+            )}
             {(r.star_penalty ?? 0) > 0 && (
               <p className="text-[10px] text-red-600">−${Number(r.star_penalty).toLocaleString("en-US")} {t("star_penalty")}</p>
             )}
           </td>
           <td className="py-2"><StatusPill status={r.status} /></td>
-          <td className="py-2 text-muted tabular-nums">{new Date(r.created_at).toLocaleDateString(lang)}</td>
+          <td className="py-2 text-muted tabular-nums">{formatDate(r.created_at, lang)}</td>
         </tr>
       ))}</tbody>
     </table>
@@ -248,19 +262,23 @@ export default function WalletPage() {
             <div className="relative mb-2">
               <input className="input w-full pe-16" type="number" placeholder={t("amount")}
                 value={wd.amount} onChange={(e) => setWd({ ...wd, amount: e.target.value })} />
-              <button type="button" onClick={() => setWd({ ...wd, amount: maxWd > 0 ? String(maxWd) : "" })}
+              <button type="button" onClick={() => setWd({ ...wd, amount: requestCap > 0 ? String(requestCap) : "" })}
                 className="absolute end-2 top-1/2 -translate-y-1/2 rounded-full border border-accent/40 bg-accent/10 px-3 py-0.5 text-[10px] font-bold tracking-widest text-accent transition hover:bg-accent/20">
                 MAX
               </button>
             </div>
-            {wallet && (
-              <p className="mb-2 text-[10px] text-muted">
-                {t("max_withdrawable")}: <span className={`font-mono ${wdOver ? "text-red-500" : "text-accent"}`}>
-                  ${maxWd.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
-                {" "}· {t("fee")} {effPct}%
+            {wallet && cfg.withdrawal_max > 0 && (
+              <p className="mb-2 flex flex-wrap items-center gap-x-1 text-[10px] text-muted">
+                <span className="[unicode-bidi:isolate]">{t("withdrawal_limit")}</span>
+                <span dir="ltr" className="font-mono text-accent">
+                  ${Number(cfg.withdrawal_min).toLocaleString("en-US")} – ${Number(cfg.withdrawal_max).toLocaleString("en-US")}
+                </span>
+                <span aria-hidden>·</span>
+                <span className="[unicode-bidi:isolate]">{t("fee")}</span>
+                <span dir="ltr" className="font-mono">{effPct}%</span>
               </p>
             )}
-            {wdAmt > 0 && (
+            {cfgReady && wdAmt > 0 && (
               <div className="mb-3 space-y-1 rounded-xl bg-ink/[0.04] px-3 py-2.5 text-xs">
                 <div className="flex justify-between text-muted">
                   <span>{t("amount")}</span>
@@ -268,7 +286,7 @@ export default function WalletPage() {
                 </div>
                 <div className="flex justify-between text-muted">
                   <span>{t("fee")}</span>
-                  <span className="font-mono">+${wdFee.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                  <span dir="ltr" className="font-mono">−${wdFee.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
                 </div>
                 {wdPenalty > 0 && (
                   <div className="flex justify-between text-red-600">
@@ -276,9 +294,9 @@ export default function WalletPage() {
                     <span className="font-mono">−${wdPenalty.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
                   </div>
                 )}
-                <div className={`flex justify-between border-t border-border pt-1.5 font-semibold ${wdOver ? "text-red-500" : ""}`}>
+                <div className={`flex justify-between border-t border-border pt-1.5 font-semibold ${overBalance ? "text-red-500" : ""}`}>
                   <span>{t("total_deducted")}</span>
-                  <span className="font-mono">${(wdAmt + wdFee).toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                  <span dir="ltr" className="font-mono">${wdAmt.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted">{t("net_payout")}</span>
@@ -286,9 +304,17 @@ export default function WalletPage() {
                 </div>
               </div>
             )}
-            {wdOver && (
+            {overBalance && (
               <p className="mb-3 rounded-xl border border-red-600/30 bg-red-600/5 px-3 py-2 text-xs text-red-700">
-                {t("err_max_withdraw", { a: `$${maxWd.toLocaleString("en-US", { maximumFractionDigits: 2 })}` })}
+                {t("err_insufficient_balance")}
+              </p>
+            )}
+            {outsideLimit && (
+              <p className="mb-3 rounded-xl border border-red-600/30 bg-red-600/5 px-3 py-2 text-xs text-red-700">
+                {t("err_amount_range", {
+                  a: `$${Number(cfg.withdrawal_min).toLocaleString("en-US")}`,
+                  b: `$${Number(cfg.withdrawal_max).toLocaleString("en-US")}`,
+                })}
               </p>
             )}
             {whitelist ? (
@@ -312,7 +338,7 @@ export default function WalletPage() {
               </p>
             )}
             <Disclaimer>{t("wd_disclaimer")}</Disclaimer>
-            <button className="btn mt-4 w-full disabled:opacity-50" onClick={openConfirm} disabled={isWeekend || !whitelist}>{t("request_withdrawal")}</button>
+            <button className="btn mt-4 w-full disabled:opacity-50" onClick={openConfirm} disabled={isWeekend || !whitelist || !cfgReady}>{t("request_withdrawal")}</button>
           </GlassCard>
         </div>
 
@@ -341,7 +367,7 @@ export default function WalletPage() {
                   <span className="font-mono text-red-600">−${wdPenalty.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></div>
               )}
               <div className="flex justify-between"><span className="text-muted">{t("total_deducted")}</span>
-                <span className="font-mono">${(wdAmt + wdFee).toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></div>
+                <span dir="ltr" className="font-mono">${wdAmt.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></div>
               <div className="flex justify-between border-t border-border pt-2.5 font-semibold">
                 <span>{t("net_payout")}</span>
                 <span className="font-mono text-accent">${wdNet.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></div>

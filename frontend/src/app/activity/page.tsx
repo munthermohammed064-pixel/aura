@@ -9,7 +9,7 @@ import { StatusPill } from "@/components/StatusPill";
 import { SkeletonRows } from "@/components/Skeleton";
 import { Pager, PAGE_SIZE } from "@/components/Pager";
 import { api } from "@/lib/api";
-import { useT } from "@/lib/i18n";
+import { useT, formatDate } from "@/lib/i18n";
 import { Activity } from "lucide-react";
 
 type Tx = { id: string; kind: string; direction: string; amount: number; created_at: string };
@@ -33,7 +33,7 @@ export default function ActivityPage() {
       api<Row[]>("/deposits").catch(() => { fail(); return [] as Row[]; }),
       api<Row[]>("/withdrawals").catch(() => { fail(); return [] as Row[]; }),
     ]).then(([txs, deps, wds]) => {
-      const ledger: Item[] = txs.map((x) => ({
+      const ledger: Item[] = txs.filter((x) => x.kind !== "withdrawal").map((x) => ({
         id: `t${x.id}`, kind: x.kind, amount: x.amount, at: x.created_at,
         dir: x.direction, status: null,
       }));
@@ -58,7 +58,7 @@ export default function ActivityPage() {
     const today = new Date(); const y = new Date(); y.setDate(y.getDate() - 1);
     if (d.toDateString() === today.toDateString()) return t("today");
     if (d.toDateString() === y.toDateString()) return t("yesterday");
-    return d.toLocaleDateString(lang, { dateStyle: "medium" });
+    return formatDate(d, lang);
   };
   const paged = items.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
   const groups = new Map<string, Item[]>();

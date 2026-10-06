@@ -360,12 +360,12 @@ check("wrong address rejected", s == 400)
 s, b = call("POST", "/withdrawals", {"amount": 3, "address": "TUserAddr999"}, token=tok)
 check("below min rejected", s == 400)
 
-# withdrawal with global fee (20%): 20 + 4 = 24 held
+# withdrawal with global fee (20%): $4 fee is removed from the wallet, $16 is held to send
 s, wd = call("POST", "/withdrawals", {"amount": 20, "address": "TUserAddr999"}, token=tok)
 check("withdrawal created", s == 201 and wd.get("status") == "pending")
 check("fee = 20% of 20", float(wd["fee"]) == 4.0, wd["fee"])
 s, w = call("GET", "/wallet", token=tok)
-check("hold: avail 76 / pend 24", float(w["available"]) == 76 and float(w["pending"]) == 24, w)
+check("fee removed, hold payout: avail 80 / pend 16", float(w["available"]) == 80 and float(w["pending"]) == 16, w)
 
 wid = wd["id"]
 s, wds = call("GET", "/admin/withdrawals", token=atok)
@@ -375,12 +375,12 @@ check("admin sees wd + address + user", row["address"] == "TUserAddr999" and row
 s, b = call("POST", f"/admin/withdrawals/{wid}/process", {"action": "approve"}, token=atok)
 check("approve withdrawal", s == 200)
 s, w = call("GET", "/wallet", token=tok)
-check("funds still held after approve", float(w["pending"]) == 24)
+check("funds still held after approve", float(w["pending"]) == 16)
 
 s, b = call("POST", f"/admin/withdrawals/{wid}/process", {"action": "paid", "txid": "TX777"}, token=atok)
 check("mark paid", s == 200)
 s, w = call("GET", "/wallet", token=tok)
-check("paid: pend released (avail 76 / pend 0)", float(w["available"]) == 76 and float(w["pending"]) == 0, w)
+check("paid: pend released (avail 80 / pend 0)", float(w["available"]) == 80 and float(w["pending"]) == 0, w)
 
 # reject path releases funds
 s, wd2 = call("POST", "/withdrawals", {"amount": 10, "address": "TUserAddr999"}, token=tok)
@@ -389,7 +389,7 @@ pend_after = float(w["pending"])
 s, b = call("POST", f"/admin/withdrawals/{wd2['id']}/process", {"action": "reject", "note": "n"}, token=atok)
 check("reject withdrawal", s == 200)
 s, w = call("GET", "/wallet", token=tok)
-check("reject refunds hold", float(w["pending"]) == 0 and float(w["available"]) == 76, w)
+check("reject refunds hold", float(w["pending"]) == 0 and float(w["available"]) == 80, w)
 
 print()
 print("=" * 70)
@@ -419,7 +419,7 @@ check("reset fee to global", s == 200)
 s, b = call("POST", f"/admin/users/{my_id}/adjust", {"amount": 25, "bucket": "available", "note": "test"}, token=atok)
 check("admin adjust +25", s == 200)
 s, w = call("GET", "/wallet", token=tok)
-check("wallet reflects +25 -> 101", float(w["available"]) == 101, w["available"])
+check("wallet reflects +25 -> 105", float(w["available"]) == 105, w["available"])
 
 # freeze -> user blocked everywhere immediately
 s, b = call("POST", f"/admin/users/{my_id}/freeze", token=atok)
@@ -452,7 +452,8 @@ if s == 201:
     s, b = call("POST", f"/admin/withdrawals/{wd4['id']}/process", {"action": "reject"}, token=atok)
 s, rows = call("GET", "/admin/withdrawals", token=atok)
 pen = next((r for r in rows if float(r.get("star_penalty") or 0) > 0), None)
-check("admin sees net payout", pen is not None and float(pen["net_payout"]) == 7.5, pen and pen.get("net_payout"))
+# 10 requested, 20% fee = 2, one missing star = 2.5 → admin sends 5.5
+check("admin sees net payout", pen is not None and float(pen["net_payout"]) == 5.5, pen and pen.get("net_payout"))
 s, b = call("POST", f"/admin/users/{my_id}/stars", {"stars": 4, "reason": "restore"}, token=atok)
 check("admin restores star", s == 200)
 

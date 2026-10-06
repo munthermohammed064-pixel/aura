@@ -257,13 +257,22 @@ const dict: Record<string, D> = {
     de: "Senden Sie die Überweisung an den gezeigten QR/Adresse, laden Sie den Beleg hoch und geben Sie den Betrag ein. Guthaben wird nach Admin-Prüfung automatisch gebucht.",
   },
   wd_disclaimer: {
-    en: "Withdrawals are processed manually. A service fee applies (set by the platform — currently 20%).",
-    ar: "تُعالج السحوبات يدويًا. تُطبَّق رسوم خدمة (تحددها المنصة — حاليًا 20%).",
-    es: "Los retiros se procesan manualmente. Se aplica una comisión de servicio (fijada por la plataforma — actualmente 20%).",
-    fr: "Les retraits sont traités manuellement. Des frais de service s'appliquent (fixés par la plateforme — actuellement 20 %).",
-    tr: "Çekimler manuel işlenir. Hizmet ücreti uygulanır (platform belirler — şu an %20).",
-    ru: "Выводы обрабатываются вручную. Взимается комиссия (устанавливается платформой — сейчас 20%).",
-    de: "Auszahlungen werden manuell bearbeitet. Es gilt eine Servicegebühr (von der Plattform festgelegt — derzeit 20 %).",
+    en: "Withdrawals are processed manually. The service fee (currently 20%) is removed from your wallet automatically and is not sent with the payout.",
+    ar: "تُعالج السحوبات يدويًا. يُخصم رسم الخدمة (حاليًا \u206620%\u2069) من محفظتك تلقائيًا ولا يُرسل مع المبلغ.",
+    es: "Los retiros se procesan manualmente. La comisión (actualmente 20%) se descuenta de tu saldo automáticamente y no se envía con el pago.",
+    fr: "Les retraits sont traités manuellement. Les frais (actuellement 20 %) sont retirés de votre solde automatiquement et ne sont pas envoyés avec le paiement.",
+    tr: "Çekimler manuel işlenir. Hizmet ücreti (şu an %20) bakiyeden otomatik düşülür ve ödemeyle gönderilmez.",
+    ru: "Выводы обрабатываются вручную. Комиссия (сейчас 20%) автоматически списывается с кошелька и не входит в выплату.",
+    de: "Auszahlungen werden manuell bearbeitet. Die Gebühr (derzeit 20 %) wird automatisch vom Guthaben abgezogen und nicht mit ausgezahlt.",
+  },
+  fee_removed: {
+    en: "removed from wallet",
+    ar: "خُصم من المحفظة",
+    es: "descontado del saldo",
+    fr: "retiré du solde",
+    tr: "bakiyeden düşüldü",
+    ru: "списано с кошелька",
+    de: "vom Guthaben abgezogen",
   },
   submit_deposit: { en: "Submit deposit", ar: "إرسال الإيداع", es: "Enviar depósito", fr: "Envoyer le dépôt", tr: "Yatırma gönder", ru: "Отправить депозит", de: "Einzahlung senden" },
   request_withdrawal: { en: "Request withdrawal", ar: "طلب سحب", es: "Solicitar retiro", fr: "Demander un retrait", tr: "Çekim talep et", ru: "Запросить вывод", de: "Auszahlung anfordern" },
@@ -623,6 +632,8 @@ const dict: Record<string, D> = {
   err_insufficient: { en: "Insufficient {a} balance", ar: "رصيد {a} غير كافٍ", es: "Saldo {a} insuficiente", fr: "Solde {a} insuffisant", tr: "{a} bakiyesi yetersiz", ru: "Недостаточно средств ({a})", de: "Unzureichendes {a}-Guthaben" },
   err_max_withdraw: { en: "Not enough balance — the fee counts too. Max withdrawable: {a}", ar: "الرصيد لا يكفي — رسوم الخدمة تُحتسب أيضًا. أقصى مبلغ للسحب: {a}", es: "Saldo insuficiente — la comisión también cuenta. Máximo retirable: {a}", fr: "Solde insuffisant — les frais comptent aussi. Maximum retirable : {a}", tr: "Bakiye yetersiz — hizmet ücreti de dahil. Çekilebilecek en yüksek tutar: {a}", ru: "Недостаточно средств — комиссия тоже учитывается. Максимум к выводу: {a}", de: "Guthaben reicht nicht — die Gebühr zählt mit. Max. auszahlbar: {a}" },
   max_withdrawable: { en: "Max withdrawable", ar: "أقصى مبلغ للسحب", es: "Máximo retirable", fr: "Maximum retirable", tr: "Maks. çekilebilir", ru: "Макс. к выводу", de: "Max. auszahlbar" },
+  withdrawal_limit: { en: "Withdrawal limit", ar: "حد السحب", es: "Límite de retiro", fr: "Limite de retrait", tr: "Çekim limiti", ru: "Лимит вывода", de: "Auszahlungslimit" },
+  err_insufficient_balance: { en: "Insufficient balance", ar: "الرصيد لا يكفي", es: "Saldo insuficiente", fr: "Solde insuffisant", tr: "Yetersiz bakiye", ru: "Недостаточно средств", de: "Unzureichendes Guthaben" },
   total_deducted: { en: "Total deducted", ar: "الإجمالي المخصوم", es: "Total deducido", fr: "Total déduit", tr: "Toplam kesinti", ru: "Итого списано", de: "Gesamtabzug" },
   err_already_status: { en: "Already {a}", ar: "الحالة بالفعل {a}", es: "Ya está {a}", fr: "Déjà {a}", tr: "Zaten {a}", ru: "Уже {a}", de: "Bereits {a}" },
   err_unknown_pkg: { en: "Unknown package {a}", ar: "باقة غير معروفة {a}", es: "Paquete desconocido {a}", fr: "Offre inconnue {a}", tr: "Bilinmeyen paket {a}", ru: "Неизвестный пакет {a}", de: "Unbekanntes Paket {a}" },
@@ -649,6 +660,8 @@ const errDict: Record<string, D> = {
   "Email already registered": { en: "Email already registered", ar: "البريد الإلكتروني مسجل مسبقًا", es: "Correo ya registrado", fr: "E-mail déjà enregistré", tr: "E-posta zaten kayıtlı", ru: "E-mail уже зарегистрирован", de: "E-Mail bereits registriert" },
   "File content is not a valid image": { en: "File content is not a valid image", ar: "محتوى الملف ليس صورة صالحة", es: "El archivo no es una imagen válida", fr: "Le fichier n'est pas une image valide", tr: "Dosya geçerli bir görsel değil", ru: "Файл не является изображением", de: "Datei ist kein gültiges Bild" },
   "File empty or larger than 5MB": { en: "File empty or larger than 5MB", ar: "الملف فارغ أو أكبر من 5 ميغابايت", es: "Archivo vacío o mayor de 5MB", fr: "Fichier vide ou supérieur à 5 Mo", tr: "Dosya boş veya 5MB'dan büyük", ru: "Файл пуст или больше 5 МБ", de: "Datei leer oder größer als 5 MB" },
+  "Fees exceed the withdrawal amount": { en: "Fees exceed the withdrawal amount", ar: "الرسوم تتجاوز مبلغ السحب", es: "Las comisiones superan el importe del retiro", fr: "Les frais dépassent le montant du retrait", tr: "Ücretler çekim tutarını aşıyor", ru: "Комиссии превышают сумму вывода", de: "Gebühren übersteigen den Auszahlungsbetrag" },
+  "Insufficient balance": { en: "Insufficient balance", ar: "الرصيد لا يكفي", es: "Saldo insuficiente", fr: "Solde insuffisant", tr: "Yetersiz bakiye", ru: "Недостаточно средств", de: "Unzureichendes Guthaben" },
   "Invalid action": { en: "Invalid action", ar: "إجراء غير صالح", es: "Acción inválida", fr: "Action invalide", tr: "Geçersiz işlem", ru: "Недопустимое действие", de: "Ungültige Aktion" },
   "Invalid credentials": { en: "Invalid credentials", ar: "بيانات الدخول غير صحيحة", es: "Credenciales inválidas", fr: "Identifiants invalides", tr: "Geçersiz kimlik bilgileri", ru: "Неверные данные для входа", de: "Ungültige Zugangsdaten" },
   "Invalid or expired code": { en: "Invalid or expired code", ar: "كود غير صالح أو منتهي", es: "Código inválido o caducado", fr: "Code invalide ou expiré", tr: "Geçersiz veya süresi dolmuş kod", ru: "Неверный или истёкший код", de: "Ungültiger oder abgelaufener Code" },
@@ -673,6 +686,8 @@ const errDict: Record<string, D> = {
   "Owner accounts cannot be modified": { en: "Owner accounts cannot be modified", ar: "لا يمكن تعديل حسابات المالك", es: "Las cuentas de propietario no se pueden modificar", fr: "Les comptes propriétaires ne peuvent pas être modifiés", tr: "Sahip hesapları değiştirilemez", ru: "Аккаунты владельца нельзя изменять", de: "Owner-Konten können nicht geändert werden" },
   "Package not found": { en: "Package not found", ar: "الباقة غير موجودة", es: "Paquete no encontrado", fr: "Offre introuvable", tr: "Paket bulunamadı", ru: "Пакет не найден", de: "Paket nicht gefunden" },
   "Raffle not available": { en: "Raffle not available", ar: "السحب غير متاح", es: "Sorteo no disponible", fr: "Tirage indisponible", tr: "Çekiliş kullanılamıyor", ru: "Розыгрыш недоступен", de: "Verlosung nicht verfügbar" },
+  "Return already recorded": { en: "Return already recorded", ar: "العائد مُسجَّل مسبقًا", es: "El retorno ya fue registrado", fr: "Rendement déjà enregistré", tr: "Getiri zaten kaydedildi", ru: "Доход уже записан", de: "Rendite bereits erfasst" },
+  "Investment is not open": { en: "Investment is not open", ar: "الاستثمار غير مفتوح", es: "La inversión no está abierta", fr: "L'investissement n'est pas ouvert", tr: "Yatırım açık değil", ru: "Инвестиция не открыта", de: "Anlage ist nicht offen" },
   "Request not found": { en: "Request not found", ar: "الطلب غير موجود", es: "Solicitud no encontrada", fr: "Demande introuvable", tr: "Talep bulunamadı", ru: "Заявка не найдена", de: "Anfrage nicht gefunden" },
   "Session revoked": { en: "Session revoked", ar: "تم إلغاء الجلسة", es: "Sesión revocada", fr: "Session révoquée", tr: "Oturum iptal edildi", ru: "Сессия отозвана", de: "Sitzung widerrufen" },
   "Not authenticated": { en: "Session expired — please sign in again", ar: "انتهت الجلسة — سجّل الدخول مجددًا", es: "Sesión caducada — inicia sesión de nuevo", fr: "Session expirée — reconnectez-vous", tr: "Oturum süresi doldu — tekrar giriş yap", ru: "Сессия истекла — войдите снова", de: "Sitzung abgelaufen — bitte erneut anmelden" },
@@ -720,6 +735,36 @@ const ERR_RULES: [RegExp, string][] = [
   [/^(.+): amount must stay inside its range \((.+)\)/, "err_pkg_range"],
   [/^Request failed \((\d+)\)/, "err_request_failed"],
 ];
+
+const BIDI_MARKS = /[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+
+function dateLocale(lang: string) {
+  // latn digits — Arabic-Indic numerals plus the locale's bidi marks are what
+  // turn 15/10/2026 into the scrambled "52026/10/" seen in RTL runs.
+  return lang === "ar" ? "ar-EG-u-nu-latn" : lang;
+}
+
+function isolateLtr(text: string) {
+  return `\u2066${text.replace(BIDI_MARKS, "")}\u2069`;
+}
+
+export function formatDate(value: string | number | Date | null | undefined, lang: string): string {
+  if (value == null || value === "") return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const text = d.toLocaleDateString(dateLocale(lang), { day: "numeric", month: "short", year: "numeric" });
+  return isolateLtr(text);
+}
+
+export function formatDateTime(value: string | number | Date | null | undefined, lang: string): string {
+  if (value == null || value === "") return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const text = d.toLocaleString(dateLocale(lang), {
+    day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+  return isolateLtr(text);
+}
 
 // Pick a translated field from an admin-authored `i18n` column:
 // { "ar": { "name": "…" } } — falls back to the base column value.
@@ -775,7 +820,8 @@ export function LangProvider({ children }: { children: ReactNode }) {
       const val = typeof v === "number" && /amount/i.test(pk)
         ? `$${v.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
         : String(v);
-      s = s.replaceAll(`{${pk}}`, val);
+      // Keep $55 / 20% from being pulled into the Arabic run and split apart.
+      s = s.replaceAll(`{${pk}}`, `\u2066${val}\u2069`);
     }
     return s;
   };

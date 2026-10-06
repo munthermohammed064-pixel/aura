@@ -243,7 +243,9 @@ def public_config(db: Session = Depends(get_db)):
                 "default_lang": platform.get("default_lang", "en"),
                 # Public fee schedule — the withdraw confirm sheet shows exact math.
                 "withdrawal_fee_pct": withdrawal.get("fee_pct", 0),
-                "withdrawal_fee_flat": withdrawal.get("fee_flat", 0)}
+                "withdrawal_fee_flat": withdrawal.get("fee_flat", 0),
+                "withdrawal_min": withdrawal.get("min", 0),
+                "withdrawal_max": withdrawal.get("max", 0)}
     return get_or_set("config:public", 15, produce)
 
 

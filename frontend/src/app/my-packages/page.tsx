@@ -6,7 +6,7 @@ import { Nav } from "@/components/Nav";
 import { PageHeader } from "@/components/PageHeader";
 import { GlassCard } from "@/components/Glass";
 import { api } from "@/lib/api";
-import { useT } from "@/lib/i18n";
+import { useT, formatDate } from "@/lib/i18n";
 import { Empty } from "@/components/Empty";
 import { Briefcase } from "lucide-react";
 
@@ -57,8 +57,8 @@ export default function MyPackages() {
             <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${pct}%` }} />
           </div>
           <div className="mt-2 flex justify-between text-xs text-muted">
-            <span>{new Date(i.started_at).toLocaleDateString(lang)}</span>
-            <span>{new Date(i.ends_at).toLocaleDateString(lang)}</span>
+            <span>{formatDate(i.started_at, lang)}</span>
+            <span>{formatDate(i.ends_at, lang)}</span>
           </div>
         </div>
         <div className="mt-4 flex justify-between border-t border-border pt-3 text-sm">

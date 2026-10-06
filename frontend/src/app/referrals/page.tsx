@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { CountUp } from "@/components/CountUp";
 import { Disclaimer, GlassCard } from "@/components/Glass";
 import { api } from "@/lib/api";
-import { useT } from "@/lib/i18n";
+import { useT, formatDate } from "@/lib/i18n";
 import { Empty } from "@/components/Empty";
 import { Share2, Users } from "lucide-react";
 
@@ -78,7 +78,7 @@ export default function Referrals() {
             <tbody>{data?.referred.map((u) => (
               <tr key={u.id} className="border-t border-border">
                 <td className="break-all py-2">{u.email}</td>
-                <td className="py-2 text-right text-muted">{new Date(u.joined).toLocaleDateString(lang)}</td>
+                <td className="py-2 text-right text-muted">{formatDate(u.joined, lang)}</td>
               </tr>
             ))}</tbody>
           </table>
@@ -96,7 +96,7 @@ export default function Referrals() {
                 <td className="py-2">L{c.level}</td>
                 <td className="py-2">{c.pct}%</td>
                 <td className="py-2">${Number(c.amount).toLocaleString("en-US")}</td>
-                <td className="py-2 text-muted">{new Date(c.created_at).toLocaleDateString(lang)}</td>
+                <td className="py-2 text-muted">{formatDate(c.created_at, lang)}</td>
               </tr>
             ))}</tbody>
           </table>

@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { CountUp } from "@/components/CountUp";
 import { GlassCard } from "@/components/Glass";
 import { api, API_URL, setTokens, clearTokens, PLATFORM_NAME } from "@/lib/api";
-import { useT, LANGS, Lang } from "@/lib/i18n";
+import { useT, LANGS, Lang, formatDate, formatDateTime } from "@/lib/i18n";
 import { useToast } from "@/components/Toast";
 import { Stars } from "@/components/Stars";
 import { Pager, PAGE_SIZE } from "@/components/Pager";
@@ -27,7 +27,7 @@ type Row = {
   user_email?: string; user_serial?: string;
 };
 type Method = { id: string; name: string; details: string; qr_image: string; min_amount: number; max_amount: number; is_active: boolean; i18n?: I18nMap | null };
-type Inv = { id: string; amount: number; status: string; realized_return: number; started_at: string; ends_at: string; user_email?: string; user_serial?: string; package_name?: string };
+type Inv = { id: string; amount: number; status: string; realized_return: number; return_settled?: boolean; started_at: string; ends_at: string; user_email?: string; user_serial?: string; package_name?: string };
 type OpRow = { id: string; login_id: string; full_name: string; role: string; is_active: boolean; created_at: string | null };
 type AddrReq = { id: string; new_address: string; current_address: string; qr_image: string;
   status: string; fee: number; created_at: string | null; user_email?: string; user_serial?: string };
@@ -598,14 +598,14 @@ export default function AdminConsole() {
                   <td className="py-2">{i.package_name}</td>
                   <td className="py-2">${Number(i.amount).toLocaleString("en-US")}</td>
                   <td className="py-2">${Number(i.realized_return).toLocaleString("en-US")}</td>
-                  <td className="py-2 text-xs text-muted">{new Date(i.ends_at).toLocaleDateString(lang)}</td>
+                  <td className="py-2 text-xs text-muted">{formatDate(i.ends_at, lang)}</td>
                   <td className="py-2">
                     <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-medium capitalize ${WD_STATUS[i.status] ?? "border-white/10 bg-white/5 text-muted"}`}>
                       {t(i.status)}
                     </span>
                   </td>
                   <td className="py-2">
-                    {i.status === "active" && (
+                    {(i.status === "active" || i.status === "completed") && !i.return_settled && (
                       <button className="btn-ghost px-3 py-1 text-xs" onClick={() => settleInv(i)}>
                         {t("settle")}
                       </button>
@@ -633,7 +633,7 @@ export default function AdminConsole() {
               </div>
               {codeForm.ttl > 0 && (
                 <p className="mb-3 -mt-1 text-xs text-muted">
-                  {t("codes_expires_hint")}: {new Date(Date.now() + codeForm.ttl * 3600000).toLocaleString(lang)}
+                  {t("codes_expires_hint")}: {formatDateTime(Date.now() + codeForm.ttl * 3600000, lang)}
                 </p>
               )}
               <p className="mb-2 text-xs text-muted">{t("codes_per_pkg")}</p>
@@ -662,12 +662,12 @@ export default function AdminConsole() {
                   <pre className="whitespace-pre-wrap font-mono text-xs">{`${PLATFORM_NAME} — ${t("code_title")}
 
 ${published.code}
-${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at).toLocaleString(lang) : "—"}`}</pre>
+${t("codes_valid_until")} ${published.expires_at ? formatDateTime(published.expires_at, lang) : "—"}`}</pre>
                   <button className="btn-ghost mt-2 px-3 py-1 text-xs"
                     onClick={() => navigator.clipboard.writeText(`${PLATFORM_NAME} — ${t("code_title")}
 
 ${published.code}
-${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at).toLocaleString(lang) : ""}`).then(() => toast(t("copied"), "ok"))}>
+${t("codes_valid_until")} ${published.expires_at ? formatDateTime(published.expires_at, lang) : ""}`).then(() => toast(t("copied"), "ok"))}>
                     {t("copy")}
                   </button>
                 </div>
@@ -686,7 +686,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                   return (
                     <tr key={c.id} className="border-t border-border">
                       <td className="py-2 font-mono text-xs font-semibold">{c.code}</td>
-                      <td className="py-2 text-xs text-muted">{c.expires_at ? new Date(c.expires_at).toLocaleString(lang) : "—"}</td>
+                      <td className="py-2 text-xs text-muted">{c.expires_at ? formatDateTime(c.expires_at, lang) : "—"}</td>
                       <td className="py-2 text-xs">{c.is_active && !expired
                         ? <span className="text-ok">{t("codes_active")}</span>
                         : <span className="text-muted">{t("codes_expired")}</span>}</td>
@@ -818,7 +818,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                     </p>
                     <p className="mt-0.5 text-[10px] text-muted">
                       ${Number(w.amount).toLocaleString("en-US")}
-                      {(w.fee ?? 0) > 0 && <> − ${Number(w.fee).toLocaleString("en-US")} {t("fee")}</>}
+                      {(w.fee ?? 0) > 0 && <> − ${Number(w.fee).toLocaleString("en-US")} {t("fee_removed")}</>}
                       {(w.star_penalty ?? 0) > 0 && <> · −${Number(w.star_penalty).toLocaleString("en-US")} ★</>}
                     </p>
                   </td>
@@ -1076,7 +1076,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                       </span>
                     </td>
                     <td className="py-3 pe-4 text-xs text-muted">
-                      {tk.created_at ? new Date(tk.created_at).toLocaleDateString(lang) : "—"}
+                      {tk.created_at ? formatDate(tk.created_at, lang) : "—"}
                     </td>
                     <td className="py-3">
                       {tk.status !== "closed" && (
@@ -1101,7 +1101,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                       <div key={r.id} className={`rounded-xl px-3 py-2 text-xs ${r.is_admin ? "bg-accent/10 ms-4" : "bg-ink/[0.05] me-4"}`}>
                         <p className="whitespace-pre-wrap break-words">{r.body}</p>
                         <p className="mt-1 text-[9px] text-muted">
-                          {r.is_admin ? t("support") : t("user")} · {r.created_at ? new Date(r.created_at).toLocaleString(lang) : ""}
+                          {r.is_admin ? t("support") : t("user")} · {r.created_at ? formatDateTime(r.created_at, lang) : ""}
                         </p>
                       </div>
                     ))}
@@ -1368,7 +1368,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                     )}
                   </td>
                   <td className="py-2 text-muted">{a.target_type} {a.target_id?.slice(0, 8)}</td>
-                  <td className="py-2 text-muted">{new Date(a.created_at).toLocaleString(lang)}</td>
+                  <td className="py-2 text-muted">{formatDateTime(a.created_at, lang)}</td>
                 </tr>
               ))}</tbody>
             </table>
@@ -1462,7 +1462,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                       </div>
                       <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted">
                         {detail.user.full_name && <span>{detail.user.full_name}</span>}
-                        <span>{t("joined")}: {detail.user.created_at ? new Date(detail.user.created_at).toLocaleDateString(lang) : "—"}</span>
+                        <span>{t("joined")}: {detail.user.created_at ? formatDate(detail.user.created_at, lang) : "—"}</span>
                         <span>{t("verified")}: {detail.user.email_verified ? t("yes") : t("no")}</span>
                         <span>{t("custom_fee")}: {detail.user.withdraw_fee_pct != null ? `${detail.user.withdraw_fee_pct}%` : "—"}</span>
                       </div>
@@ -1548,7 +1548,7 @@ ${t("codes_valid_until")} ${published.expires_at ? new Date(published.expires_at
                               </span>
                               {" "}{e.kind} · {e.bucket}
                             </span>
-                            <span className="shrink-0 text-muted">{e.created_at ? new Date(e.created_at).toLocaleDateString(lang) : ""}</span>
+                            <span className="shrink-0 text-muted">{e.created_at ? formatDate(e.created_at, lang) : ""}</span>
                           </div>
                         ))}
                         {detail.ledger.length === 0 && <p className="text-xs text-muted">—</p>}

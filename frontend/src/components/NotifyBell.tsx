@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api, API_URL, getToken } from "@/lib/api";
-import { useT } from "@/lib/i18n";
+import { useT, formatDate } from "@/lib/i18n";
 
 type Item = {
   id: string; kind: string | null; params: Record<string, unknown>;
@@ -104,7 +104,7 @@ export function NotifyBell() {
     if (diff < 60_000) return "·";
     if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
     if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
-    return d.toLocaleDateString(lang);
+    return formatDate(d, lang);
   };
 
   return (

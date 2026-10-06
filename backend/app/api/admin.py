@@ -8,10 +8,14 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 
 from app.core.deps import STAFF_ROLES, get_admin, get_owner
 from app.database import get_db
@@ -47,6 +51,46 @@ def _tag(u: User | None) -> dict:
     return {"user_email": u.email if u else None, "user_serial": u.serial if u else None}
 
 
+def _net_payout(w: Withdrawal) -> float:
+    """Amount sent to the user's withdrawal address. The service fee was
+    already removed from their wallet and is not paid to the admin."""
+    return float(w.amount) - float(w.fee or 0) - float(w.star_penalty or 0)
+
+
+def _refund_withdrawal_cuts(db: Session, w: Withdrawal) -> None:
+    """Give back a service fee or star penalty that was debited at request
+    time. Older requests have no such rows."""
+    for key, note in (
+        (f"withdrawal-fee:{w.id}", "Withdrawal rejected — service fee returned"),
+        (f"withdrawal-star:{w.id}", "Withdrawal rejected — star penalty returned"),
+    ):
+        row = db.query(LedgerEntry).filter(LedgerEntry.idempotency_key == key).first()
+        if not row:
+            continue
+        ledger.post_idempotent(
+            db, idempotency_key=f"{key}:refund", user_id=w.user_id, kind="fee",
+            direction="credit", bucket="available", amount=float(row.amount),
+            reference_type="withdrawal", reference_id=w.id, note=note,
+        )
+
+
+def _held_amount(db: Session, w: Withdrawal) -> float:
+    """Funds sitting in pending for this request. New requests lock the
+    payout only. Older ones locked the full amount, or amount + fee."""
+    row = (
+        db.query(LedgerEntry)
+        .filter(
+            LedgerEntry.reference_type == "withdrawal",
+            LedgerEntry.reference_id == w.id,
+            LedgerEntry.bucket == "pending",
+            LedgerEntry.direction == "credit",
+            LedgerEntry.note == "Withdrawal request hold",
+        )
+        .first()
+    )
+    return float(row.amount) if row else float(w.amount)
+
+
 def _mail_and_notify(db: Session, user_id, event: str, params: dict | None = None,
                      mail_subject: str = "", mail_body: str = "") -> None:
     notify_user(db, user_id, event, params)
@@ -57,7 +101,8 @@ def _mail_and_notify(db: Session, user_id, event: str, params: dict | None = Non
 
 # ---------- Stats ----------
 @router.get("/stats")
-def stats(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def stats(request: Request, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     return {
         "users": db.query(func.count(User.id)).filter(User.role == "user").scalar() or 0,
         "deposits_pending": db.query(func.count(Deposit.id)).filter(Deposit.status == "pending").scalar() or 0,
@@ -76,7 +121,8 @@ def stats(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
 
 # ---------- Packages ----------
 @router.get("/packages")
-def list_packages(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def list_packages(request: Request, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     return [ser_model(p) for p in db.query(Package).order_by(Package.sort_order, Package.min_deposit).all()]
 
 
@@ -91,7 +137,8 @@ def _check_package_ranges(data: PackageIn):
 
 
 @router.post("/packages", status_code=201)
-def create_package(data: PackageIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def create_package(request: Request, data: PackageIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     _check_package_ranges(data)
     p = Package(**data.model_dump())
     db.add(p)
@@ -104,7 +151,8 @@ def create_package(data: PackageIn, admin: User = Depends(get_admin), db: Sessio
 
 
 @router.put("/packages/{pkg_id}")
-def update_package(pkg_id: str, data: PackageIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def update_package(request: Request, pkg_id: str, data: PackageIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     p = db.get(Package, uuid.UUID(pkg_id))
     if not p:
         raise HTTPException(404, "Package not found")
@@ -122,7 +170,8 @@ def update_package(pkg_id: str, data: PackageIn, admin: User = Depends(get_admin
 
 
 @router.delete("/packages/{pkg_id}")
-def delete_package(pkg_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def delete_package(request: Request, pkg_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     p = db.get(Package, uuid.UUID(pkg_id))
     if not p:
         raise HTTPException(404, "Package not found")
@@ -148,7 +197,8 @@ def delete_package(pkg_id: str, admin: User = Depends(get_admin), db: Session = 
 
 # ---------- Deposits ----------
 @router.get("/deposits")
-def list_deposits(status: str | None = None, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def list_deposits(request: Request, status: str | None = None, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     q = db.query(Deposit, User).outerjoin(User, Deposit.user_id == User.id)
     if status:
         q = q.filter(Deposit.status == status)
@@ -163,7 +213,8 @@ def list_deposits(status: str | None = None, admin: User = Depends(get_admin), d
 
 
 @router.post("/deposits/{dep_id}/approve")
-def approve_deposit(dep_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("20/minute")
+def approve_deposit(request: Request, dep_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     d = db.get(Deposit, uuid.UUID(dep_id))
     if not d:
         raise HTTPException(404, "Deposit not found")
@@ -188,7 +239,8 @@ def approve_deposit(dep_id: str, admin: User = Depends(get_admin), db: Session =
 
 
 @router.post("/deposits/{dep_id}/reject")
-def reject_deposit(dep_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("20/minute")
+def reject_deposit(request: Request, dep_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     d = db.get(Deposit, uuid.UUID(dep_id))
     if not d:
         raise HTTPException(404, "Deposit not found")
@@ -206,7 +258,8 @@ def reject_deposit(dep_id: str, admin: User = Depends(get_admin), db: Session = 
 
 # ---------- Withdrawals ----------
 @router.get("/withdrawals")
-def list_withdrawals(status: str | None = None, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def list_withdrawals(request: Request, status: str | None = None, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     q = db.query(Withdrawal, User).outerjoin(User, Withdrawal.user_id == User.id)
     if status:
         q = q.filter(Withdrawal.status == status)
@@ -214,7 +267,7 @@ def list_withdrawals(status: str | None = None, admin: User = Depends(get_admin)
     return [
         {"id": str(w.id), "amount": float(w.amount), "fee": float(w.fee),
          "star_penalty": float(w.star_penalty or 0),
-         "net_payout": float(w.amount) - float(w.star_penalty or 0),
+         "net_payout": _net_payout(w),
          "address": w.address,
          "status": w.status, "txid": w.txid, "admin_note": w.admin_note,
          "created_at": ser_dt(w.created_at),
@@ -224,12 +277,14 @@ def list_withdrawals(status: str | None = None, admin: User = Depends(get_admin)
 
 
 @router.post("/withdrawals/{w_id}/process")
-def process_withdrawal(w_id: str, data: WithdrawalProcessIn,
+@limiter.limit("20/minute")
+def process_withdrawal(request: Request, w_id: str, data: WithdrawalProcessIn,
                        admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     w = db.get(Withdrawal, uuid.UUID(w_id))
     if not w:
         raise HTTPException(404, "Withdrawal not found")
-    total = float(w.amount) + float(w.fee)
+    total = _held_amount(db, w)
+    net = _net_payout(w)
 
     if data.action == "approve":
         if w.status != "pending":
@@ -245,13 +300,26 @@ def process_withdrawal(w_id: str, data: WithdrawalProcessIn,
                 direction="debit", bucket="pending", amount=total,
                 reference_type="withdrawal", reference_id=w.id,
                 note="Withdrawal paid out")
+            # Requests made before the fee was its own debit locked amount+fee.
+            # Give the stacked extra back so the fee is taken once.
+            fee_taken = db.query(LedgerEntry).filter(
+                LedgerEntry.idempotency_key == f"withdrawal-fee:{w.id}").first()
+            star_taken = db.query(LedgerEntry).filter(
+                LedgerEntry.idempotency_key == f"withdrawal-star:{w.id}").first()
+            extra = round(total - float(w.amount), 8)
+            if fee_taken is None and star_taken is None and extra > 1e-6:
+                ledger.post_idempotent(
+                    db, idempotency_key=f"withdrawal-unstuck:{w.id}", user_id=w.user_id,
+                    kind="withdrawal", direction="credit", bucket="available", amount=extra,
+                    reference_type="withdrawal", reference_id=w.id,
+                    note="Withdrawal paid — stacked fee returned")
         except ledger.LedgerError as e:
             raise HTTPException(400, str(e))
         w.status = "paid"
         w.txid = data.txid
-        _mail_and_notify(db, w.user_id, "withdrawal_paid", {"amount": float(w.amount)},
+        _mail_and_notify(db, w.user_id, "withdrawal_paid", {"amount": net},
                          "Withdrawal paid",
-                         f"Your withdrawal of ${float(w.amount):,.2f} has been sent to your wallet address.")
+                         f"Your withdrawal of ${net:,.2f} has been sent to your wallet address.")
     elif data.action == "reject":
         if w.status not in ("pending", "approved"):
             raise HTTPException(400, f"Withdrawal already {w.status}")
@@ -266,6 +334,7 @@ def process_withdrawal(w_id: str, data: WithdrawalProcessIn,
                 direction="debit", bucket="pending", amount=total,
                 reference_type="withdrawal", reference_id=w.id,
                 note="Withdrawal rejected — hold released")
+            _refund_withdrawal_cuts(db, w)
         except ledger.LedgerError as e:
             raise HTTPException(400, str(e))
         w.status = "rejected"
@@ -285,7 +354,8 @@ def process_withdrawal(w_id: str, data: WithdrawalProcessIn,
 
 # ---------- Users ----------
 @router.get("/users")
-def list_users(q: str | None = None, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def list_users(request: Request, q: str | None = None, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     from sqlalchemy.orm import joinedload
     query = db.query(User).options(joinedload(User.wallet)).filter(User.role == "user")
     if q:
@@ -310,7 +380,8 @@ def list_users(q: str | None = None, admin: User = Depends(get_admin), db: Sessi
 
 
 @router.get("/users/{user_id}/detail")
-def user_detail(user_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def user_detail(request: Request, user_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     """Everything about one user in a single call — powers the admin drill-down panel."""
     u = db.get(User, uuid.UUID(user_id))
     if not u:
@@ -351,7 +422,7 @@ def user_detail(user_id: str, admin: User = Depends(get_admin), db: Session = De
         "withdrawals": [
             {"id": str(w.id), "amount": float(w.amount), "fee": float(w.fee),
              "star_penalty": float(w.star_penalty or 0),
-             "net_payout": float(w.amount) - float(w.star_penalty or 0),
+             "net_payout": _net_payout(w),
              "address": w.address, "status": w.status, "txid": w.txid,
              "created_at": ser_dt(w.created_at)}
             for w in wds],
@@ -369,7 +440,8 @@ def user_detail(user_id: str, admin: User = Depends(get_admin), db: Session = De
 
 
 @router.post("/users/{user_id}/freeze")
-def freeze_user(user_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def freeze_user(request: Request, user_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     u = db.get(User, uuid.UUID(user_id))
     if not u:
         raise HTTPException(404, "User not found")
@@ -384,7 +456,8 @@ def freeze_user(user_id: str, admin: User = Depends(get_admin), db: Session = De
 
 
 @router.post("/users/{user_id}/adjust")
-def adjust_balance(user_id: str, data: BalanceAdjustIn,
+@limiter.limit("10/minute")
+def adjust_balance(request: Request, user_id: str, data: BalanceAdjustIn,
                    admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     u = db.get(User, uuid.UUID(user_id))
     if not u:
@@ -406,11 +479,14 @@ def adjust_balance(user_id: str, data: BalanceAdjustIn,
 
 
 @router.post("/users/{user_id}/zero")
-def zero_user(user_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def zero_user(request: Request, user_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     """Reset an account to zero — for test/junk accounts. Every wallet bucket
     is debited to 0 through the ledger (auditable), open investments are
-    cancelled, and pending deposits/withdrawals are rejected so nothing can
-    credit the account back after the reset."""
+    cancelled, and pending or approved withdrawals are closed in place.
+    Approved holds already sit in the pending bucket, which this reset
+    zeroes, so leaving them approved made Pay and Reject fail afterwards.
+    Nothing is credited back."""
     u = db.get(User, uuid.UUID(user_id))
     if not u or u.role != "user":
         raise HTTPException(404, "User not found")
@@ -433,7 +509,7 @@ def zero_user(user_id: str, admin: User = Depends(get_admin), db: Session = Depe
         Deposit.user_id == u.id, Deposit.status == "pending"
     ).update({"status": "rejected"}, synchronize_session=False)
     n_wd = db.query(Withdrawal).filter(
-        Withdrawal.user_id == u.id, Withdrawal.status == "pending"
+        Withdrawal.user_id == u.id, Withdrawal.status.in_(("pending", "approved"))
     ).update({"status": "rejected"}, synchronize_session=False)
     audit(db, admin, "user.zero", "user", u.id,
           {"email": u.email, "cancelled_investments": n_inv,
@@ -448,7 +524,8 @@ class FeeIn(BaseModel):
 
 
 @router.post("/users/{user_id}/fee")
-def set_user_fee(user_id: str, data: FeeIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def set_user_fee(request: Request, user_id: str, data: FeeIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     """Per-user withdrawal fee override — admin controls each user's service fee %."""
     u = db.get(User, uuid.UUID(user_id))
     if not u:
@@ -465,7 +542,8 @@ class StarsIn(BaseModel):
 
 
 @router.post("/users/{user_id}/stars")
-def set_user_stars(user_id: str, data: StarsIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def set_user_stars(request: Request, user_id: str, data: StarsIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     """Star discipline system: 4 stars full, each deducted star cuts 25% off
     the user's withdrawal payouts. Admin deducts for terms violations."""
     u = db.get(User, uuid.UUID(user_id))
@@ -488,7 +566,8 @@ class AdminWithdrawAddressIn(BaseModel):
 
 
 @router.post("/users/{user_id}/withdraw-address")
-def admin_set_withdraw_address(user_id: str, data: AdminWithdrawAddressIn,
+@limiter.limit("10/minute")
+def admin_set_withdraw_address(request: Request, user_id: str, data: AdminWithdrawAddressIn,
                                admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     """Only an admin can change a user's locked withdrawal address."""
     u = db.get(User, uuid.UUID(user_id))
@@ -504,7 +583,8 @@ def admin_set_withdraw_address(user_id: str, data: AdminWithdrawAddressIn,
 
 
 @router.delete("/users/{user_id}")
-def delete_user(user_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def delete_user(request: Request, user_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     """Permanently remove a user and every row they own. Financial history
     goes with them — the audit log keeps the who/what. Staff and self are
     refused; staff are managed through /operators."""
@@ -554,7 +634,8 @@ def delete_user(user_id: str, admin: User = Depends(get_admin), db: Session = De
 
 # ---------- Address change requests ($5 fee on approval) ----------
 @router.get("/address-requests")
-def list_address_requests(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def list_address_requests(request: Request, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     rows = (db.query(AddressRequest)
             .order_by(AddressRequest.created_at.desc()).limit(100).all())
     users = {u.id: u for u in db.query(User).filter(
@@ -570,7 +651,8 @@ def list_address_requests(admin: User = Depends(get_admin), db: Session = Depend
 
 
 @router.post("/address-requests/{r_id}/approve")
-def approve_address_request(r_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("20/minute")
+def approve_address_request(request: Request, r_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     """Apply the new address and charge the flat change fee from the user's
     available balance through the ledger."""
     req = db.get(AddressRequest, uuid.UUID(r_id))
@@ -600,7 +682,8 @@ def approve_address_request(r_id: str, admin: User = Depends(get_admin), db: Ses
 
 
 @router.post("/address-requests/{r_id}/reject")
-def reject_address_request(r_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("20/minute")
+def reject_address_request(request: Request, r_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     req = db.get(AddressRequest, uuid.UUID(r_id))
     if not req or req.status != "pending":
         raise HTTPException(404, "Request not found")
@@ -615,12 +698,14 @@ def reject_address_request(r_id: str, admin: User = Depends(get_admin), db: Sess
 
 # ---------- Payment methods ----------
 @router.get("/payment-methods")
-def list_methods(owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def list_methods(request: Request, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     return db.query(PaymentMethod).order_by(PaymentMethod.name).all()
 
 
 @router.post("/payment-methods", status_code=201)
-def create_method(data: PaymentMethodIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def create_method(request: Request, data: PaymentMethodIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     m = PaymentMethod(**data.model_dump())
     db.add(m)
     db.flush()
@@ -632,7 +717,8 @@ def create_method(data: PaymentMethodIn, owner: User = Depends(get_owner), db: S
 
 
 @router.put("/payment-methods/{m_id}")
-def update_method(m_id: str, data: PaymentMethodIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def update_method(request: Request, m_id: str, data: PaymentMethodIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     m = db.get(PaymentMethod, uuid.UUID(m_id))
     if not m:
         raise HTTPException(404, "Method not found")
@@ -648,7 +734,8 @@ def update_method(m_id: str, data: PaymentMethodIn, owner: User = Depends(get_ow
 
 
 @router.delete("/payment-methods/{m_id}")
-def delete_method(m_id: str, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def delete_method(request: Request, m_id: str, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     m = db.get(PaymentMethod, uuid.UUID(m_id))
     if not m:
         raise HTTPException(404, "Method not found")
@@ -661,14 +748,16 @@ def delete_method(m_id: str, owner: User = Depends(get_owner), db: Session = Dep
 
 # ---------- Settings ----------
 @router.get("/settings")
-def all_settings(owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def all_settings(request: Request, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     from app.services.settings import DEFAULTS
     keys = set(DEFAULTS) | set(db.scalars(db.query(Setting.key)).all())
     return {k: get_setting(db, k) for k in sorted(keys)}
 
 
 @router.put("/settings/{key}")
-def update_setting(key: str, data: SettingIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def update_setting(request: Request, key: str, data: SettingIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     v = data.value or {}
     # A min>max limits pair would block every deposit/withdrawal — refuse.
     if isinstance(v.get("min"), (int, float)) and isinstance(v.get("max"), (int, float)):
@@ -683,16 +772,28 @@ def update_setting(key: str, data: SettingIn, owner: User = Depends(get_owner), 
 
 # ---------- Investments ----------
 @router.get("/investments")
-def list_investments(status: str | None = None, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def list_investments(request: Request, status: str | None = None, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     q = (db.query(Investment, User, Package)
          .outerjoin(User, Investment.user_id == User.id)
          .outerjoin(Package, Investment.package_id == Package.id))
     if status:
         q = q.filter(Investment.status == status)
     rows = q.order_by(Investment.started_at.desc()).limit(300).all()
+    ids = [str(i.id) for i, _, _ in rows]
+    settled: set[str] = set()
+    if ids:
+        settled = {
+            row[0] for row in db.query(AuditLog.target_id).filter(
+                AuditLog.action == "investment.settle",
+                AuditLog.target_type == "investment",
+                AuditLog.target_id.in_(ids),
+            ).all()
+        }
     return [
         {"id": str(i.id), "amount": float(i.amount), "status": i.status,
          "realized_return": float(i.realized_return),
+         "return_settled": str(i.id) in settled,
          "started_at": ser_dt(i.started_at),
          "ends_at": ser_dt(i.ends_at),
          "package_name": p.name if p else "",
@@ -702,35 +803,49 @@ def list_investments(status: str | None = None, admin: User = Depends(get_admin)
 
 
 @router.post("/investments/{inv_id}/settle")
-def settle_investment(inv_id: str, data: SettleIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
-    """Credit the realized return to the user's wallet — the actual outcome,
-    never auto-fabricated."""
+@limiter.limit("20/minute")
+def settle_investment(request: Request, inv_id: str, data: SettleIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    """Credit the realized return once. Principal stays invested until maturity;
+    closing the row here used to skip that return of capital."""
     inv = db.get(Investment, uuid.UUID(inv_id))
     if not inv:
         raise HTTPException(404, "Investment not found")
+    if inv.status not in ("active", "completed"):
+        raise HTTPException(400, "Investment is not open")
+    already = db.query(AuditLog.id).filter(
+        AuditLog.action == "investment.settle",
+        AuditLog.target_type == "investment",
+        AuditLog.target_id == str(inv.id),
+    ).first()
+    if already:
+        raise HTTPException(400, "Return already recorded")
+    credited = data.return_amount
     if data.return_amount > 0:
         try:
-            ledger.post_idempotent(
+            entry = ledger.post_idempotent(
                 db, idempotency_key=f"return:{inv.id}", user_id=inv.user_id, kind="return",
                 direction="credit", bucket="available", amount=data.return_amount,
                 reference_type="investment", reference_id=inv.id,
                 note="Realized return credited")
         except ledger.LedgerError as e:
             raise HTTPException(400, str(e))
-    inv.realized_return = data.return_amount
-    if inv.status == "active":
-        inv.status = "completed"
-    _mail_and_notify(db, inv.user_id, "investment_settled", {"amount": data.return_amount},
+        # The key posts once. A repeat that won the race keeps the amount
+        # that actually landed in the wallet.
+        if entry is not None:
+            credited = float(entry.amount)
+    inv.realized_return = credited
+    _mail_and_notify(db, inv.user_id, "investment_settled", {"amount": credited},
                      "Investment settled",
-                     f"Your investment realized a return of ${data.return_amount:,.2f}, credited to your wallet.")
-    audit(db, admin, "investment.settle", "investment", inv.id, {"return_amount": data.return_amount})
+                     f"Your investment realized a return of ${credited:,.2f}, credited to your wallet.")
+    audit(db, admin, "investment.settle", "investment", inv.id, {"return_amount": credited})
     db.commit()
     return {"ok": True}
 
 
 # ---------- Tickets ----------
 @router.get("/tickets")
-def list_tickets(admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def list_tickets(request: Request, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     rows = (db.query(Ticket, User).outerjoin(User, Ticket.user_id == User.id)
             .order_by(Ticket.created_at.desc()).limit(200).all())
     return [
@@ -742,7 +857,8 @@ def list_tickets(admin: User = Depends(get_admin), db: Session = Depends(get_db)
 
 
 @router.post("/tickets/{ticket_id}/close")
-def close_ticket(ticket_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+@limiter.limit("20/minute")
+def close_ticket(request: Request, ticket_id: str, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
     t = db.get(Ticket, uuid.UUID(ticket_id))
     if not t:
         raise HTTPException(404, "Ticket not found")
@@ -755,7 +871,8 @@ def close_ticket(ticket_id: str, admin: User = Depends(get_admin), db: Session =
 
 # ---------- Audit ----------
 @router.get("/audit")
-def audit_log(owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def audit_log(request: Request, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     rows = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(300).all()
     return [{"id": str(a.id), "action": a.action, "target_type": a.target_type,
              "target_id": a.target_id, "details": a.details,
@@ -776,13 +893,15 @@ def _op_out(u: User) -> dict:
 
 
 @router.get("/operators")
-def list_operators(owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def list_operators(request: Request, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     rows = db.query(User).filter(User.role.in_(("admin", "owner"))).order_by(User.created_at).all()
     return [_op_out(u) for u in rows]
 
 
 @router.post("/operators", status_code=201)
-def create_operator(data: OperatorIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def create_operator(request: Request, data: OperatorIn, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     import secrets as _secrets
     from app.core.security import hash_password
     if db.query(User).filter(User.login_id == data.login_id).first():
@@ -800,7 +919,8 @@ def create_operator(data: OperatorIn, owner: User = Depends(get_owner), db: Sess
 
 
 @router.post("/operators/{op_id}/toggle")
-def toggle_operator(op_id: str, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def toggle_operator(request: Request, op_id: str, owner: User = Depends(get_owner), db: Session = Depends(get_db)):
     op = db.get(User, uuid.UUID(op_id))
     if not op or op.role not in ("admin", "owner"):
         raise HTTPException(404, "Operator not found")

@@ -68,7 +68,7 @@ def wallet(user: User = Depends(get_current_user)):
 def transactions(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = (
         db.query(LedgerEntry)
-        .filter(LedgerEntry.user_id == user.id)
+        .filter(LedgerEntry.user_id == user.id, LedgerEntry.bucket == "available")
         .order_by(LedgerEntry.created_at.desc())
         .limit(100)
         .all()
@@ -128,20 +128,22 @@ def create_withdrawal(request: Request, data: WithdrawIn, user: User = Depends(g
     if datetime.now(timezone.utc).weekday() >= 5:
         raise HTTPException(400, "Withdrawals are not processed on weekends (Saturday–Sunday)")
     cfg = get_setting(db, "withdrawal")
+    # The only ceiling is the one the admin saved. The fee is not a second limit.
     if not (cfg["min"] <= data.amount <= cfg["max"]):
         raise HTTPException(400, f"Amount must be between {cfg['min']} and {cfg['max']}")
+    avail = float(user.wallet.available) if user.wallet else 0.0
+    if data.amount > avail + 1e-6:
+        raise HTTPException(400, "Insufficient balance")
     fee_pct = float(user.withdraw_fee_pct) if user.withdraw_fee_pct is not None else float(cfg.get("fee_pct", 0))
     fee = round(data.amount * fee_pct / 100 + float(cfg.get("fee_flat", 0)), 8)
-    # Star system: each missing star cuts 25% off the payout. The hold is still
-    # amount + service fee; the admin pays out (amount - star_penalty) and the
-    # platform keeps the penalty.
+    # Star system: each missing star cuts 25% off the payout. Neither cut is
+    # added on top of the request, and neither is paid to anyone — the service
+    # fee is removed from the wallet like any other fee.
     missing_stars = max(0, 4 - int(user.stars or 0))
     star_penalty = round(data.amount * missing_stars * 0.25, 8)
-    total = data.amount + fee
-    avail = float(user.wallet.available) if user.wallet else 0.0
-    if total > avail + 1e-6:
-        max_amt = max(0.0, (avail - float(cfg.get("fee_flat", 0))) / (1 + fee_pct / 100))
-        raise HTTPException(400, f"Insufficient balance — maximum withdrawable is {max_amt:.2f}")
+    if fee + star_penalty >= data.amount:
+        raise HTTPException(400, "Fees exceed the withdrawal amount")
+    payout = round(data.amount - fee - star_penalty, 8)
     w = Withdrawal(user_id=user.id, amount=data.amount, fee=fee,
                    star_penalty=star_penalty, address=data.address)
     db.add(w)
@@ -151,8 +153,19 @@ def create_withdrawal(request: Request, data: WithdrawIn, user: User = Depends(g
     notify_admins(db, "admin_withdrawal_new",
                   {"amount": data.amount, "serial": user.serial, "email": user.email, "fee": fee})
     try:
-        # hold funds: available -> pending
-        ledger.move(db, user_id=user.id, kind="withdrawal", amount=total,
+        # Service fee leaves the wallet immediately. It is not credited to the
+        # admin and it is not included in the payout.
+        if fee > 0:
+            ledger.post(db, user_id=user.id, kind="fee", direction="debit", bucket="available",
+                        amount=fee, reference_type="withdrawal", reference_id=w.id,
+                        idempotency_key=f"withdrawal-fee:{w.id}",
+                        note="Withdrawal service fee")
+        if star_penalty > 0:
+            ledger.post(db, user_id=user.id, kind="fee", direction="debit", bucket="available",
+                        amount=star_penalty, reference_type="withdrawal", reference_id=w.id,
+                        idempotency_key=f"withdrawal-star:{w.id}",
+                        note="Withdrawal star penalty")
+        ledger.move(db, user_id=user.id, kind="withdrawal", amount=payout,
                     from_bucket="available", to_bucket="pending",
                     reference_type="withdrawal", reference_id=w.id,
                     idempotency_key=None, note="Withdrawal request hold")
