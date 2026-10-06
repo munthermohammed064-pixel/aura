@@ -4,6 +4,9 @@
 set -euo pipefail
 APP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$APP_ROOT"
+# Two GitHub deploys must not run npm ci against the same tree.
+exec 9>/tmp/nexora-deploy.lock
+flock 9
 
 # e2e_check.py is re-uploaded by prod_e2e.py after each deploy — discard that
 # generated copy so the pull never conflicts with the repo version.
