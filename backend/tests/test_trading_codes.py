@@ -253,3 +253,32 @@ def test_three_part_name_required(env):
                       headers=h).status_code == 400
     assert client.put("/api/profile", json={"full_name": "A B C"},
                       headers=h).status_code == 200
+
+
+def test_withdrawal_fee_auto_counted(env, monkeypatch):
+    client, session, *_ = env
+    ah = _admin(client)
+    # pin "now" to a Tuesday so the weekend rule never flakes the test
+    import app.api.wallet as wapi
+    class _Tue(datetime):
+        @classmethod
+        def now(cls, tz=None): return cls(2026, 10, 6, 12, tzinfo=timezone.utc)
+    monkeypatch.setattr(wapi, "datetime", _Tue)
+
+    r = client.post("/api/auth/register",
+                    json={"email": "w@t.io", "password": "UserPassw0rd!!",
+                          "full_name": "Wallet Test User"})
+    assert r.status_code == 201, r.text
+    uh = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    uid = client.get("/api/auth/me", headers=uh).json()["id"]
+    client.post("/api/profile/withdraw-address", json={"address": "0xTESTADDR"}, headers=uh)
+    assert client.post(f"/api/admin/users/{uid}/adjust",
+                       json={"amount": 100, "note": "seed"}, headers=ah).status_code == 200
+
+    # $100 balance, 20% fee → max withdrawable = 83.33; asking for 100 must
+    # fail with a message that names the real maximum.
+    r = client.post("/api/withdrawals", json={"amount": 100, "address": "0xTESTADDR"}, headers=uh)
+    assert r.status_code == 400 and "maximum withdrawable is 83.33" in r.text, r.text
+    # the exact maximum goes through — hold = 83.33 + 16.67 fee = 100.00
+    r = client.post("/api/withdrawals", json={"amount": 83.33, "address": "0xTESTADDR"}, headers=uh)
+    assert r.status_code == 201, r.text

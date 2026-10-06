@@ -621,6 +621,9 @@ const dict: Record<string, D> = {
   // ---------- API error translation ----------
   err_amount_range: { en: "Amount must be between {a} and {b}", ar: "المبلغ يجب أن يكون بين {a} و {b}", es: "El importe debe estar entre {a} y {b}", fr: "Le montant doit être entre {a} et {b}", tr: "Tutar {a} ile {b} arasında olmalı", ru: "Сумма должна быть от {a} до {b}", de: "Betrag muss zwischen {a} und {b} liegen" },
   err_insufficient: { en: "Insufficient {a} balance", ar: "رصيد {a} غير كافٍ", es: "Saldo {a} insuficiente", fr: "Solde {a} insuffisant", tr: "{a} bakiyesi yetersiz", ru: "Недостаточно средств ({a})", de: "Unzureichendes {a}-Guthaben" },
+  err_max_withdraw: { en: "Not enough balance — the fee counts too. Max withdrawable: {a}", ar: "الرصيد لا يكفي — رسوم الخدمة تُحتسب أيضًا. أقصى مبلغ للسحب: {a}", es: "Saldo insuficiente — la comisión también cuenta. Máximo retirable: {a}", fr: "Solde insuffisant — les frais comptent aussi. Maximum retirable : {a}", tr: "Bakiye yetersiz — hizmet ücreti de dahil. Çekilebilecek en yüksek tutar: {a}", ru: "Недостаточно средств — комиссия тоже учитывается. Максимум к выводу: {a}", de: "Guthaben reicht nicht — die Gebühr zählt mit. Max. auszahlbar: {a}" },
+  max_withdrawable: { en: "Max withdrawable", ar: "أقصى مبلغ للسحب", es: "Máximo retirable", fr: "Maximum retirable", tr: "Maks. çekilebilir", ru: "Макс. к выводу", de: "Max. auszahlbar" },
+  total_deducted: { en: "Total deducted", ar: "الإجمالي المخصوم", es: "Total deducido", fr: "Total déduit", tr: "Toplam kesinti", ru: "Итого списано", de: "Gesamtabzug" },
   err_already_status: { en: "Already {a}", ar: "الحالة بالفعل {a}", es: "Ya está {a}", fr: "Déjà {a}", tr: "Zaten {a}", ru: "Уже {a}", de: "Bereits {a}" },
   err_unknown_pkg: { en: "Unknown package {a}", ar: "باقة غير معروفة {a}", es: "Paquete desconocido {a}", fr: "Offre inconnue {a}", tr: "Bilinmeyen paket {a}", ru: "Неизвестный пакет {a}", de: "Unbekanntes Paket {a}" },
   err_pkg_range: { en: "{a}: amount must stay inside its range ({b})", ar: "{a}: المبلغ يجب أن يبقى ضمن نطاقها ({b})", es: "{a}: el importe debe estar dentro de su rango ({b})", fr: "{a} : le montant doit rester dans sa plage ({b})", tr: "{a}: tutar aralığında kalmalı ({b})", ru: "{a}: сумма должна быть в диапазоне ({b})", de: "{a}: Betrag muss im Bereich ({b}) bleiben" },
@@ -710,6 +713,7 @@ const errDict: Record<string, D> = {
 // Dynamic backend messages — captured params feed {a}/{b} slots.
 const ERR_RULES: [RegExp, string][] = [
   [/^Amount must be between ([\d.,]+) and ([\d.,]+)/, "err_amount_range"],
+  [/^Insufficient balance — maximum withdrawable is ([\d.,]+)/, "err_max_withdraw"],
   [/^Insufficient (\w+) balance/, "err_insufficient"],
   [/^(?:Deposit|Withdrawal) already (\w+)/, "err_already_status"],
   [/^Unknown package (.+)/, "err_unknown_pkg"],

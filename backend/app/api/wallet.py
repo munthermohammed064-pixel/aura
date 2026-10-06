@@ -138,6 +138,10 @@ def create_withdrawal(request: Request, data: WithdrawIn, user: User = Depends(g
     missing_stars = max(0, 4 - int(user.stars or 0))
     star_penalty = round(data.amount * missing_stars * 0.25, 8)
     total = data.amount + fee
+    avail = float(user.wallet.available) if user.wallet else 0.0
+    if total > avail + 1e-6:
+        max_amt = max(0.0, (avail - float(cfg.get("fee_flat", 0))) / (1 + fee_pct / 100))
+        raise HTTPException(400, f"Insufficient balance — maximum withdrawable is {max_amt:.2f}")
     w = Withdrawal(user_id=user.id, amount=data.amount, fee=fee,
                    star_penalty=star_penalty, address=data.address)
     db.add(w)

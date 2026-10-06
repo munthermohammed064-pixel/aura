@@ -88,9 +88,14 @@ export default function WalletPage() {
   const wdFee = Math.round((wdAmt * effPct / 100 + cfg.withdrawal_fee_flat) * 100) / 100;
   const wdPenalty = Math.round(wdAmt * Math.max(0, 4 - stars) * 0.25 * 100) / 100;
   const wdNet = Math.round((wdAmt - wdPenalty) * 100) / 100;
+  const wdAvail = wallet?.available ?? 0;
+  // Largest request whose amount+fee still fits the available balance.
+  const maxWd = Math.max(0, Math.floor(((wdAvail - cfg.withdrawal_fee_flat) / (1 + effPct / 100)) * 100) / 100);
+  const wdOver = wdAmt > 0 && wdAmt + wdFee > wdAvail + 0.001;
 
   const openConfirm = () => {
     if (!wdAmt || wdAmt <= 0) return toast(t("enter_amount"), "err");
+    if (wdOver) return toast(t("err_max_withdraw", { a: `$${maxWd.toLocaleString("en-US", { maximumFractionDigits: 2 })}` }), "err");
     setConfirmWd(true);
   };
 
@@ -240,8 +245,52 @@ export default function WalletPage() {
 
           <GlassCard>
             <h2 className="mb-4 font-medium">{t("withdraw")}</h2>
-            <input className="input mb-3" type="number" placeholder={t("amount")}
-              value={wd.amount} onChange={(e) => setWd({ ...wd, amount: e.target.value })} />
+            <div className="relative mb-2">
+              <input className="input w-full pe-16" type="number" placeholder={t("amount")}
+                value={wd.amount} onChange={(e) => setWd({ ...wd, amount: e.target.value })} />
+              <button type="button" onClick={() => setWd({ ...wd, amount: maxWd > 0 ? String(maxWd) : "" })}
+                className="absolute end-2 top-1/2 -translate-y-1/2 rounded-full border border-accent/40 bg-accent/10 px-3 py-0.5 text-[10px] font-bold tracking-widest text-accent transition hover:bg-accent/20">
+                MAX
+              </button>
+            </div>
+            {wallet && (
+              <p className="mb-2 text-[10px] text-muted">
+                {t("max_withdrawable")}: <span className={`font-mono ${wdOver ? "text-red-500" : "text-accent"}`}>
+                  ${maxWd.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                {" "}· {t("fee")} {effPct}%
+              </p>
+            )}
+            {wdAmt > 0 && (
+              <div className="mb-3 space-y-1 rounded-xl bg-ink/[0.04] px-3 py-2.5 text-xs">
+                <div className="flex justify-between text-muted">
+                  <span>{t("amount")}</span>
+                  <span className="font-mono">${wdAmt.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between text-muted">
+                  <span>{t("fee")}</span>
+                  <span className="font-mono">+${wdFee.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                </div>
+                {wdPenalty > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>{t("star_penalty")}</span>
+                    <span className="font-mono">−${wdPenalty.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                <div className={`flex justify-between border-t border-border pt-1.5 font-semibold ${wdOver ? "text-red-500" : ""}`}>
+                  <span>{t("total_deducted")}</span>
+                  <span className="font-mono">${(wdAmt + wdFee).toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted">{t("net_payout")}</span>
+                  <span className="font-mono text-accent">${wdNet.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            )}
+            {wdOver && (
+              <p className="mb-3 rounded-xl border border-red-600/30 bg-red-600/5 px-3 py-2 text-xs text-red-700">
+                {t("err_max_withdraw", { a: `$${maxWd.toLocaleString("en-US", { maximumFractionDigits: 2 })}` })}
+              </p>
+            )}
             {whitelist ? (
               <div className="mb-3">
                 <p className="mb-1 text-[10px] uppercase tracking-widest text-muted">{t("approved_address")}</p>
@@ -291,6 +340,8 @@ export default function WalletPage() {
                 <div className="flex justify-between"><span className="text-muted">{t("star_penalty")}</span>
                   <span className="font-mono text-red-600">−${wdPenalty.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></div>
               )}
+              <div className="flex justify-between"><span className="text-muted">{t("total_deducted")}</span>
+                <span className="font-mono">${(wdAmt + wdFee).toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></div>
               <div className="flex justify-between border-t border-border pt-2.5 font-semibold">
                 <span>{t("net_payout")}</span>
                 <span className="font-mono text-accent">${wdNet.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></div>
