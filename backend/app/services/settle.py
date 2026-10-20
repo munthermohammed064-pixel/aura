@@ -9,11 +9,13 @@ once, so a later tick cannot pay it again.
 
 from datetime import datetime, timezone
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.finance import Investment, LedgerEntry
+from app.models.finance import Investment, LedgerEntry, Withdrawal
 from app.models.platform import Notification
 from app.services import ledger
+from app.services.notify import notify_admins
 
 _PRINCIPAL_NOTE = "Investment matured — principal returned"
 
@@ -79,3 +81,32 @@ def settle_matured(db: Session) -> int:
     if count:
         db.commit()
     return count
+
+
+def remind_pending_withdrawals(db: Session) -> None:
+    """On weekdays, once per UTC day, remind admins how many withdrawals
+    are waiting to be paid."""
+    now = datetime.now(timezone.utc)
+    if now.weekday() >= 5:
+        return
+    pending = (
+        db.query(func.count(Withdrawal.id))
+        .filter(Withdrawal.status.in_(("pending", "approved")))
+        .scalar()
+        or 0
+    )
+    if pending <= 0:
+        return
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    already = (
+        db.query(Notification.id)
+        .filter(
+            Notification.kind == "admin_withdrawals_due",
+            Notification.created_at >= day_start,
+        )
+        .first()
+    )
+    if already:
+        return
+    notify_admins(db, "admin_withdrawals_due", {"count": int(pending)})
+    db.commit()

@@ -21,6 +21,16 @@ def award_commission(
     source_id: uuid.UUID,
     base_amount: float,
 ) -> list[ReferralCommission]:
+    # One invitation reward per referred user — only the first package
+    # activation pays the host. Later upgrades do not pay again.
+    already = (
+        db.query(ReferralCommission.id)
+        .filter(ReferralCommission.referred_id == referred_user.id)
+        .first()
+    )
+    if already:
+        return []
+
     cfg = get_setting(db, "referral")
     levels = int(cfg.get("levels", 1))
     pcts = [float(cfg.get(f"l{i}_pct", 0)) for i in range(1, levels + 1)]
@@ -36,7 +46,7 @@ def award_commission(
         amount = round(base_amount * pct / 100, 8)
         if amount <= 0:
             break
-        entry = ledger.post(
+        ledger.post(
             db, user_id=referrer.id, kind="commission", direction="credit",
             bucket="available", amount=amount,
             reference_type=source_type, reference_id=source_id,

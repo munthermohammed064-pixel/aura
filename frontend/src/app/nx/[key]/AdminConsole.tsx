@@ -24,7 +24,7 @@ type Row = {
   id: string; amount: number; status: string; created_at: string; method?: string; proof?: string;
   screenshot?: string; address?: string; fee?: number; txid?: string;
   star_penalty?: number; net_payout?: number;
-  user_email?: string; user_serial?: string;
+  user_email?: string; user_serial?: string; user_full_name?: string | null;
 };
 type Method = { id: string; name: string; details: string; qr_image: string; min_amount: number; max_amount: number; is_active: boolean; i18n?: I18nMap | null };
 type Inv = { id: string; amount: number; status: string; realized_return: number; return_settled?: boolean; started_at: string; ends_at: string; user_email?: string; user_serial?: string; package_name?: string };
@@ -32,7 +32,7 @@ type OpRow = { id: string; login_id: string; full_name: string; role: string; is
 type AddrReq = { id: string; new_address: string; current_address: string; qr_image: string;
   status: string; fee: number; created_at: string | null; user_email?: string; user_serial?: string };
 type UserRow = {
-  id: string; email: string; serial: string; is_frozen: boolean; role: string; stars: number;
+  id: string; email: string; serial: string; full_name?: string; is_frozen: boolean; role: string; stars: number;
   default_withdraw_address: string | null; withdraw_qr_image: string | null; withdraw_fee_pct: number | null;
   wallet: { available: number; pending: number; invested: number } | null;
 };
@@ -499,7 +499,7 @@ export default function AdminConsole() {
                 )}
                 {pendingWds > 0 && (
                   <button onClick={() => setTab("withdrawals")} className="btn-ghost px-4 py-2 text-xs">
-                    {pendingWds} {t("withdrawals")}
+                    {t("wd_due_banner").replace("{n}", String(pendingWds))}
                   </button>
                 )}
               </div>
@@ -803,14 +803,15 @@ ${t("codes_valid_until")} ${published.expires_at ? formatDateTime(published.expi
             <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-start text-[10px] uppercase tracking-wider text-muted">
-                <th className="pb-2 pe-4">{t("user")}</th><th className="pb-2 pe-4">{t("net_payout")}</th><th className="pb-2 pe-4">{t("address")}</th><th className="pb-2 pe-4">{t("status")}</th><th className="pb-2">{t("actions")}</th>
+                <th className="pb-2 pe-4">{t("user")}</th><th className="pb-2 pe-4">{t("net_payout")}</th><th className="pb-2 pe-4">{t("date")}</th><th className="pb-2 pe-4">{t("address")}</th><th className="pb-2 pe-4">{t("status")}</th><th className="pb-2">{t("actions")}</th>
               </tr></thead>
               <tbody>{withdrawals.slice(wdPage * PAGE_SIZE, wdPage * PAGE_SIZE + PAGE_SIZE).map((w) => (
                 <Fragment key={w.id}>
                 <tr className="border-t border-border align-top">
                   <td className="py-3 pe-4">
-                    <p className="text-xs">{w.user_email}</p>
+                    <p className="text-xs">{w.user_full_name || w.user_email}</p>
                     <p className="font-mono text-[10px] text-accent">{w.user_serial}</p>
+                    {w.user_full_name && <p className="text-[10px] text-muted">{w.user_email}</p>}
                   </td>
                   <td className="whitespace-nowrap py-3 pe-4">
                     <p className="font-display text-base font-semibold text-accent">
@@ -821,6 +822,9 @@ ${t("codes_valid_until")} ${published.expires_at ? formatDateTime(published.expi
                       {(w.fee ?? 0) > 0 && <> − ${Number(w.fee).toLocaleString("en-US")} {t("fee_removed")}</>}
                       {(w.star_penalty ?? 0) > 0 && <> · −${Number(w.star_penalty).toLocaleString("en-US")} ★</>}
                     </p>
+                  </td>
+                  <td className="whitespace-nowrap py-3 pe-4 text-xs text-muted tabular-nums">
+                    {w.created_at ? formatDateTime(w.created_at, lang) : "—"}
                   </td>
                   <td className="max-w-56 py-3 pe-4">
                     <div className="flex items-start gap-1.5">
@@ -866,7 +870,7 @@ ${t("codes_valid_until")} ${published.expires_at ? formatDateTime(published.expi
                 </tr>
                 {payingId === w.id && (
                   <tr className="border-t border-border/50 bg-white/[0.03]">
-                    <td colSpan={5} className="px-3 py-3">
+                    <td colSpan={6} className="px-3 py-3">
                       <div className="flex items-center gap-2">
                         <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted">{t("txid")}</span>
                         <input autoFocus className="input flex-1" placeholder={t("txid_ph")}
@@ -894,14 +898,17 @@ ${t("codes_valid_until")} ${published.expires_at ? formatDateTime(published.expi
             <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-xs text-muted">
-                <th className="pb-2">{t("serial_col")}</th><th className="pb-2">{t("email_col")}</th><th className="pb-2">{t("stars")}</th><th className="pb-2">{t("wallet")}</th>
+                <th className="pb-2">{t("serial_col")}</th><th className="pb-2">{t("full_name")}</th><th className="pb-2">{t("stars")}</th><th className="pb-2">{t("wallet")}</th>
                 <th className="pb-2">{t("address")}</th><th className="pb-2">{t("role")}</th><th className="pb-2">{t("frozen")}</th><th className="pb-2"></th>
               </tr></thead>
               <tbody>{users.slice(userPage * PAGE_SIZE, userPage * PAGE_SIZE + PAGE_SIZE).map((u) => (
                 <tr key={u.id} className="cursor-pointer border-t border-border transition hover:bg-white/[0.03]"
                   onClick={() => openUser(u.id)}>
                   <td className="py-2 font-mono text-xs text-accent">{u.serial || "—"}</td>
-                  <td className="py-2">{u.email}</td>
+                  <td className="py-2">
+                    <p className="text-sm">{u.full_name || "—"}</p>
+                    <p className="text-[10px] text-muted">{t("click_for_login")}</p>
+                  </td>
                   <td className="py-2" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5">
                       <Stars value={u.stars ?? 4} size={12} />
@@ -1453,15 +1460,39 @@ ${t("codes_valid_until")} ${published.expires_at ? formatDateTime(published.expi
                   <div className="space-y-5">
                     <div>
                       <div className="flex flex-wrap items-center gap-3">
-                        <h2 className="font-display text-xl">{detail.user.email}</h2>
+                        <h2 className="font-display text-xl">{detail.user.full_name || detail.user.email}</h2>
                         <span className="font-mono text-xs text-accent">{detail.user.serial}</span>
                         <Stars value={detail.user.stars} size={14} />
                         {detail.user.is_frozen && (
                           <span className="rounded-full bg-red-400/15 px-2.5 py-0.5 text-[10px] text-red-300">{t("frozen")}</span>
                         )}
                       </div>
+                      <div className="mt-3 space-y-2 rounded-xl border border-border bg-white/[0.03] px-3 py-3 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-muted">{t("email_col")}</span>
+                          <button type="button" className="font-mono text-xs text-accent hover:underline" onClick={() => copyText(detail.user.email)}>
+                            {detail.user.email}
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-muted">{t("password")}</span>
+                          <button type="button" className="btn-ghost px-3 py-1 text-xs"
+                            onClick={() => {
+                              const pw = prompt(t("set_user_password_prompt"));
+                              if (!pw || pw.length < 8) { if (pw != null) toast(t("password_min12"), "err"); return; }
+                              api<{ password: string; email: string }>(`/admin/users/${detail.user.id}/set-password`, {
+                                method: "POST", body: JSON.stringify({ password: pw }),
+                              }).then((r) => {
+                                toast(`${t("password_set_once")}: ${r.password}`);
+                                copyText(r.password);
+                              }).catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"));
+                            }}>
+                            {t("set_temp_password")}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-muted">{t("password_hashed_note")}</p>
+                      </div>
                       <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted">
-                        {detail.user.full_name && <span>{detail.user.full_name}</span>}
                         <span>{t("joined")}: {detail.user.created_at ? formatDate(detail.user.created_at, lang) : "—"}</span>
                         <span>{t("verified")}: {detail.user.email_verified ? t("yes") : t("no")}</span>
                         <span>{t("custom_fee")}: {detail.user.withdraw_fee_pct != null ? `${detail.user.withdraw_fee_pct}%` : "—"}</span>
@@ -1512,8 +1543,10 @@ ${t("codes_valid_until")} ${published.expires_at ? formatDateTime(published.expi
                       <div className="max-h-40 space-y-1.5 overflow-y-auto">
                         {detail.withdrawals.map((w) => (
                           <div key={w.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-3 py-2 text-xs">
-                            <span>${Number(w.amount).toLocaleString("en-US")}
+                            <span>
+                              ${Number(w.amount).toLocaleString("en-US")}
                               {(w.star_penalty ?? 0) > 0 && <span className="text-red-300"> (−${Number(w.star_penalty).toLocaleString("en-US")})</span>}
+                              <span className="ms-2 text-muted">{w.created_at ? formatDateTime(w.created_at, lang) : ""}</span>
                             </span>
                             <span className="capitalize text-muted">{t(w.status)}{w.txid ? " · " + w.txid.slice(0, 10) : ""}</span>
                           </div>

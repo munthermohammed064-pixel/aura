@@ -271,6 +271,7 @@ def list_withdrawals(request: Request, status: str | None = None, admin: User = 
          "address": w.address,
          "status": w.status, "txid": w.txid, "admin_note": w.admin_note,
          "created_at": ser_dt(w.created_at),
+         "user_full_name": u.full_name if u else None,
          **_tag(u)}
         for w, u in rows
     ]
@@ -544,8 +545,8 @@ class StarsIn(BaseModel):
 @router.post("/users/{user_id}/stars")
 @limiter.limit("10/minute")
 def set_user_stars(request: Request, user_id: str, data: StarsIn, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
-    """Star discipline system: 4 stars full, each deducted star cuts 25% off
-    the user's withdrawal payouts. Admin deducts for terms violations."""
+    """Star discipline: 4 stars full. Each missing star cuts 25% from
+    withdrawals and from daily-task (trading-code) credits."""
     u = db.get(User, uuid.UUID(user_id))
     if not u:
         raise HTTPException(404, "User not found")
@@ -559,6 +560,29 @@ def set_user_stars(request: Request, user_id: str, data: StarsIn, admin: User = 
         notify_user(db, u.id, "star_restored", {"stars": data.stars, "old": old})
     db.commit()
     return {"ok": True, "stars": data.stars}
+
+
+class SetPasswordIn(BaseModel):
+    password: str = Field(min_length=8, max_length=128)
+
+
+@router.post("/users/{user_id}/set-password")
+@limiter.limit("10/minute")
+def admin_set_password(request: Request, user_id: str, data: SetPasswordIn,
+                       admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    """Set a new password for the user. The old one cannot be recovered
+    (it is hashed). Returns the new password once so the admin can copy it."""
+    from app.core.security import hash_password
+    u = db.get(User, uuid.UUID(user_id))
+    if not u or u.role != "user":
+        raise HTTPException(404, "User not found")
+    u.password_hash = hash_password(data.password)
+    # Force re-login with the new credentials.
+    db.query(UserSession).filter(UserSession.user_id == u.id).update({"revoked": True})
+    audit(db, admin, "user.set_password", "user", u.id, {"email": u.email})
+    notify_user(db, u.id, "password_reset_by_admin", {})
+    db.commit()
+    return {"ok": True, "password": data.password, "email": u.email}
 
 
 class AdminWithdrawAddressIn(BaseModel):
@@ -819,12 +843,17 @@ def settle_investment(request: Request, inv_id: str, data: SettleIn, admin: User
     ).first()
     if already:
         raise HTTPException(400, "Return already recorded")
-    credited = data.return_amount
-    if data.return_amount > 0:
+    # Star discipline also applies to returns: each missing star −25%.
+    holder = db.get(User, inv.user_id)
+    missing_stars = max(0, 4 - int((holder.stars if holder else 0) or 0))
+    star_factor = max(0.0, 1.0 - missing_stars * 0.25)
+    pay = round(float(data.return_amount) * star_factor, 8)
+    credited = pay
+    if pay > 0:
         try:
             entry = ledger.post_idempotent(
                 db, idempotency_key=f"return:{inv.id}", user_id=inv.user_id, kind="return",
-                direction="credit", bucket="available", amount=data.return_amount,
+                direction="credit", bucket="available", amount=pay,
                 reference_type="investment", reference_id=inv.id,
                 note="Realized return credited")
         except ledger.LedgerError as e:
@@ -837,7 +866,8 @@ def settle_investment(request: Request, inv_id: str, data: SettleIn, admin: User
     _mail_and_notify(db, inv.user_id, "investment_settled", {"amount": credited},
                      "Investment settled",
                      f"Your investment realized a return of ${credited:,.2f}, credited to your wallet.")
-    audit(db, admin, "investment.settle", "investment", inv.id, {"return_amount": credited})
+    audit(db, admin, "investment.settle", "investment", inv.id,
+          {"return_amount": credited, "gross": float(data.return_amount), "stars": int((holder.stars if holder else 0) or 0)})
     db.commit()
     return {"ok": True}
 

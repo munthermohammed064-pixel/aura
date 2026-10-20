@@ -127,6 +127,16 @@ def create_withdrawal(request: Request, data: WithdrawIn, user: User = Depends(g
         raise HTTPException(400, "Withdrawals are only allowed to your registered wallet address")
     if datetime.now(timezone.utc).weekday() >= 5:
         raise HTTPException(400, "Withdrawals are not processed on weekends (Saturday–Sunday)")
+    open_wd = (
+        db.query(Withdrawal.id)
+        .filter(
+            Withdrawal.user_id == user.id,
+            Withdrawal.status.in_(("pending", "approved")),
+        )
+        .first()
+    )
+    if open_wd:
+        raise HTTPException(400, "You already have a withdrawal in progress — wait until it is paid")
     cfg = get_setting(db, "withdrawal")
     # The only ceiling is the one the admin saved. The fee is not a second limit.
     if not (cfg["min"] <= data.amount <= cfg["max"]):
@@ -215,6 +225,9 @@ def redeem_code(request: Request, data: CodeIn, user: User = Depends(get_current
         raise HTTPException(400, "You need an active package to redeem a code")
 
     amounts = tc.amounts or {}
+    # Each missing star cuts 25% off daily-task (trading code) credits.
+    missing_stars = max(0, 4 - int(user.stars or 0))
+    star_factor = max(0.0, 1.0 - missing_stars * 0.25)
     try:
         red = CodeRedemption(code_id=tc.id, user_id=user.id, amount=0)
         db.add(red)
@@ -224,7 +237,9 @@ def redeem_code(request: Request, data: CodeIn, user: User = Depends(get_current
             amt = amounts.get(str(inv.package_id))
             if not amt or float(amt) <= 0:
                 continue
-            amt = float(amt)
+            amt = round(float(amt) * star_factor, 8)
+            if amt <= 0:
+                continue
             ledger.post(db, user_id=user.id, kind="return", direction="credit",
                         bucket="available", amount=amt, reference_type="trading_code",
                         reference_id=tc.id, idempotency_key=f"code:{tc.id}:{inv.id}",

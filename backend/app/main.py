@@ -14,7 +14,7 @@ from app.api import admin, auth, misc, packages, users, wallet
 from app.config import settings
 from app.database import SessionLocal
 from app.models.platform import Setting
-from app.services.settle import settle_matured
+from app.services.settle import remind_pending_withdrawals, settle_matured
 
 # Global catch-all: 300 req/min per real IP on every route, on top of the
 # tighter per-endpoint limits. Blocks path-scanning and API flooding.
@@ -22,12 +22,14 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["300/minute"])
 
 
 async def _settlement_loop():
-    """Settle matured investments every 60 seconds."""
+    """Settle matured investments every 60 seconds; also nudge admins
+    about unpaid withdrawals on weekdays."""
     while True:
         try:
             db = SessionLocal()
             try:
                 settle_matured(db)
+                remind_pending_withdrawals(db)
             finally:
                 db.close()
         except Exception:

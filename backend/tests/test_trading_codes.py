@@ -322,6 +322,94 @@ def test_withdrawal_fee_auto_counted(env, monkeypatch):
     assert r.status_code == 400 and "between" in r.text.lower(), r.text
 
 
+def test_cannot_withdraw_while_one_is_open(env, monkeypatch):
+    client, session, *_ = env
+    monkeypatch.setattr("app.services.mailer.send", lambda *a, **k: True)
+    import app.api.wallet as wapi
+    class _Tue(datetime):
+        @classmethod
+        def now(cls, tz=None): return cls(2026, 10, 6, 12, tzinfo=timezone.utc)
+    monkeypatch.setattr(wapi, "datetime", _Tue)
+    ah = _admin(client)
+    r = client.post("/api/auth/register",
+                    json={"email": "onewd@t.io", "password": "UserPassw0rd!!",
+                          "full_name": "One Withdraw User"})
+    assert r.status_code == 201, r.text
+    uh = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    uid = client.get("/api/auth/me", headers=uh).json()["id"]
+    client.post("/api/profile/withdraw-address", json={"address": "0xONEWDADDR"}, headers=uh)
+    assert client.post(f"/api/admin/users/{uid}/adjust",
+                       json={"amount": 200, "note": "seed"}, headers=ah).status_code == 200
+    r1 = client.post("/api/withdrawals", json={"amount": 20, "address": "0xONEWDADDR"}, headers=uh)
+    assert r1.status_code == 201, r1.text
+    r2 = client.post("/api/withdrawals", json={"amount": 20, "address": "0xONEWDADDR"}, headers=uh)
+    assert r2.status_code == 400
+    assert "in progress" in r2.text.lower()
+
+
+def test_star_cut_on_trading_code(env, monkeypatch):
+    client, session, admin, pkg = env
+    monkeypatch.setattr("app.services.mailer.send", lambda *a, **k: True)
+    ah = _admin(client)
+    # package range is return_min–return_max (0.3–0.5 in fixture)
+    gross = float(pkg.return_max_amount)
+    r = client.post("/api/admin/codes",
+                    json={"ttl_hours": 2, "amounts": {str(pkg.id): gross}}, headers=ah)
+    assert r.status_code == 201, r.text
+    code = r.json()["code"]
+    uh = _invested_user(client, session, pkg, ah, "starcode@t.io")
+    uid = client.get("/api/auth/me", headers=uh).json()["id"]
+    # 2 stars → 2 missing → 50% of task credit
+    assert client.post(f"/api/admin/users/{uid}/stars",
+                       json={"stars": 2, "reason": "test"}, headers=ah).status_code == 200
+    before = float(client.get("/api/wallet", headers=uh).json()["available"])
+    redeemed = client.post("/api/wallet/redeem-code", json={"code": code}, headers=uh)
+    assert redeemed.status_code == 200, redeemed.text
+    expected = round(gross * 0.5, 8)
+    assert float(redeemed.json()["credited"]) == expected
+    after = float(client.get("/api/wallet", headers=uh).json()["available"])
+    assert abs(after - before - expected) < 1e-6
+
+
+def test_referral_commission_once_only(env, monkeypatch):
+    client, session, admin, pkg = env
+    monkeypatch.setattr("app.services.mailer.send", lambda *a, **k: True)
+    ah = _admin(client)
+    # host
+    r = client.post("/api/auth/register",
+                    json={"email": "host@t.io", "password": "UserPassw0rd!!",
+                          "full_name": "Host User One"})
+    assert r.status_code == 201, r.text
+    host_h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    host = client.get("/api/auth/me", headers=host_h).json()
+    # guest joins with referral
+    r = client.post("/api/auth/register",
+                    json={"email": "guest@t.io", "password": "UserPassw0rd!!",
+                          "full_name": "Guest User One",
+                          "referral_code": host["serial"]})
+    assert r.status_code == 201, r.text
+    guest_h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    gid = client.get("/api/auth/me", headers=guest_h).json()["id"]
+    assert client.post(f"/api/admin/users/{gid}/adjust",
+                       json={"amount": 100, "note": "seed"}, headers=ah).status_code == 200
+    host_before = float(client.get("/api/wallet", headers=host_h).json()["available"])
+    inv1 = client.post("/api/invest",
+                       json={"package_id": str(pkg.id), "amount": float(pkg.min_deposit),
+                             "acknowledge_risk": True}, headers=guest_h)
+    assert inv1.status_code == 201, inv1.text
+    host_after1 = float(client.get("/api/wallet", headers=host_h).json()["available"])
+    assert host_after1 > host_before  # first package paid commission
+    # second package / upgrade — no extra commission
+    assert client.post(f"/api/admin/users/{gid}/adjust",
+                       json={"amount": 50, "note": "more"}, headers=ah).status_code == 200
+    inv2 = client.post("/api/invest",
+                       json={"package_id": str(pkg.id), "amount": float(pkg.min_deposit),
+                             "acknowledge_risk": True}, headers=guest_h)
+    assert inv2.status_code == 201, inv2.text
+    host_after2 = float(client.get("/api/wallet", headers=host_h).json()["available"])
+    assert abs(host_after2 - host_after1) < 1e-6
+
+
 def test_legacy_stacked_fee_is_returned_once(env, monkeypatch):
     """Older requests locked amount+fee. Paying them must not take the fee twice."""
     client, session, *_ = env

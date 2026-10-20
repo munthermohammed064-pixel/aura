@@ -14,7 +14,7 @@ const CATEGORY: [RegExp, string][] = [
   [/withdrawal/, "withdrawals"],
   [/investment/, "investments"],
   [/invitation/, "prize"],
-  [/star|balance|address|welcome/, "account"],
+  [/star|balance|address|welcome|password/, "account"],
 ];
 
 // Support is handled off-platform — never surface ticket notifications.
