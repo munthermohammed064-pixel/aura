@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -37,6 +37,7 @@ from app.services import ledger, mailer
 from app.services.cache import bust
 from app.services.notify import notify_user
 from app.services.settings import get_setting, set_setting
+from app.services.withdrawals import ALERT_AFTER, OPEN_STATUSES, PAYMENT_WINDOW, summary as withdrawal_summary, timing as withdrawal_timing
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -103,7 +104,11 @@ def _mail_and_notify(db: Session, user_id, event: str, params: dict | None = Non
 @router.get("/stats")
 @limiter.limit("30/minute")
 def stats(request: Request, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
+    wd = withdrawal_summary(db.query(Withdrawal), datetime.now(timezone.utc))
     return {
+        "withdrawals_due_soon": wd["due_soon_count"],
+        "withdrawals_overdue": wd["overdue_count"],
+        "withdrawals_urgent_net": wd["urgent_net"],
         "users": db.query(func.count(User.id)).filter(User.role == "user").scalar() or 0,
         "deposits_pending": db.query(func.count(Deposit.id)).filter(Deposit.status == "pending").scalar() or 0,
         "deposits_approved_total": float(db.query(func.coalesce(func.sum(Deposit.amount), 0))
@@ -257,6 +262,60 @@ def reject_deposit(request: Request, dep_id: str, admin: User = Depends(get_admi
 
 
 # ---------- Withdrawals ----------
+def _withdrawal_out(w: Withdrawal, u: User | None, now: datetime | None = None) -> dict:
+    return {
+        "id": str(w.id), "user_id": str(w.user_id),
+        "amount": float(w.amount), "fee": float(w.fee),
+        "star_penalty": float(w.star_penalty or 0), "net_payout": _net_payout(w),
+        "address": w.address, "status": w.status, "txid": w.txid,
+        "admin_note": w.admin_note,
+        "created_at": ser_dt(w.created_at), "processed_at": ser_dt(w.processed_at),
+        "user_full_name": u.full_name if u else None, **_tag(u),
+        **withdrawal_timing(w, now or datetime.now(timezone.utc)),
+    }
+
+
+@router.get("/withdrawals/history")
+@limiter.limit("60/minute")
+def withdrawal_history(
+    request: Request, status: str = "all", user_id: uuid.UUID | None = None,
+    q: str = Query("", max_length=120), offset: int = Query(0, ge=0),
+    limit: int = Query(15, ge=1, le=100),
+    admin: User = Depends(get_admin), db: Session = Depends(get_db),
+):
+    """Paginate full history; summary covers all statuses for this user/search."""
+    if status not in ("all", "open", "pending", "approved", "paid", "rejected", "urgent", "overdue", "due_soon"):
+        raise HTTPException(400, "Invalid status")
+    query = db.query(Withdrawal, User).outerjoin(User, Withdrawal.user_id == User.id)
+    if user_id:
+        query = query.filter(Withdrawal.user_id == user_id)
+    if q.strip():
+        term = q.strip()
+        like = f"%{term}%"
+        match = User.full_name.ilike(like) | User.email.ilike(like)
+        serial = re.fullmatch(r"(?:LA)?(\d+)", term, re.IGNORECASE)
+        if serial and int(serial.group(1)) <= 2147483647:
+            match = match | (User.serial_no == int(serial.group(1)))
+        query = query.filter(match)
+    now = datetime.now(timezone.utc)
+    summary = withdrawal_summary(query, now)
+    if status in ("open", "urgent", "overdue", "due_soon"):
+        query = query.filter(Withdrawal.status.in_(OPEN_STATUSES))
+        if status == "overdue":
+            query = query.filter(Withdrawal.created_at <= now - PAYMENT_WINDOW)
+        elif status in ("urgent", "due_soon"):
+            query = query.filter(Withdrawal.created_at <= now - ALERT_AFTER)
+            if status == "due_soon":
+                query = query.filter(Withdrawal.created_at > now - PAYMENT_WINDOW)
+    elif status != "all":
+        query = query.filter(Withdrawal.status == status)
+    total = query.count()
+    ordering = Withdrawal.created_at.desc() if status in ("all", "paid", "rejected") else Withdrawal.created_at.asc()
+    rows = query.order_by(ordering, Withdrawal.id).offset(offset).limit(limit).all()
+    return {"items": [_withdrawal_out(w, u, now) for w, u in rows], "total": total,
+            "summary": summary, "server_now": ser_dt(now)}
+
+
 @router.get("/withdrawals")
 @limiter.limit("30/minute")
 def list_withdrawals(request: Request, status: str | None = None, admin: User = Depends(get_admin), db: Session = Depends(get_db)):
@@ -264,17 +323,7 @@ def list_withdrawals(request: Request, status: str | None = None, admin: User = 
     if status:
         q = q.filter(Withdrawal.status == status)
     rows = q.order_by(Withdrawal.created_at.desc()).limit(200).all()
-    return [
-        {"id": str(w.id), "amount": float(w.amount), "fee": float(w.fee),
-         "star_penalty": float(w.star_penalty or 0),
-         "net_payout": _net_payout(w),
-         "address": w.address,
-         "status": w.status, "txid": w.txid, "admin_note": w.admin_note,
-         "created_at": ser_dt(w.created_at),
-         "user_full_name": u.full_name if u else None,
-         **_tag(u)}
-        for w, u in rows
-    ]
+    return [_withdrawal_out(w, u) for w, u in rows]
 
 
 @router.post("/withdrawals/{w_id}/process")

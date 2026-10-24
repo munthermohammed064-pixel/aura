@@ -27,6 +27,7 @@ class Notification(Base):
     title: Mapped[str] = mapped_column(String(255), default="")
     body: Mapped[str] = mapped_column(Text, default="")
     kind: Mapped[str] = mapped_column(String(64), default="info")
+    dedup_key: Mapped[str | None] = mapped_column(String(160), unique=True, index=True, nullable=True)
     params: Mapped[dict] = mapped_column(JSON, default=dict)
     read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

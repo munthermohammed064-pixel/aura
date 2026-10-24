@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -22,18 +23,17 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["300/minute"])
 
 
 async def _settlement_loop():
-    """Settle matured investments every 60 seconds; also nudge admins
-    about unpaid withdrawals on weekdays."""
+    """Settle investments and check withdrawal deadlines every 60 seconds."""
     while True:
-        try:
-            db = SessionLocal()
+        for check in (settle_matured, remind_pending_withdrawals):
             try:
-                settle_matured(db)
-                remind_pending_withdrawals(db)
-            finally:
-                db.close()
-        except Exception:
-            pass  # next tick retries
+                db = SessionLocal()
+                try:
+                    check(db)
+                finally:
+                    db.close()
+            except Exception:
+                logging.getLogger(__name__).exception("%s failed; retrying next minute", check.__name__)
         await asyncio.sleep(60)
 
 

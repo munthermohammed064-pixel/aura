@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api, API_URL, getToken } from "@/lib/api";
-import { useT, formatDate } from "@/lib/i18n";
+import { useT, formatDate, formatDateTime } from "@/lib/i18n";
 
 type Item = {
   id: string; kind: string | null; params: Record<string, unknown>;
@@ -135,10 +135,16 @@ export function NotifyBell() {
             {items.length === 0 && <p className="px-3 py-6 text-center text-xs text-muted">{t("no_notifications")}</p>}
             {items.map((n) => (
               <button key={n.id}
-                onClick={() => api(`/notifications/${n.id}/read`, { method: "POST" }).then(() => {
+                onClick={() => {
+                  if (n.kind?.startsWith("admin_withdrawal") && window.location.pathname.startsWith("/nx/")) {
+                    window.dispatchEvent(new CustomEvent("nx:withdrawal-alert", { detail: n.params }));
+                    setOpen(false);
+                  }
+                  api(`/notifications/${n.id}/read`, { method: "POST" }).then(() => {
                   setItems((xs) => xs.map((x) => x.id === n.id ? { ...x, read: true } : x));
                   setUnread((u) => Math.max(0, u - (n.read ? 0 : 1)));
-                }).catch(() => {})}
+                  }).catch(() => {});
+                }}
                 className={`block w-full rounded-xl px-3 py-2.5 text-start transition hover:bg-ink/5 ${n.read ? "opacity-50" : ""}`}>
                 <span className="mb-0.5 flex items-center gap-2">
                   {!n.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />}
@@ -148,6 +154,9 @@ export function NotifyBell() {
                   <span className="ms-auto text-[9px] text-muted">{when(n.created_at)}</span>
                 </span>
                 <p className="text-[11px] leading-relaxed text-ink/85">{text(n)}</p>
+                {n.kind?.startsWith("admin_withdrawal_") && typeof n.params.due_at === "string" && (
+                  <p className="mt-1 text-[10px] text-muted">{t("wd_deadline")}: {formatDateTime(n.params.due_at, lang)}</p>
+                )}
               </button>
             ))}
           </div>

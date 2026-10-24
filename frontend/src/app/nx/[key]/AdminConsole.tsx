@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Nav } from "@/components/Nav";
 import { PageHeader } from "@/components/PageHeader";
@@ -11,6 +11,7 @@ import { useT, LANGS, Lang, formatDate, formatDateTime } from "@/lib/i18n";
 import { useToast } from "@/components/Toast";
 import { Stars } from "@/components/Stars";
 import { Pager, PAGE_SIZE } from "@/components/Pager";
+import { WithdrawalsPanel, WithdrawalView } from "./WithdrawalsPanel";
 
 type Stats = Record<string, number>;
 type I18nMap = Record<string, Record<string, string | undefined>>;
@@ -102,9 +103,8 @@ export default function AdminConsole() {
   const [stats, setStats] = useState<Stats>({});
   const [packages, setPackages] = useState<Pkg[]>([]);
   const [deposits, setDeposits] = useState<Row[]>([]);
-  const [withdrawals, setWithdrawals] = useState<Row[]>([]);
+  const [wdView, setWdView] = useState<WithdrawalView>({ user: null, filter: "open", nonce: 0 });
   const [depFilter, setDepFilter] = useState<"pending" | "all">("pending");
-  const [wdFilter, setWdFilter] = useState<"pending" | "all">("pending");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [userQ, setUserQ] = useState("");
   const [settings, setSettings] = useState<Record<string, Record<string, unknown>>>({});
@@ -119,8 +119,6 @@ export default function AdminConsole() {
   const [settingsJson, setSettingsJson] = useState<Record<string, string>>({});
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [investments, setInvestments] = useState<Inv[]>([]);
-  const [payingId, setPayingId] = useState<string | null>(null);
-  const [txidInput, setTxidInput] = useState("");
   const [addrReqs, setAddrReqs] = useState<AddrReq[]>([]);
   const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [selTicket, setSelTicket] = useState<TicketDetail | null>(null);
@@ -162,7 +160,6 @@ export default function AdminConsole() {
   const [selDeps, setSelDeps] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [depPage, setDepPage] = useState(0);
-  const [wdPage, setWdPage] = useState(0);
   const [userPage, setUserPage] = useState(0);
   const [invPage, setInvPage] = useState(0);
   const [auditPage, setAuditPage] = useState(0);
@@ -178,12 +175,8 @@ export default function AdminConsole() {
       }
     });
     api<Pkg[]>("/admin/packages").then(setPackages).catch(() => {});
-    // Fetch all (history included) — filter client-side so "approved"
-    // withdrawals stay visible until actually paid.
     api<Row[]>("/admin/deposits").then((rows) =>
       setDeposits(depFilter === "pending" ? rows.filter((r) => r.status === "pending") : rows)).catch(() => {});
-    api<Row[]>("/admin/withdrawals").then((rows) =>
-      setWithdrawals(wdFilter === "pending" ? rows.filter((r) => r.status === "pending" || r.status === "approved") : rows)).catch(() => {});
     api<UserRow[]>(`/admin/users${userQ ? `?q=${encodeURIComponent(userQ)}` : ""}`).then(setUsers).catch(() => {});
     if (role === "owner") {
       api<typeof settings>("/admin/settings").then((s) => {
@@ -227,12 +220,26 @@ export default function AdminConsole() {
     return () => window.removeEventListener("nx:unauth", h);
   }, [t, toast]);
 
-  useEffect(load, [depFilter, wdFilter, userQ, gate, role]);
+  // Deadline notifications open the relevant member's complete history.
+  useEffect(() => {
+    const open = (event: Event) => {
+      const payload = (event as CustomEvent).detail;
+      setWdView((old) => ({
+        user: payload?.user_id ? { id: payload.user_id, label: [payload.name, payload.serial].filter(Boolean).join(" · ") } : null,
+        filter: payload?.user_id ? "all" : "urgent", nonce: old.nonce + 1,
+      }));
+      setTab("withdrawals");
+    };
+    window.addEventListener("nx:withdrawal-alert", open);
+    return () => window.removeEventListener("nx:withdrawal-alert", open);
+  }, []);
+
+  useEffect(load, [depFilter, userQ, gate, role]);
   useEffect(() => {
     if (gate !== "ok") return;
     const id = setInterval(load, 10000);
     return () => clearInterval(id);
-  }, [depFilter, wdFilter, userQ, gate, role]);
+  }, [depFilter, userQ, gate, role]);
 
   const adminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -278,6 +285,11 @@ export default function AdminConsole() {
 
   const pendingDeps = stats.deposits_pending ?? 0;
   const pendingWds = stats.withdrawals_actionable ?? stats.withdrawals_pending ?? 0;
+  const urgentWds = (stats.withdrawals_due_soon ?? 0) + (stats.withdrawals_overdue ?? 0);
+  const reviewWithdrawals = () => {
+    setWdView((old) => ({ user: null, filter: "urgent", nonce: old.nonce + 1 }));
+    setTab("withdrawals");
+  };
 
   const savePkg = async () => {
     // 0 return amounts mean "use yield %" — send null, not literal 0
@@ -380,10 +392,6 @@ export default function AdminConsole() {
       .catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"));
   };
 
-  const processWithdrawal = (w: Row, action: string) => {
-    act(`/admin/withdrawals/${w.id}/process`, { action, txid: "", note: "" });
-  };
-
   const openTicket = (id: string) => {
     api<TicketDetail>(`/tickets/${id}`).then(setSelTicket)
       .catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"));
@@ -395,14 +403,6 @@ export default function AdminConsole() {
       .then(() => { setReplyBody(""); openTicket(id); load(); })
       .catch((e) => toast(e instanceof Error ? terr(e.message) : t("failed"), "err"))
       .finally(() => setReplyBusy(false));
-  };
-
-  const confirmPay = (w: Row) => {
-    const txid = txidInput.trim();
-    if (!txid) { toast(t("txid_required"), "err"); return; }
-    setPayingId(null);
-    setTxidInput("");
-    act(`/admin/withdrawals/${w.id}/process`, { action: "paid", txid, note: "" });
   };
 
   const copyText = (v: string) => {
@@ -467,6 +467,18 @@ export default function AdminConsole() {
       <Nav />
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageHeader title={t("admin")} />
+        {urgentWds > 0 && (
+          <div role="status" className={`mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 ${stats.withdrawals_overdue ? "border-red-400/40 bg-red-400/10" : "border-amber-400/40 bg-amber-400/10"}`}>
+            <div>
+              <p className={`text-sm font-semibold ${stats.withdrawals_overdue ? "text-red-300" : "text-amber-300"}`}>{t("wd_alert_title")}</p>
+              <p className="mt-1 text-xs leading-relaxed text-ink/85">{t("wd_alert_summary", {
+                soon: stats.withdrawals_due_soon ?? 0, late: stats.withdrawals_overdue ?? 0,
+                amount: Number(stats.withdrawals_urgent_net ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+              })}</p>
+            </div>
+            <button className="btn px-4 py-2 text-xs" onClick={reviewWithdrawals}>{t("wd_review")}</button>
+          </div>
+        )}
         <div className="mb-6 flex flex-wrap gap-2">
           {TABS.filter((tb) => role === "owner" || !OWNER_TABS.includes(tb)).map((tb) => {
             const badge = tb === "deposits" ? pendingDeps
@@ -506,7 +518,7 @@ export default function AdminConsole() {
             </GlassCard>
           )}
           <div className="grid gap-4 md:grid-cols-3">
-            {Object.entries(stats).filter(([k]) => !["withdrawals_actionable", "tickets_open", "address_requests_pending"].includes(k)).map(([k, v]) => (
+            {Object.entries(stats).filter(([k]) => !["withdrawals_actionable", "withdrawals_due_soon", "withdrawals_overdue", "withdrawals_urgent_net", "tickets_open", "address_requests_pending"].includes(k)).map(([k, v]) => (
               <GlassCard key={k} className="glow-card"><p className="text-xs text-muted">{t(`stat_${k}`)}</p>
                 <p className="mt-2 text-2xl font-semibold">
                   <CountUp value={Number(v)} decimals={MONEY_STATS.has(k) ? 2 : 0}
@@ -787,109 +799,7 @@ ${t("codes_valid_until")} ${published.expires_at ? formatDateTime(published.expi
           </GlassCard>
         )}
 
-        {tab === "withdrawals" && (
-          <GlassCard>
-            <div className="mb-4 flex items-center gap-2">
-              {(["pending", "all"] as const).map((f) => (
-                <button key={f} onClick={() => { setWdFilter(f); setWdPage(0); setPayingId(null); }}
-                  className={`rounded-full px-3 py-1 text-xs transition ${wdFilter === f ? "bg-white/10" : "text-muted hover:text-white"}`}>
-                  {f === "pending" ? t("pending_only") : t("all")}
-                </button>
-              ))}
-            </div>
-            {withdrawals.length === 0 ? (
-              <p className="py-10 text-center text-xs text-muted">{t("no_withdrawals")}</p>
-            ) : (
-            <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="text-start text-[10px] uppercase tracking-wider text-muted">
-                <th className="pb-2 pe-4">{t("user")}</th><th className="pb-2 pe-4">{t("net_payout")}</th><th className="pb-2 pe-4">{t("date")}</th><th className="pb-2 pe-4">{t("address")}</th><th className="pb-2 pe-4">{t("status")}</th><th className="pb-2">{t("actions")}</th>
-              </tr></thead>
-              <tbody>{withdrawals.slice(wdPage * PAGE_SIZE, wdPage * PAGE_SIZE + PAGE_SIZE).map((w) => (
-                <Fragment key={w.id}>
-                <tr className="border-t border-border align-top">
-                  <td className="py-3 pe-4">
-                    <p className="text-xs">{w.user_full_name || w.user_email}</p>
-                    <p className="font-mono text-[10px] text-accent">{w.user_serial}</p>
-                    {w.user_full_name && <p className="text-[10px] text-muted">{w.user_email}</p>}
-                  </td>
-                  <td className="whitespace-nowrap py-3 pe-4">
-                    <p className="font-display text-base font-semibold text-accent">
-                      ${Number(w.net_payout ?? w.amount).toLocaleString("en-US")}
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-muted">
-                      ${Number(w.amount).toLocaleString("en-US")}
-                      {(w.fee ?? 0) > 0 && <> − ${Number(w.fee).toLocaleString("en-US")} {t("fee_removed")}</>}
-                      {(w.star_penalty ?? 0) > 0 && <> · −${Number(w.star_penalty).toLocaleString("en-US")} ★</>}
-                    </p>
-                  </td>
-                  <td className="whitespace-nowrap py-3 pe-4 text-xs text-muted tabular-nums">
-                    {w.created_at ? formatDateTime(w.created_at, lang) : "—"}
-                  </td>
-                  <td className="max-w-56 py-3 pe-4">
-                    <div className="flex items-start gap-1.5">
-                      <p className="break-all font-mono text-[10px] leading-relaxed text-white/80">{w.address}</p>
-                      {w.address && (
-                        <button onClick={() => copyText(w.address!)} title={t("copy")}
-                          className="mt-0.5 shrink-0 rounded-md border border-border p-1 text-muted transition hover:border-accent/50 hover:text-accent">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>
-                        </button>
-                      )}
-                    </div>
-                    {w.txid && (
-                      <button onClick={() => copyText(w.txid!)} title={t("copy")}
-                        className="mt-1.5 block break-all text-start font-mono text-[10px] text-accent hover:underline">
-                        {t("txid")}: {w.txid}
-                      </button>
-                    )}
-                  </td>
-                  <td className="py-3 pe-4">
-                    <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-medium capitalize ${WD_STATUS[w.status] ?? "border-white/10 bg-white/5 text-muted"}`}>
-                      {t(w.status)}
-                    </span>
-                  </td>
-                  <td className="py-3">
-                    <div className="flex gap-1.5">
-                      {w.status === "pending" && (
-                        <button className="btn-ghost px-3 py-1 text-xs" onClick={() => processWithdrawal(w, "approve")}>{t("approve")}</button>
-                      )}
-                      {(w.status === "pending" || w.status === "approved") && (
-                        <>
-                          <button className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-black transition hover:brightness-110"
-                            onClick={() => { setPayingId(payingId === w.id ? null : w.id); setTxidInput(""); }}>
-                            {t("mark_paid")}
-                          </button>
-                          <button className="rounded-full border border-red-400/25 px-3 py-1 text-xs text-red-300 transition hover:bg-red-400/10"
-                            onClick={() => processWithdrawal(w, "reject")}>
-                            {t("reject")}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-                {payingId === w.id && (
-                  <tr className="border-t border-border/50 bg-white/[0.03]">
-                    <td colSpan={6} className="px-3 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted">{t("txid")}</span>
-                        <input autoFocus className="input flex-1" placeholder={t("txid_ph")}
-                          value={txidInput} onChange={(e) => setTxidInput(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && confirmPay(w)} />
-                        <button className="btn shrink-0 px-4 py-1.5 text-xs" onClick={() => confirmPay(w)}>{t("confirm")}</button>
-                        <button className="btn-ghost shrink-0 px-3 py-1.5 text-xs" onClick={() => { setPayingId(null); setTxidInput(""); }}>{t("cancel")}</button>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-                </Fragment>
-              ))}</tbody>
-            </table>
-            </div>
-            )}
-            <Pager total={withdrawals.length} page={wdPage} setPage={setWdPage} />
-          </GlassCard>
-        )}
+        {tab === "withdrawals" && <WithdrawalsPanel view={wdView} onProcessed={load} />}
 
         {tab === "users" && (
           <GlassCard>
@@ -1540,6 +1450,10 @@ ${t("codes_valid_until")} ${published.expires_at ? formatDateTime(published.expi
 
                     <div>
                       <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">{t("withdrawals")} ({detail.withdrawals.length})</p>
+                      <button className="mb-3 text-xs text-accent underline" onClick={() => {
+                        setWdView((old) => ({ user: { id: detail.user.id, label: `${detail.user.full_name} · ${detail.user.serial}` }, filter: "all", nonce: old.nonce + 1 }));
+                        setDetail(null); setTab("withdrawals");
+                      }}>{t("wd_history")}</button>
                       <div className="max-h-40 space-y-1.5 overflow-y-auto">
                         {detail.withdrawals.map((w) => (
                           <div key={w.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-3 py-2 text-xs">

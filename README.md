@@ -16,6 +16,21 @@ from `PLATFORM_NAME` env / admin settings; the theme from CSS vars in
 
 ## Features
 
+- Admin withdrawal history is searchable by member/name/email and paginated over
+  the complete record. Each request shows its submission time, last processing or
+  payment time, net amount, destination, and transfer deadline.
+- Withdrawal payment deadline: **72 elapsed hours from submission, including
+  weekends**. At 48 hours an amber warning appears; at 72 hours it becomes overdue.
+  Pending and approved requests both remain actionable until paid or rejected.
+  The admin banner refreshes every 10 seconds; the background job checks every
+  minute and sends each active staff member one notification per request/stage.
+  Clicking a deadline notification opens that member's withdrawal history.
+- Before running this version against an existing database, run
+  `alembic upgrade head` from `backend/` with the deployment's database settings.
+  Migration `h8i9j0k1l2m3` adds unique notification keys and a deadline-query index;
+  it preserves existing records. Existing open requests use their original
+  submission times, so requests already older than 72 hours appear overdue.
+
 - Sequential member serials (`LA0001`, `LA0002`, …) — the serial is your referral code.
 - Deposits require a receipt screenshot; admin approval credits the wallet via the ledger.
 - Investments auto-settle at maturity (background task every 60s); admin adds realized returns.

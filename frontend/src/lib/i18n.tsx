@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useLayoutEffect, useState, ReactNode } from "react";
+import { withdrawalCopy } from "@/lib/withdrawal-copy";
 
 export type Lang = "en" | "ar" | "es" | "fr" | "tr" | "ru" | "de";
 
@@ -17,6 +18,7 @@ export const LANGS: { code: Lang; label: string; flag: string }[] = [
 type D = Record<Lang, string>;
 
 const dict: Record<string, D> = {
+  ...withdrawalCopy,
   // ---------- nav ----------
   dashboard: { en: "Dashboard", ar: "لوحة التحكم", es: "Panel", fr: "Tableau de bord", tr: "Panel", ru: "Панель", de: "Übersicht" },
   packages: { en: "Packages", ar: "الباقات", es: "Paquetes", fr: "Offres", tr: "Paketler", ru: "Пакеты", de: "Pakete" },

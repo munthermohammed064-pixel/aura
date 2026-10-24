@@ -9,13 +9,14 @@ once, so a later tick cannot pay it again.
 
 from datetime import datetime, timezone
 
-from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.finance import Investment, LedgerEntry, Withdrawal
 from app.models.platform import Notification
 from app.services import ledger
-from app.services.notify import notify_admins
+from app.models.user import User
+from app.services.withdrawals import ALERT_AFTER, OPEN_STATUSES, timing
 
 _PRINCIPAL_NOTE = "Investment matured — principal returned"
 
@@ -83,30 +84,42 @@ def settle_matured(db: Session) -> int:
     return count
 
 
-def remind_pending_withdrawals(db: Session) -> None:
-    """On weekdays, once per UTC day, remind admins how many withdrawals
-    are waiting to be paid."""
-    now = datetime.now(timezone.utc)
-    if now.weekday() >= 5:
+def remind_pending_withdrawals(db: Session, now: datetime | None = None) -> None:
+    """One alert per staff member/request at 48h, then one escalation at 72h.
+
+    Runs on weekends too. After downtime, only the current stage is sent.
+    A unique key makes retries and concurrent workers safe.
+    """
+    now = now or datetime.now(timezone.utc)
+    admins = db.query(User).filter(
+        User.role.in_(("admin", "owner")), User.is_active.is_(True), User.is_frozen.is_(False),
+    ).all()
+    if not admins:
         return
-    pending = (
-        db.query(func.count(Withdrawal.id))
-        .filter(Withdrawal.status.in_(("pending", "approved")))
-        .scalar()
-        or 0
-    )
-    if pending <= 0:
-        return
-    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    already = (
-        db.query(Notification.id)
-        .filter(
-            Notification.kind == "admin_withdrawals_due",
-            Notification.created_at >= day_start,
-        )
-        .first()
-    )
-    if already:
-        return
-    notify_admins(db, "admin_withdrawals_due", {"count": int(pending)})
+    requests = db.query(Withdrawal, User).outerjoin(User, Withdrawal.user_id == User.id).filter(
+        Withdrawal.status.in_(OPEN_STATUSES), Withdrawal.created_at <= now - ALERT_AFTER,
+    ).all()
+    for w, user in requests:
+        info = timing(w, now)
+        event = f"admin_withdrawal_{info['urgency']}"
+        for admin in admins:
+            key = f"{event}:{w.id}:{admin.id}"
+            if db.query(Notification.id).filter(Notification.dedup_key == key).first():
+                continue
+            try:
+                with db.begin_nested():
+                    db.add(Notification(
+                        user_id=admin.id, kind=event, dedup_key=key,
+                        params={
+                            "withdrawal_id": str(w.id), "user_id": str(w.user_id),
+                            "serial": user.serial if user else "",
+                            "name": (user.full_name or user.email) if user else "",
+                            "amount": f"{float(w.amount) - float(w.fee or 0) - float(w.star_penalty or 0):.2f}",
+                            "due_at": info["due_at"],
+                        },
+                        created_at=now,
+                    ))
+                    db.flush()
+            except IntegrityError:
+                pass  # Another worker delivered this same stage first.
     db.commit()
