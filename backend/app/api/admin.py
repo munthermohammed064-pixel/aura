@@ -37,6 +37,7 @@ from app.services import ledger, mailer
 from app.services.cache import bust
 from app.services.notify import notify_user
 from app.services.settings import get_setting, set_setting
+from app.services.business_time import working_cutoff
 from app.services.withdrawals import ALERT_AFTER, OPEN_STATUSES, PAYMENT_WINDOW, summary as withdrawal_summary, timing as withdrawal_timing
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -302,11 +303,11 @@ def withdrawal_history(
     if status in ("open", "urgent", "overdue", "due_soon"):
         query = query.filter(Withdrawal.status.in_(OPEN_STATUSES))
         if status == "overdue":
-            query = query.filter(Withdrawal.created_at <= now - PAYMENT_WINDOW)
+            query = query.filter(Withdrawal.created_at <= working_cutoff(now, PAYMENT_WINDOW))
         elif status in ("urgent", "due_soon"):
-            query = query.filter(Withdrawal.created_at <= now - ALERT_AFTER)
+            query = query.filter(Withdrawal.created_at <= working_cutoff(now, ALERT_AFTER))
             if status == "due_soon":
-                query = query.filter(Withdrawal.created_at > now - PAYMENT_WINDOW)
+                query = query.filter(Withdrawal.created_at > working_cutoff(now, PAYMENT_WINDOW))
     elif status != "all":
         query = query.filter(Withdrawal.status == status)
     total = query.count()

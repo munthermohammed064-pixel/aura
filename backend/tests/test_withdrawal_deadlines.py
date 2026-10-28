@@ -17,8 +17,9 @@ from app.models.platform import Notification
 from app.models.user import User
 from app.services.settle import remind_pending_withdrawals
 from app.services.withdrawals import timing
+from app.services.business_time import add_working_time
 
-NOW = datetime(2026, 10, 24, 12, tzinfo=timezone.utc)  # Saturday: clock never pauses.
+NOW = datetime(2026, 10, 23, 12, tzinfo=timezone.utc)  # Friday; weekday boundary fixtures.
 
 
 class FrozenDateTime(datetime):
@@ -65,7 +66,7 @@ def test_exact_boundaries_and_closed_requests(env):
         db.expire(w)
         result = timing(w, NOW)
         assert result["urgency"] == expected
-        assert datetime.fromisoformat(result["due_at"]) == NOW - age + timedelta(hours=72)
+        assert datetime.fromisoformat(result["due_at"]) == add_working_time(NOW - age, timedelta(hours=72))
         assert result["due_at"].endswith("+00:00")
     for status in ("paid", "rejected"):
         assert timing(add_request(db, user, timedelta(hours=90), status), NOW)["urgency"] is None
@@ -89,8 +90,8 @@ def test_weekend_alerts_once_per_stage_and_recipient(env):
     assert {n.kind for n in notes} == {"admin_withdrawal_due_soon"}
     assert all(n.params["withdrawal_id"] == str(w.id) and n.params["amount"] == "55.00" for n in notes)
     assert all(n.params["serial"] == "LA0042" for n in notes)
-    remind_pending_withdrawals(db, NOW + timedelta(hours=24))
-    remind_pending_withdrawals(db, NOW + timedelta(hours=25))
+    remind_pending_withdrawals(db, NOW + timedelta(hours=72))
+    remind_pending_withdrawals(db, NOW + timedelta(hours=73))
     assert db.query(Notification).count() == 4
     assert db.query(Notification).filter(Notification.kind == "admin_withdrawal_overdue").count() == 2
 

@@ -80,7 +80,7 @@ export default function Landing() {
                   <div key={p.id} className="flex items-baseline justify-between border-b border-white/10 py-3.5 last:border-0">
                     <div>
                       <p className="font-display text-lg">{localized(p.i18n, lang, "name", p.name)}</p>
-                      <p className="font-mono text-[10px] tracking-wider text-white/45">{t("days_incl_weekends", { d: p.duration_days })}</p>
+                      <p className="font-mono text-[10px] tracking-wider text-white/45">{t("working_days_fmt", { d: p.duration_days })}</p>
                     </div>
                     <div className="text-end">
                       <p className="font-display text-xl text-accent">${Number(p.min_deposit).toLocaleString("en-US")}</p>
@@ -101,7 +101,7 @@ export default function Landing() {
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-2 px-4 py-3.5 text-[10px] uppercase tracking-[0.22em] text-white/50">
             <span>9 {t("packages")}</span>
             <span className="text-accent/70">·</span>
-            <span>{t("days_incl_weekends", { d: 365 })}</span>
+            <span>{t("working_days_fmt", { d: 365 })}</span>
             <span className="text-accent/70">·</span>
             <span>{t("la_location")}</span>
           </div>
@@ -138,7 +138,7 @@ export default function Landing() {
                     <td className="px-5 py-4 text-ink/85">
                       {p.return_min_amount != null ? `> $${p.return_min_amount}` : "—"}
                     </td>
-                    <td className="px-5 py-4 text-muted">{t("days_incl_weekends", { d: p.duration_days })}</td>
+                    <td className="px-5 py-4 text-muted">{t("working_days_fmt", { d: p.duration_days })}</td>
                   </tr>
                 ))}
               </tbody>

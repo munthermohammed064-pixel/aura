@@ -1,4 +1,4 @@
-"""A withdrawal must be paid within 72 elapsed hours, including weekends."""
+"""A withdrawal must be paid within 72 working hours, excluding Saturday and Sunday."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -6,6 +6,7 @@ from sqlalchemy import case, func
 
 from app.models.finance import Withdrawal
 from app.schemas import ser_dt
+from app.services.business_time import add_working_time, working_cutoff
 
 OPEN_STATUSES = ("pending", "approved")
 PAYMENT_WINDOW = timedelta(hours=72)
@@ -16,20 +17,20 @@ def timing(w: Withdrawal, now: datetime) -> dict:
     created = w.created_at
     if created.tzinfo is None:
         created = created.replace(tzinfo=timezone.utc)
-    deadline = created + PAYMENT_WINDOW
+    deadline = add_working_time(created, PAYMENT_WINDOW)
     urgency = None
     if w.status in OPEN_STATUSES:
-        urgency = "overdue" if now >= deadline else "due_soon" if now >= created + ALERT_AFTER else "scheduled"
-    return {"due_at": ser_dt(deadline), "alert_at": ser_dt(created + ALERT_AFTER), "urgency": urgency}
+        urgency = "overdue" if now >= deadline else "due_soon" if now >= add_working_time(created, ALERT_AFTER) else "scheduled"
+    return {"due_at": ser_dt(deadline), "alert_at": ser_dt(add_working_time(created, ALERT_AFTER)), "urgency": urgency}
 
 
 def summary(query, now: datetime) -> dict:
     """Aggregate a withdrawal query, with optional joins/user/search filters."""
     opened = Withdrawal.status.in_(OPEN_STATUSES)
     paid = Withdrawal.status == "paid"
-    overdue = opened & (Withdrawal.created_at <= now - PAYMENT_WINDOW)
-    soon = opened & (Withdrawal.created_at <= now - ALERT_AFTER) & (Withdrawal.created_at > now - PAYMENT_WINDOW)
-    urgent = opened & (Withdrawal.created_at <= now - ALERT_AFTER)
+    overdue = opened & (Withdrawal.created_at <= working_cutoff(now, PAYMENT_WINDOW))
+    soon = opened & (Withdrawal.created_at <= working_cutoff(now, ALERT_AFTER)) & (Withdrawal.created_at > working_cutoff(now, PAYMENT_WINDOW))
+    urgent = opened & (Withdrawal.created_at <= working_cutoff(now, ALERT_AFTER))
     net = Withdrawal.amount - func.coalesce(Withdrawal.fee, 0) - func.coalesce(Withdrawal.star_penalty, 0)
 
     def count_if(condition):

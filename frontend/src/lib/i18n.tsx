@@ -36,8 +36,7 @@ const dict: Record<string, D> = {
   no_methods: { en: "No payment methods available yet.", ar: "لا توجد طرق دفع متاحة بعد.", es: "Aún no hay métodos de pago.", fr: "Aucun moyen de paiement disponible.", tr: "Henüz ödeme yöntemi yok.", ru: "Способы оплаты пока недоступны.", de: "Noch keine Zahlungsmethoden verfügbar." },
   fx_ecb: { en: "ECB reference rates · daily", ar: "أسعار مرجعية من المركزي الأوروبي · يوميًا", es: "Tipos de referencia del BCE · diario", fr: "Taux de référence BCE · quotidien", tr: "ECB referans kurları · günlük", ru: "Курсы ЕЦБ · ежедневно", de: "EZB-Referenzkurse · täglich" },
   fx_unavailable: { en: "Rates temporarily unavailable.", ar: "الأسعار غير متاحة مؤقتًا.", es: "Tipos no disponibles temporalmente.", fr: "Taux temporairement indisponibles.", tr: "Kurlar geçici olarak kullanılamıyor.", ru: "Курсы временно недоступны.", de: "Kurse vorübergehend nicht verfügbar." },
-  incl_weekends: { en: "incl. weekends", ar: "يشمل عطلة الأسبوع", es: "incl. fines de semana", fr: "week-ends inclus", tr: "hafta sonu dahil", ru: "включая выходные", de: "inkl. Wochenenden" },
-  days_incl_weekends: { en: "{d} days · weekends included", ar: "{d} يومًا شاملةً عطلة نهاية الأسبوع", es: "{d} días · fines de semana incluidos", fr: "{d} jours · week-ends inclus", tr: "{d} gün · hafta sonları dahil", ru: "{d} дн · включая выходные", de: "{d} Tage · inkl. Wochenenden" },
+  working_days_fmt: { en: "{d} working days · Saturday–Sunday excluded", ar: "{d} يوم عمل · باستثناء السبت والأحد", es: "{d} días laborables · sin sábados ni domingos", fr: "{d} jours ouvrés · hors samedi et dimanche", tr: "{d} iş günü · Cumartesi ve Pazar hariç", ru: "{d} рабочих дней · без субботы и воскресенья", de: "{d} Arbeitstage · ohne Samstag und Sonntag" },
   wd_weekend_closed: { en: "Withdrawals are not processed on weekends (Saturday–Sunday). Please submit on a weekday.", ar: "لا تُعالَج السحوبات في عطلة نهاية الأسبوع (السبت–الأحد). يُرجى الإرسال في يوم عمل.", es: "Los retiros no se procesan los fines de semana (sábado–domingo). Envíe en día laborable.", fr: "Les retraits ne sont pas traités le week-end (samedi–dimanche). Veuillez soumettre en semaine.", tr: "Hafta sonları (Cumartesi–Pazar) çekim işlemi yapılmaz. Lütfen hafta içi gönderin.", ru: "Выводы не обрабатываются в выходные (сб–вс). Отправьте запрос в будний день.", de: "Auszahlungen werden am Wochenende (Sa–So) nicht bearbeitet. Bitte an einem Werktag einreichen." },
   support: { en: "Support", ar: "الدعم", es: "Soporte", fr: "Support", tr: "Destek", ru: "Поддержка", de: "Support" },
   profile: { en: "Profile", ar: "الملف الشخصي", es: "Perfil", fr: "Profil", tr: "Profil", ru: "Профиль", de: "Profil" },
@@ -105,7 +104,7 @@ const dict: Record<string, D> = {
   active: { en: "Active", ar: "نشط", es: "Activo", fr: "Actif", tr: "Aktif", ru: "Активен", de: "Aktiv" },
   cancelled: { en: "Cancelled", ar: "ملغى", es: "Cancelado", fr: "Annulé", tr: "İptal edildi", ru: "Отменён", de: "Storniert" },
   completed: { en: "Completed", ar: "مكتمل", es: "Completado", fr: "Terminé", tr: "Tamamlandı", ru: "Завершён", de: "Abgeschlossen" },
-  days_left_fmt: { en: "{n}d left", ar: "متبقٍ {n} يوم", es: "quedan {n}d", fr: "{n}j restants", tr: "{n} gün kaldı", ru: "осталось {n} дн.", de: "noch {n} Tage" },
+  days_left_fmt: { en: "{n} working days left", ar: "متبقٍ {n} يوم عمل", es: "quedan {n} días laborables", fr: "{n} jours ouvrés restants", tr: "{n} iş günü kaldı", ru: "осталось {n} рабочих дней", de: "noch {n} Arbeitstage" },
   // ---------- landing ----------
   hero_title: {
     en: "Capital, managed with discipline.", ar: "رأس المال، بإدارة منضبطة.",
@@ -408,7 +407,7 @@ const dict: Record<string, D> = {
   est_return_max: { en: "Daily max ($)", ar: "أقصى ربح يومي ($)", es: "Diario máx. ($)", fr: "Journalier max ($)", tr: "Günlük maks ($)", ru: "Макс. в день ($)", de: "Täglich max ($)" },
   min_deposit: { en: "Min deposit", ar: "أدنى إيداع", es: "Depósito mín.", fr: "Dépôt min", tr: "Min yatırma", ru: "Мин. депозит", de: "Min. Einzahlung" },
   max_deposit: { en: "Max deposit", ar: "أقصى إيداع", es: "Depósito máx.", fr: "Dépôt max", tr: "Maks yatırma", ru: "Макс. депозит", de: "Max. Einzahlung" },
-  duration_days_ph: { en: "Duration (days)", ar: "المدة (أيام)", es: "Duración (días)", fr: "Durée (jours)", tr: "Süre (gün)", ru: "Срок (дней)", de: "Laufzeit (Tage)" },
+  duration_days_ph: { en: "Duration (working days)", ar: "المدة (أيام عمل)", es: "Duración (días)", fr: "Durée (jours)", tr: "Süre (gün)", ru: "Срок (дней)", de: "Laufzeit (Tage)" },
   settings_hint: {
     en: "Invitation reward config lives under the \"referral\" key (levels, l1_pct…). Legal text under \"legal\".",
     ar: "إعدادات جائزة الدعوة تحت مفتاح \"referral\" (levels, l1_pct…). النصوص القانونية تحت \"legal\".",

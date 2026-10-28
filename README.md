@@ -19,8 +19,8 @@ from `PLATFORM_NAME` env / admin settings; the theme from CSS vars in
 - Admin withdrawal history is searchable by member/name/email and paginated over
   the complete record. Each request shows its submission time, last processing or
   payment time, net amount, destination, and transfer deadline.
-- Withdrawal payment deadline: **72 elapsed hours from submission, including
-  weekends**. At 48 hours an amber warning appears; at 72 hours it becomes overdue.
+- Withdrawal payment deadline: **72 working hours from submission, excluding
+  Saturday and Sunday (UTC)**. At 48 working hours an amber warning appears; at 72 working hours it becomes overdue.
   Pending and approved requests both remain actionable until paid or rejected.
   The admin banner refreshes every 10 seconds; the background job checks every
   minute and sends each active staff member one notification per request/stage.
@@ -29,7 +29,7 @@ from `PLATFORM_NAME` env / admin settings; the theme from CSS vars in
   `alembic upgrade head` from `backend/` with the deployment's database settings.
   Migration `h8i9j0k1l2m3` adds unique notification keys and a deadline-query index;
   it preserves existing records. Existing open requests use their original
-  submission times, so requests already older than 72 hours appear overdue.
+  submission times, so requests already older than 72 working hours appear overdue.
 
 - Sequential member serials (`LA0001`, `LA0002`, …) — the serial is your referral code.
 - Deposits require a receipt screenshot; admin approval credits the wallet via the ledger.
@@ -146,3 +146,16 @@ frontend/src/
 - Switch `DATABASE_URL` to PostgreSQL and run `alembic upgrade head`
   (initial revision `02fe6955ca16` covers the full schema).
 - Change `SECRET_KEY` and the seeded admin password in `.env`.
+
+### Working-day terms (local change; deployment requires migration)
+
+- Package durations count Monday–Friday only, in UTC. A configured 90-day
+  position lasts 90 working days; configured durations are not overwritten.
+- Withdrawal clocks and countdowns pause Saturday/Sunday; deadline notifications
+  are delivered on weekdays. Already-overdue requests remain visibly overdue.
+- Before restarting the upgraded backend, run `alembic upgrade head`. Migration
+  `i9j0k1l2m3n4` extends existing unreturned investment dates using each original
+  stored term, without using potentially edited package durations. Paid principal
+  and cancelled investments are left intact; original dates are saved for rollback.
+- Pause the backend/settlement worker while applying that migration to avoid
+  settlement racing with date correction. Back up the database first.

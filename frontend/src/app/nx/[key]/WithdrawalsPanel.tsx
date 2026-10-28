@@ -1,5 +1,6 @@
 "use client";
 
+import { workingMilliseconds } from "@/lib/business-time";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { formatDateTime, useT } from "@/lib/i18n";
@@ -14,7 +15,7 @@ type Withdrawal = {
   id: string; user_id: string; user_full_name: string | null; user_email: string | null;
   user_serial: string | null; amount: number; fee: number; star_penalty: number;
   net_payout: number; status: string; address: string; txid: string; admin_note: string;
-  created_at: string; processed_at: string | null; due_at: string;
+  created_at: string; processed_at: string | null; due_at: string; alert_at: string;
 };
 type History = {
   items: Withdrawal[]; total: number; server_now: string;
@@ -181,9 +182,10 @@ export function WithdrawalsPanel({ view, onProcessed }: { view: WithdrawalView; 
               </thead>
               <tbody>{data.items.map((w) => {
                 const open = w.status === "pending" || w.status === "approved";
-                const left = Date.parse(w.due_at) - now;
-                const overdue = open && left <= 0;
-                const soon = open && left > 0 && left <= 24 * 3600000;
+                const deadline = Date.parse(w.due_at);
+                const left = workingMilliseconds(now, deadline);
+                const overdue = open && now >= deadline;
+                const soon = open && !overdue && now >= Date.parse(w.alert_at);
                 const minutes = Math.max(0, Math.ceil(Math.abs(left) / 60000));
                 const tone = overdue ? "text-red-300" : soon ? "text-amber-300" : "text-muted";
                 return (

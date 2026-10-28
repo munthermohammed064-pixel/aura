@@ -1,5 +1,6 @@
 "use client";
 
+import { workingMilliseconds } from "@/lib/business-time";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Nav } from "@/components/Nav";
@@ -21,7 +22,7 @@ function progress(i: Inv): number {
   const end = new Date(i.ends_at).getTime();
   const now = Date.now();
   if (end <= start) return 100;
-  return Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
+  return Math.min(100, Math.max(0, (workingMilliseconds(start, now) / workingMilliseconds(start, end)) * 100));
 }
 
 export default function MyPackages() {
@@ -38,7 +39,7 @@ export default function MyPackages() {
 
   const Card = ({ i }: { i: Inv }) => {
     const pct = progress(i);
-    const daysLeft = Math.max(0, Math.ceil((new Date(i.ends_at).getTime() - Date.now()) / 86400000));
+    const daysLeft = Math.max(0, Math.ceil(workingMilliseconds(Date.now(), new Date(i.ends_at).getTime()) / 86400000));
     return (
       <GlassCard>
         <div className="flex items-start justify-between">

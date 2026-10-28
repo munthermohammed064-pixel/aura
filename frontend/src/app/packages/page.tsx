@@ -65,7 +65,7 @@ export default function Packages() {
       <dl className="mt-4 space-y-2 text-sm">
         <div className="flex justify-between"><dt className="text-muted">{t("price")}</dt><dd className="font-display text-lg text-accent">${Number(selected.min_deposit).toLocaleString("en-US")}</dd></div>
         <div className="flex justify-between"><dt className="text-muted">{t("daily")}</dt><dd>{selected.return_min_amount != null ? `> $${selected.return_min_amount}` : "—"}</dd></div>
-        <div className="flex justify-between"><dt className="text-muted">{t("duration")}</dt><dd>{t("days_incl_weekends", { d: selected.duration_days })}</dd></div>
+        <div className="flex justify-between"><dt className="text-muted">{t("duration")}</dt><dd>{t("working_days_fmt", { d: selected.duration_days })}</dd></div>
       </dl>
       <label className="mt-4 flex items-start gap-2 text-xs text-muted">
         <input type="checkbox" className="mt-0.5 accent-[#9A742C]" checked={ack}
@@ -109,7 +109,7 @@ export default function Packages() {
                         {p.return_min_amount != null ? `> $${p.return_min_amount}` : "—"}
                       </p>
                     </div>
-                    <p className="mt-1 text-[11px] text-muted">{t("days_incl_weekends", { d: p.duration_days })}</p>
+                    <p className="mt-1 text-[11px] text-muted">{t("working_days_fmt", { d: p.duration_days })}</p>
                   </div>
                 </button>
               );

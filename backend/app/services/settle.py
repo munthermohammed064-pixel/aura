@@ -16,6 +16,7 @@ from app.models.finance import Investment, LedgerEntry, Withdrawal
 from app.models.platform import Notification
 from app.services import ledger
 from app.models.user import User
+from app.services.business_time import working_cutoff, utc
 from app.services.withdrawals import ALERT_AFTER, OPEN_STATUSES, timing
 
 _PRINCIPAL_NOTE = "Investment matured — principal returned"
@@ -87,17 +88,19 @@ def settle_matured(db: Session) -> int:
 def remind_pending_withdrawals(db: Session, now: datetime | None = None) -> None:
     """One alert per staff member/request at 48h, then one escalation at 72h.
 
-    Runs on weekends too. After downtime, only the current stage is sent.
+    Delivery pauses on weekends; the deadline clock also pauses. After downtime, only the current stage is sent.
     A unique key makes retries and concurrent workers safe.
     """
-    now = now or datetime.now(timezone.utc)
+    now = utc(now or datetime.now(timezone.utc))
+    if now.weekday() >= 5:
+        return
     admins = db.query(User).filter(
         User.role.in_(("admin", "owner")), User.is_active.is_(True), User.is_frozen.is_(False),
     ).all()
     if not admins:
         return
     requests = db.query(Withdrawal, User).outerjoin(User, Withdrawal.user_id == User.id).filter(
-        Withdrawal.status.in_(OPEN_STATUSES), Withdrawal.created_at <= now - ALERT_AFTER,
+        Withdrawal.status.in_(OPEN_STATUSES), Withdrawal.created_at <= working_cutoff(now, ALERT_AFTER),
     ).all()
     for w, user in requests:
         info = timing(w, now)

@@ -12,6 +12,7 @@ from app.database import get_db
 from app.models.finance import Investment, Package
 from app.models.user import User
 from app.schemas import InvestIn, InvestmentOut, PackageOut, ser_dt, ser_model
+from app.services.business_time import add_working_time
 from app.services import ledger
 from app.services.cache import get_or_set
 from app.services.referral import award_commission
@@ -42,9 +43,11 @@ def invest(request: Request, data: InvestIn, user: User = Depends(get_current_us
         raise HTTPException(404, "Package not found")
     if not (pkg.min_deposit <= data.amount <= pkg.max_deposit):
         raise HTTPException(400, f"Amount must be between {pkg.min_deposit} and {pkg.max_deposit}")
+    started_at = datetime.now(timezone.utc)
     inv = Investment(
         user_id=user.id, package_id=pkg.id, amount=data.amount,
-        ends_at=datetime.now(timezone.utc) + timedelta(days=pkg.duration_days),
+        started_at=started_at,
+        ends_at=add_working_time(started_at, timedelta(days=pkg.duration_days)),
     )
     db.add(inv)
     db.flush()
