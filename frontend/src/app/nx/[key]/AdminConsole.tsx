@@ -817,7 +817,7 @@ ${t("codes_valid_until")} ${published.expires_at ? formatDateTime(published.expi
                   <td className="py-2 font-mono text-xs text-accent">{u.serial || "—"}</td>
                   <td className="py-2">
                     <p className="text-sm">{u.full_name || "—"}</p>
-                    <p className="text-[10px] text-muted">{t("click_for_login")}</p>
+                    <p className="break-all text-[10px] text-muted">{u.email}</p>
                   </td>
                   <td className="py-2" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5">
@@ -844,6 +844,7 @@ ${t("codes_valid_until")} ${published.expires_at ? formatDateTime(published.expi
                     {u.default_withdraw_address ? (
                       <>
                         <p className="truncate font-mono text-[10px] text-muted">{u.default_withdraw_address}</p>
+                        <button type="button" onClick={() => copyText(u.default_withdraw_address!)} className="mt-1 text-[10px] text-accent underline">{t("copy")}</button>
                         {u.withdraw_qr_image && (
                           <a href={`${apiBase}${u.withdraw_qr_image}`} target="_blank" className="text-[10px] text-accent underline">QR</a>
                         )}

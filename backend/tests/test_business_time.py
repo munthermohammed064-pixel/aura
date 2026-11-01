@@ -6,6 +6,7 @@ import uuid
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from sqlalchemy import create_engine, text
+import sqlalchemy as sa
 
 from app.database import Base
 from app.models.finance import Investment, LedgerEntry, Package, Withdrawal
@@ -31,9 +32,8 @@ def test_friday_withdrawal_warning_and_deadline_pause_over_weekend():
 
 
 def test_ninety_working_days_and_weekend_activation():
-    # Monday + 18 working weeks = Monday at the same hour.
+    # Withdrawal working-hours arithmetic skips weekends.
     start = dt(26, 10)
-    assert add_working_time(start, timedelta(days=90)) == start + timedelta(days=126)
     assert add_working_time(dt(24, 10), timedelta(days=1)) == dt(27)
     assert add_working_time(dt(23, 10).replace(tzinfo=None), timedelta(hours=72)) == dt(28, 10)
 
@@ -107,7 +107,7 @@ def test_migration_preserves_returned_terms_and_uses_original_duration():
     engine.dispose()
 
 
-def test_invest_api_uses_working_term_and_preserves_principal(monkeypatch):
+def test_invest_api_uses_calendar_term_and_preserves_principal(monkeypatch):
     from fastapi.testclient import TestClient
     from sqlalchemy.pool import StaticPool
     from app.api import packages
@@ -142,8 +142,46 @@ def test_invest_api_uses_working_term_and_preserves_principal(monkeypatch):
             assert response.status_code == 201, response.text
             data = TestClient(app).get("/api/investments").json()[0]
             assert datetime.fromisoformat(data["started_at"]) == dt(23, 10)
-            assert datetime.fromisoformat(data["ends_at"]) == add_working_time(dt(23, 10), timedelta(days=90))
+            assert datetime.fromisoformat(data["ends_at"]) == dt(23, 10) + timedelta(days=90)
             assert float(user.wallet.available) == float(user.wallet.invested) == 50
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_calendar_migration_restores_only_untouched_dates():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        user = User(email="calendar@test.local", password_hash="x", referral_code="CALENDAR")
+        pkg = Package(name="N0", min_deposit=1, max_deposit=100, duration_days=90)
+        db.add_all([user, pkg]); db.flush()
+        dates = []
+        for changed in (False, True):
+            start = dt(23, 10)
+            original = start + timedelta(days=90)
+            extended = add_working_time(start, timedelta(days=90))
+            current = extended + timedelta(days=1) if changed else extended
+            inv = Investment(user_id=user.id, package_id=pkg.id, amount=10,
+                             status="active", started_at=start, ends_at=current)
+            db.add(inv); db.flush()
+            dates.append((inv.id.hex, original, extended, changed))
+        db.commit()
+    with engine.begin() as connection:
+        saved = sa.Table("investment_working_day_dates", sa.MetaData(),
+                         sa.Column("investment_id", sa.Uuid(), primary_key=True),
+                         sa.Column("old_ends_at", sa.DateTime(timezone=True)),
+                         sa.Column("new_ends_at", sa.DateTime(timezone=True)))
+        saved.create(connection)
+        for ident, original, extended, _ in dates:
+            connection.execute(saved.insert().values(investment_id=uuid.UUID(hex=ident), old_ends_at=original, new_ends_at=extended))
+        path = Path(__file__).parents[1] / "alembic/versions/j0k1l2m3n4_calendar_day_terms.py"
+        spec = importlib.util.spec_from_file_location("calendar_day_migration", path)
+        migration = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migration)
+        migration.op = Operations(MigrationContext.configure(connection))
+        migration.upgrade()
+        ends = dict(connection.execute(text("SELECT id, ends_at FROM investments")).all())
+        assert ends[dates[0][0]].startswith("2027-01-21")
+        assert ends[dates[1][0]].startswith("2027-02-27")
+    engine.dispose()

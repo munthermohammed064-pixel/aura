@@ -147,15 +147,12 @@ frontend/src/
   (initial revision `02fe6955ca16` covers the full schema).
 - Change `SECRET_KEY` and the seeded admin password in `.env`.
 
-### Working-day terms (local change; deployment requires migration)
+### Package and withdrawal schedules
 
-- Package durations count Monday–Friday only, in UTC. A configured 90-day
-  position lasts 90 working days; configured durations are not overwritten.
+- Package durations count every calendar day, including Saturday and Sunday.
+  A configured 90-day position lasts 90 calendar days.
 - Withdrawal clocks and countdowns pause Saturday/Sunday; deadline notifications
   are delivered on weekdays. Already-overdue requests remain visibly overdue.
-- Before restarting the upgraded backend, run `alembic upgrade head`. Migration
-  `i9j0k1l2m3n4` extends existing unreturned investment dates using each original
-  stored term, without using potentially edited package durations. Paid principal
-  and cancelled investments are left intact; original dates are saved for rollback.
-- Pause the backend/settlement worker while applying that migration to avoid
-  settlement racing with date correction. Back up the database first.
+- Migration `j0k1l2m3n4` restores dates saved before the previous weekend
+  extension only where they have not since been edited manually. Run
+  `alembic upgrade head` during deployment.

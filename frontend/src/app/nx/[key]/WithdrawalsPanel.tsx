@@ -215,8 +215,12 @@ export function WithdrawalsPanel({ view, onProcessed }: { view: WithdrawalView; 
                         {(soon || overdue) && <span className="mt-2 inline-block rounded-full border border-current px-2 py-0.5 text-[10px]">{t(overdue ? "wd_overdue" : "wd_due_soon")}</span>}
                       </td>
                       <td className="min-w-40 max-w-56 py-4 pe-4">
-                        <button onClick={() => copy(w.address)} title={t("copy")} className="break-all text-start font-mono text-[10px] leading-relaxed text-ink/80 hover:text-accent">{w.address}</button>
-                        {w.txid && <button onClick={() => copy(w.txid)} title={t("copy")} className="mt-2 block break-all text-start font-mono text-[10px] text-accent">{t("txid")}: {w.txid}</button>}
+                        <p className="break-all font-mono text-[10px] leading-relaxed text-ink/80">{w.address}</p>
+                        <button type="button" onClick={() => copy(w.address)} title={t("copy")} className="mt-1 text-[10px] text-accent underline">{t("copy")}</button>
+                        {w.txid && <div className="mt-2">
+                          <p className="break-all font-mono text-[10px] text-accent">{t("txid")}: {w.txid}</p>
+                          <button type="button" onClick={() => copy(w.txid!)} title={t("copy")} className="mt-1 text-[10px] text-accent underline">{t("copy")}</button>
+                        </div>}
                       </td>
                       <td className="py-4 pe-4">
                         <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] ${statusTone[w.status] ?? "border-border text-muted"}`}>{t(w.status)}</span>

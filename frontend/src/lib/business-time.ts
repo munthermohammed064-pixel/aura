@@ -1,4 +1,4 @@
-/** Working time is Monday–Friday, 24 hours per day, in platform UTC. */
+/** Working time is Monday–Friday, 24 hours per day, in platform UTC. Used for withdrawal deadlines. */
 export function workingMilliseconds(start: number, end: number): number {
   if (end < start) return -workingMilliseconds(end, start);
   let total = 0;
