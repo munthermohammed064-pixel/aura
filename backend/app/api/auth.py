@@ -22,7 +22,7 @@ from app.config import settings
 from app.core.deps import get_current_user, panel_key_ok
 from app.core.security import (
     create_access_token, create_refresh_token, decode_token,
-    hash_password, verify_password,
+    hash_password, verify_password, hash_refresh_token, verify_refresh_token,
 )
 from app.database import get_db
 from app.models.user import Session as UserSession
@@ -50,7 +50,7 @@ def _issue_tokens(db: Session, user: User, request: Request) -> TokenOut:
     db.add(session)
     db.flush()
     refresh = create_refresh_token(user.id, session.id)
-    session.refresh_token_hash = hash_password(refresh)
+    session.refresh_token_hash = hash_refresh_token(refresh)
     db.commit()
     return TokenOut(access_token=create_access_token(user.id, user.role, session.id), refresh_token=refresh)
 
@@ -127,7 +127,8 @@ def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
             raise HTTPException(429, "Too many failed attempts — try again in 15 minutes")
     # Always run bcrypt — without it, a valid email/login_id returns measurably
     # slower than an invalid one, which lets attackers enumerate accounts.
-    if not user or not verify_password(data.password, user.password_hash if user else _DUMMY_HASH):
+    password_valid = verify_password(data.password, user.password_hash if user else _DUMMY_HASH)
+    if not user or not password_valid:
         if user:
             # Progressive lockout: 5 bad passwords locks the account 15 min.
             # Per-IP limits alone can't stop a distributed guessing attack.
@@ -188,14 +189,14 @@ def refresh(data: RefreshIn, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(401, "Invalid refresh token")
     ua = request.headers.get("user-agent", "")[:255]
     ip = request.client.host if request.client else ""
-    if not session or not user or not user.is_active or user.is_frozen:
+    if not session or not user or session.user_id != user.id or not user.is_active or user.is_frozen:
         raise HTTPException(401, "Session revoked")
     if session.revoked:
         # Replaying an already-rotated token is the signature of theft: the
         # attacker used the stolen token first and the legit client's copy is
         # now dead. Nuke the whole family — the attacker's rotated session
         # dies too; the legit user just signs in again.
-        if verify_password(data.refresh_token, session.refresh_token_hash):
+        if verify_refresh_token(data.refresh_token, session.refresh_token_hash):
             db.query(UserSession).filter(UserSession.user_id == session.user_id).update({"revoked": True})
             from app.services.notify import notify_user
             notify_user(db, user.id, "security_alert", {})
@@ -205,9 +206,9 @@ def refresh(data: RefreshIn, request: Request, db: Session = Depends(get_db)):
     exp = session.expires_at
     if exp and exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
-    if exp and exp < datetime.now(timezone.utc):
+    if exp and exp <= datetime.now(timezone.utc):
         raise HTTPException(401, "Session revoked")
-    if not verify_password(data.refresh_token, session.refresh_token_hash):
+    if not verify_refresh_token(data.refresh_token, session.refresh_token_hash):
         raise HTTPException(401, "Invalid refresh token")
     # Session-theft guard: a stolen refresh token is useless from a different
     # browser fingerprint. IPs are not bound — the admin moves between

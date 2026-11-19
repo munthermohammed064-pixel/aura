@@ -1,5 +1,6 @@
 import secrets
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -32,6 +33,11 @@ def get_current_user(
     sess = db.get(UserSession, session_id)
     if not sess or sess.revoked or sess.user_id != user_id:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session revoked")
+    expires = sess.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if expires <= datetime.now(timezone.utc):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired")
     user = db.get(User, user_id)
     if not user or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User inactive or not found")
@@ -48,7 +54,8 @@ def panel_key_ok(request: Request) -> bool:
     X-Panel-Key header must equal ADMIN_PANEL_KEY. It never ships in the JS
     bundle — the /nx page reads it from the URL and echoes it per request."""
     key = request.headers.get("x-panel-key", "")
-    return bool(settings.ADMIN_PANEL_KEY) and secrets.compare_digest(key, settings.ADMIN_PANEL_KEY)
+    return bool(settings.ADMIN_PANEL_KEY) and secrets.compare_digest(
+        key.encode("utf-8"), settings.ADMIN_PANEL_KEY.encode("utf-8"))
 
 
 def get_admin(request: Request, user: User = Depends(get_current_user)) -> User:

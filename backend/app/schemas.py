@@ -34,6 +34,8 @@ class NxBase(BaseModel):
     """Every response schema inherits this — naive datetimes coming out of
     SQLite get their UTC marker so client-side Date parsing is exact."""
 
+    model_config = {"allow_inf_nan": False}
+
     @model_serializer(mode="wrap")
     def _serialize(self, nxt):
         def fix(v):
@@ -57,8 +59,8 @@ class RegisterIn(NxBase):
 
 
 class LoginIn(NxBase):
-    identifier: str = Field(min_length=1)  # user email OR admin login_id
-    password: str
+    identifier: str = Field(min_length=1, max_length=320)  # user email OR admin login_id
+    password: str = Field(max_length=1024)
 
 
 class TokenOut(NxBase):
@@ -69,7 +71,7 @@ class TokenOut(NxBase):
 
 
 class RefreshIn(NxBase):
-    refresh_token: str
+    refresh_token: str = Field(min_length=1, max_length=4096)
 
 
 class ForgotIn(NxBase):
@@ -77,12 +79,12 @@ class ForgotIn(NxBase):
 
 
 class ResetIn(NxBase):
-    token: str
+    token: str = Field(min_length=1, max_length=256)
     new_password: str = Field(min_length=12, max_length=72)
 
 
 class VerifyIn(NxBase):
-    token: str
+    token: str = Field(min_length=1, max_length=128)
 
 
 # ---- Users ----

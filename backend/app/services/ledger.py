@@ -46,7 +46,7 @@ def post(
     note: str = "",
 ) -> LedgerEntry:
     amount = Decimal(str(amount))
-    if amount <= 0:
+    if not amount.is_finite() or amount <= 0:
         raise LedgerError("Amount must be positive")
     if direction not in ("credit", "debit"):
         raise LedgerError("Invalid direction")

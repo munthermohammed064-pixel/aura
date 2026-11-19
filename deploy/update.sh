@@ -38,6 +38,12 @@ cp -r .next/static .next/standalone/.next/static
 cp -r public .next/standalone/public 2>/dev/null || true
 chown -R nexora:nexora .next/standalone
 
+# Keep runtime isolation in sync with the versioned service definitions.
+for service in nexora-backend nexora-frontend; do
+  sed "s|__APP_DIR__|$APP_ROOT|g" "$APP_ROOT/deploy/$service.service" > "/etc/systemd/system/$service.service"
+done
+chmod 600 "$APP_ROOT/backend/dev.db"
+systemctl daemon-reload
 systemctl restart nexora-backend nexora-frontend
 sleep 2
 systemctl is-active nexora-backend nexora-frontend caddy

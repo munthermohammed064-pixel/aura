@@ -119,7 +119,12 @@ async def notification_stream(ticket: str):
                 # Kill the stream the moment the session is revoked/frozen.
                 sess = db.get(UserSession, sid)
                 u = db.get(User, user_id)
-                if not sess or sess.revoked or not u or not u.is_active or u.is_frozen:
+                if not sess or sess.revoked or sess.user_id != user_id or not u or not u.is_active or u.is_frozen:
+                    return
+                expires = sess.expires_at
+                if expires.tzinfo is None:
+                    expires = expires.replace(tzinfo=timezone.utc)
+                if expires <= datetime.now(timezone.utc):
                     return
                 notifs = (db.query(Notification)
                           .filter(Notification.user_id == user_id)

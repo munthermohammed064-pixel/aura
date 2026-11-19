@@ -15,6 +15,14 @@ Restart=always
 RestartSec=3
 NoNewPrivileges=true
 PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=__APP_DIR__/backend
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+UMask=0077
 # App writes: uploads/, dev.db (+ sqlite journal) under backend/ — owned by nexora via install.sh
 
 [Install]
