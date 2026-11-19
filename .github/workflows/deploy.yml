@@ -15,8 +15,8 @@ jobs:
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/nx_deploy && chmod 600 ~/.ssh/nx_deploy
-          ssh-keyscan -H 187.124.9.200 >> ~/.ssh/known_hosts 2>/dev/null
-          ssh -i ~/.ssh/nx_deploy -o ConnectTimeout=20 root@187.124.9.200 '
+          ssh-keyscan -H 136.148.216.172 >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/nx_deploy -o ConnectTimeout=20 root@136.148.216.172 '
             set -e
             cd /opt/nexora
             git fetch origin main
