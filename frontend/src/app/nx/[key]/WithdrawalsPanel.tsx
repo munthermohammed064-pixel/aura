@@ -81,8 +81,13 @@ export function WithdrawalsPanel({ view, onProcessed }: { view: WithdrawalView; 
     };
     setData(null); setError("");
     load();
-    const poll = setInterval(load, 10000);
-    return () => { controller.abort(); clearInterval(poll); };
+    const refresh = () => { if (document.visibilityState === "visible") load(); };
+    const poll = setInterval(refresh, 10000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      controller.abort(); clearInterval(poll);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [user, filter, query, page, revision]);
 
   useEffect(() => {

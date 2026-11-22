@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        source: "/fonts/:file(.*\\.woff2)",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
         // The admin console is a hidden per-deployment path — keep it out of
         // every search index and tell clients not to cache it.
         source: "/nx/:path*",

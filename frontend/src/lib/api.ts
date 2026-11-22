@@ -41,7 +41,28 @@ function redirectToLogin() {
   }
 }
 
-export async function api<T = unknown>(
+// Share concurrent identical reads, never completed responses. Balances and
+// permissions are fetched afresh on the next visit; mutations are never shared.
+const pendingReads = new Map<string, Promise<unknown>>();
+
+export function api<T = unknown>(
+  path: string,
+  opts: RequestInit & { auth?: boolean; _retried?: boolean } = {},
+): Promise<T> {
+  const canShare = typeof window !== "undefined"
+    && (opts.method ?? "GET").toUpperCase() === "GET"
+    && Object.keys(opts).every((key) => ["auth", "_retried", "method"].includes(key));
+  if (!canShare) return requestApi<T>(path, opts);
+  const key = JSON.stringify([path, opts.auth === false ? null : getToken(),
+    panelKey(), opts.auth, opts._retried]);
+  const pending = pendingReads.get(key);
+  if (pending) return pending as Promise<T>;
+  const request = requestApi<T>(path, opts).finally(() => pendingReads.delete(key));
+  pendingReads.set(key, request);
+  return request;
+}
+
+async function requestApi<T = unknown>(
   path: string,
   opts: RequestInit & { auth?: boolean; _retried?: boolean } = {},
 ): Promise<T> {

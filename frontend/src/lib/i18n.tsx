@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useLayoutEffect, useState, ReactNode } from "react";
 import { withdrawalCopy } from "@/lib/withdrawal-copy";
+import { api } from "@/lib/api";
 
 export type Lang = "en" | "ar" | "es" | "fr" | "tr" | "ru" | "de";
 
@@ -809,8 +810,7 @@ export function LangProvider({ children }: { children: ReactNode }) {
     if (saved && LANGS.some((l) => l.code === saved)) { apply(saved); return; }
     apply("en");
     // No stored choice → follow the admin-set platform default.
-    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api"}/config`)
-      .then((r) => r.json())
+    api<{ default_lang: string }>("/config", { auth: false })
       .then((c) => {
         const d = c.default_lang as Lang;
         if (d && LANGS.some((l) => l.code === d) && !localStorage.getItem("lang")) apply(d);

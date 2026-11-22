@@ -174,12 +174,12 @@ export default function AdminConsole() {
         setDenied(true); setGate("login");
       }
     });
-    api<Pkg[]>("/admin/packages").then(setPackages).catch(() => {});
-    api<Row[]>("/admin/deposits").then((rows) =>
+    if (tab === "packages" || tab === "codes") api<Pkg[]>("/admin/packages").then(setPackages).catch(() => {});
+    if (tab === "deposits") api<Row[]>("/admin/deposits").then((rows) =>
       setDeposits(depFilter === "pending" ? rows.filter((r) => r.status === "pending") : rows)).catch(() => {});
-    api<UserRow[]>(`/admin/users${userQ ? `?q=${encodeURIComponent(userQ)}` : ""}`).then(setUsers).catch(() => {});
+    if (tab === "users") api<UserRow[]>(`/admin/users${userQ ? `?q=${encodeURIComponent(userQ)}` : ""}`).then(setUsers).catch(() => {});
     if (role === "owner") {
-      api<typeof settings>("/admin/settings").then((s) => {
+      if (["settings", "packages", "methods"].includes(tab)) api<typeof settings>("/admin/settings").then((s) => {
         setSettings(s);
         // Never clobber in-progress edits — the 10s poll used to erase what the
         // admin was typing into the JSON textareas.
@@ -187,14 +187,14 @@ export default function AdminConsole() {
           setSettingsJson(Object.fromEntries(Object.entries(s).map(([k, v]) => [k, JSON.stringify(v, null, 2)])));
         }
       }).catch(() => {});
-      api<typeof audit>("/admin/audit").then(setAudit).catch(() => {});
-      api<Method[]>("/admin/payment-methods").then(setMethods).catch(() => {});
-      api<OpRow[]>("/admin/operators").then(setOperators).catch(() => {});
+      if (tab === "audit") api<typeof audit>("/admin/audit").then(setAudit).catch(() => {});
+      if (tab === "methods") api<Method[]>("/admin/payment-methods").then(setMethods).catch(() => {});
+      if (tab === "operators") api<OpRow[]>("/admin/operators").then(setOperators).catch(() => {});
     }
-    api<Inv[]>("/admin/investments").then(setInvestments).catch(() => {});
-    api<AddrReq[]>("/admin/address-requests").then(setAddrReqs).catch(() => {});
-    api<TCode[]>("/admin/codes").then(setCodes).catch(() => {});
-    api<TicketRow[]>("/admin/tickets").then(setTickets).catch(() => {});
+    if (tab === "investments") api<Inv[]>("/admin/investments").then(setInvestments).catch(() => {});
+    if (tab === "address_requests") api<AddrReq[]>("/admin/address-requests").then(setAddrReqs).catch(() => {});
+    if (tab === "codes") api<TCode[]>("/admin/codes").then(setCodes).catch(() => {});
+    if (tab === "tickets") api<TicketRow[]>("/admin/tickets").then(setTickets).catch(() => {});
   };
 
   // The URL segment doubles as the API panel key — store it so api() can
@@ -234,12 +234,14 @@ export default function AdminConsole() {
     return () => window.removeEventListener("nx:withdrawal-alert", open);
   }, []);
 
-  useEffect(load, [depFilter, userQ, gate, role]);
+  useEffect(load, [depFilter, userQ, gate, role, tab]);
   useEffect(() => {
     if (gate !== "ok") return;
-    const id = setInterval(load, 10000);
-    return () => clearInterval(id);
-  }, [depFilter, userQ, gate, role]);
+    const refresh = () => { if (document.visibilityState === "visible") load(); };
+    const id = setInterval(refresh, 10000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", refresh); };
+  }, [depFilter, userQ, gate, role, tab, settingsDirty]);
 
   const adminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
